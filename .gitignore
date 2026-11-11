@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# Environment / secrets
+.env
+.env.local
+*.pem
+
+# Databases
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Model weights (downloaded at runtime)
+*.pt
+*.onnx
+*.pth
+
+# Runtime uploads (demo assets seed from demo_data/)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Frontend
+node_modules/
+dist/
+.vite/
+*.local
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Generated intermediates
+_assets_tmp/
+deliverables/_cover.jpg
+deliverables/_docx_cover.jpg
+deliverables/_*_preview*
