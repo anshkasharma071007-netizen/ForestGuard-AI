@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="860" viewBox="0 0 1600 860" role="img" aria-labelledby="title desc">
+  <title id="title">Explainable risk model</title>
+  <desc id="desc">Weighted evidence components, species multipliers, risk thresholds and alert threshold.</desc>
+  <defs>
+    <style>
+      .bg { fill: #F6F2E6; }
+      .panel { fill: #FFFDF7; stroke: #D8D1BE; stroke-width: 1.5; }
+      .title { font: 700 30px Georgia, serif; fill: #1F3B2C; }
+      .note { font: 12px 'Segoe UI', Arial, sans-serif; fill: #6E7A68; }
+      .h { font: 700 19px Georgia, serif; fill: #1F3B2C; }
+      .tag { font: 700 10.5px 'Segoe UI', Arial, sans-serif; fill: #8A9287; letter-spacing: 1.3px; }
+      .b { font: 12px 'Segoe UI', Arial, sans-serif; fill: #586357; }
+      .small { font: 10.5px 'Segoe UI', Arial, sans-serif; fill: #8A9287; }
+      .mono { font: 11.5px Consolas, monospace; fill: #33513B; }
+      .formula { font: 600 15px 'Segoe UI', Arial, sans-serif; fill: #1F3B2C; }
+      .chip { fill: #EEF3E8; stroke: #CBD6C4; }
+      .chip-text { font: 600 11px 'Segoe UI', Arial, sans-serif; fill: #35523D; }
+      .bar-bg { fill: #E9E4D6; }
+      .bar { fill: #2F7250; }
+      .callout { fill: #F3F7EF; stroke: #C4D3BC; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1600" height="860"/>
+  <text class="title" x="56" y="62">Explainable risk score — what raises attention, and why</text>
+  <text class="note" x="58" y="88">A configurable weighted-evidence model. It prioritises field verification; it does not predict animal movement or conflict.</text>
+
+  <!-- left -->
+  <rect class="panel" x="48" y="118" width="920" height="636" rx="16"/>
+  <text class="tag" x="76" y="150">SCORE COMPOSITION</text>
+  <rect class="callout" x="76" y="164" width="864" height="54" rx="10"/>
+  <text class="formula" x="94" y="197">score = 100 × species_weight × Σ (evidence_weightᵢ × evidenceᵢ)</text>
+
+  <!-- bars -->
+  <g>
+    <text class="b" x="76" y="256" font-weight="700" fill="#2E3B32">Proximity to village boundary</text>
+    <rect class="bar-bg" x="330" y="245" width="520" height="13" rx="6"/>
+    <rect class="bar" x="330" y="245" width="286" height="13" rx="6"/>
+    <text class="mono" x="864" y="256">0.55</text>
+    <text class="small" x="76" y="274">1 − distance / influence radius; 0 beyond 6 km. Boundary distance, not centroid.</text>
+
+    <text class="b" x="76" y="318" font-weight="700" fill="#2E3B32">Recency</text>
+    <rect class="bar-bg" x="330" y="307" width="520" height="13" rx="6"/>
+    <rect class="bar" x="330" y="307" width="78" height="13" rx="6"/>
+    <text class="mono" x="864" y="318">0.15</text>
+    <text class="small" x="76" y="336">Exponential decay with a 10-day half-life.</text>
+
+    <text class="b" x="76" y="380" font-weight="700" fill="#2E3B32">Same-species frequency</text>
+    <rect class="bar-bg" x="330" y="369" width="520" height="13" rx="6"/>
+    <rect class="bar" x="330" y="369" width="62" height="13" rx="6"/>
+    <text class="mono" x="864" y="380">0.12</text>
+    <text class="small" x="76" y="398">Detections within 5 km / 7 days, target 8 records for full evidence.</text>
+
+    <text class="b" x="76" y="442" font-weight="700" fill="#2E3B32">Verified incidents</text>
+    <rect class="bar-bg" x="330" y="431" width="520" height="13" rx="6"/>
+    <rect class="bar" x="330" y="431" width="52" height="13" rx="6"/>
+    <text class="mono" x="864" y="442">0.10</text>
+    <text class="small" x="76" y="460">Verified incidents within 5 km / 30 days, target 3.</text>
+
+    <text class="b" x="76" y="504" font-weight="700" fill="#2E3B32">Movement toward village</text>
+    <rect class="bar-bg" x="330" y="493" width="520" height="13" rx="6"/>
+    <rect class="bar" x="330" y="493" width="42" height="13" rx="6"/>
+    <text class="mono" x="864" y="504">0.08</text>
+    <text class="small" x="76" y="522">Only when a camera sequence supports the direction; otherwise zero.</text>
+  </g>
+
+  <line x1="76" y1="550" x2="940" y2="550" stroke="#E4DECD"/>
+  <text class="tag" x="76" y="580">SPECIES MULTIPLIER (CONFIGURABLE)</text>
+  <g>
+    <rect class="chip" x="76" y="594" width="128" height="30" rx="15"/>
+    <text class="chip-text" x="92" y="614">Tiger · 1.00</text>
+    <rect class="chip" x="216" y="594" width="128" height="30" rx="15"/>
+    <text class="chip-text" x="232" y="614">Elephant · 0.90</text>
+    <rect class="chip" x="356" y="594" width="136" height="30" rx="15"/>
+    <text class="chip-text" x="372" y="614">Leopard · 0.86</text>
+    <rect class="chip" x="504" y="594" width="146" height="30" rx="15"/>
+    <text class="chip-text" x="520" y="614">Sloth bear · 0.80</text>
+    <rect class="chip" x="662" y="594" width="136" height="30" rx="15"/>
+    <text class="chip-text" x="678" y="614">Wild boar · 0.52</text>
+    <rect class="chip" x="810" y="594" width="130" height="30" rx="15"/>
+    <text class="chip-text" x="826" y="614">Deer · 0.18</text>
+  </g>
+  <text class="small" x="76" y="648">Species weights reflect conflict potential in this demonstration landscape, not ecological importance.</text>
+  <text class="small" x="76" y="668">Admin changes re-score the entire dataset. Reset restores documented defaults.</text>
+
+  <rect class="callout" x="76" y="688" width="346" height="46" rx="9"/>
+  <text class="b" x="92" y="707" font-weight="700">Proximity basis</text>
+  <text class="small" x="92" y="724">Near a village boundary; does not imply approach.</text>
+  <rect class="callout" x="436" y="688" width="504" height="46" rx="9"/>
+  <text class="b" x="452" y="707" font-weight="700">Movement-supported basis</text>
+  <text class="small" x="452" y="724">A multi-camera sequence indicates direction toward a village — inferred, never GPS.</text>
+
+  <!-- right -->
+  <rect class="panel" x="996" y="118" width="556" height="330" rx="16"/>
+  <text class="tag" x="1024" y="150">THREE-LEVEL OUTPUT · DEFAULTS</text>
+  <g>
+    <rect x="1024" y="168" width="160" height="60" rx="8" fill="#E9F1E2" stroke="#C4D3BC"/>
+    <text x="1040" y="192" font-family="Segoe UI" font-size="12" fill="#35523D" font-weight="600">LOW</text>
+    <text x="1040" y="213" font-family="Consolas" font-size="14" fill="#2F7250">score &lt; 35</text>
+    <rect x="1224" y="168" width="160" height="60" rx="8" fill="#FBF3DE" stroke="#E7D7A9"/>
+    <text x="1240" y="192" font-family="Segoe UI" font-size="12" fill="#7B6420" font-weight="600">MODERATE</text>
+    <text x="1240" y="213" font-family="Consolas" font-size="14" fill="#9A7B1F">35 – 64.9</text>
+    <rect x="1424" y="168" width="100" height="60" rx="8" fill="#F9E9E2" stroke="#E5C4B3"/>
+    <text x="1440" y="192" font-family="Segoe UI" font-size="12" fill="#8B3524" font-weight="600">HIGH</text>
+    <text x="1440" y="213" font-family="Consolas" font-size="14" fill="#B83B2B">≥ 65</text>
+  </g>
+  <text class="b" x="1024" y="264">Alert creation requires a configurable threshold (default 60) and a detection</text>
+  <text class="b" x="1024" y="282">inside the alert radius (3.5 km). One alert per detection; duplicates suppressed.</text>
+  <text class="small" x="1024" y="310">Seeded 230 detections: 136 low · 84 moderate · 10 high with the default configuration.</text>
+  <text class="small" x="1024" y="328">High-risk cells are indicative 21-day grid aggregates, not habitat suitability models.</text>
+  <rect class="callout" x="1024" y="346" width="500" height="64" rx="9"/>
+  <text class="b" x="1040" y="368" font-weight="700">Configurable in Risk &amp; Alerts (admin)</text>
+  <text class="small" x="1040" y="386">alert threshold · alert radius · influence radius · weight vector · species weights ·</text>
+  <text class="small" x="1040" y="402">frequency/incident targets and radii · recency half-life · moderate/high thresholds</text>
+
+  <rect class="panel" x="996" y="466" width="556" height="312" rx="16"/>
+  <text class="tag" x="1024" y="498">READING A SCORE CORRECTLY</text>
+  <text class="h" x="1024" y="532" font-size="17">Evidence, not certainty</text>
+  <text class="b" x="1024" y="558">• A high score means “verify this soon”, not “conflict will occur”.</text>
+  <text class="b" x="1024" y="582">• Proximity and movement are shown separately, so a nearby sighting</text>
+  <text class="b" x="1024" y="600">  is not misread as an approach.</text>
+  <text class="b" x="1024" y="624">• Camera stations and species labels can be wrong; low-confidence</text>
+  <text class="b" x="1024" y="642">  crops are recorded as unidentified.</text>
+  <text class="b" x="1024" y="666">• Every alert payload carries components, reason, timestamp, basis,</text>
+  <text class="b" x="1024" y="684">  affected villages and a synthetic-data flag.</text>
+  <text class="b" x="1024" y="708">• Population and household figures illustrate exposure, not census truth.</text>
+  <rect x="1024" y="728" width="500" height="34" rx="8" fill="#FBF4E2" stroke="#EAD9B2"/>
+  <text class="small" x="1040" y="749" fill="#8A671E">Synthetic demonstration dataset · must not be cited as field evidence or model validation.</text>
+
+  <text class="small" x="56" y="800">Defaults live in geospatial/risk_analysis.py and demo_data/risk_config.json. Tested bounds: 0 ≤ moderate &lt; high ≤ 100 and alert threshold ≥ 0.</text>
+  <text class="small" x="56" y="822">Forest Guard AI · risk model v1.0 · generated 11 Nov 2026</text>
+</svg>

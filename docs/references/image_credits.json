@@ -1,0 +1,66 @@
+[
+  {
+    "key": "tiger",
+    "app_file": "frontend/public/images/tiger.jpg",
+    "title": "File:Bengal tiger (Panthera tigris tigris) female 3 crop.jpg",
+    "artist": "Charles J. Sharp",
+    "license": "CC BY-SA 4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Bengal_tiger_(Panthera_tigris_tigris)_female_3_crop.jpg"
+  },
+  {
+    "key": "leopard",
+    "app_file": "frontend/public/images/leopard.jpg",
+    "title": "File:Indian leopard in Jawai Bandh April 2025 by Tisha Mukherjee 02.jpg",
+    "artist": "Tisha Mukherjee",
+    "license": "CC BY-SA 4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Indian_leopard_in_Jawai_Bandh_April_2025_by_Tisha_Mukherjee_02.jpg"
+  },
+  {
+    "key": "elephant",
+    "app_file": "frontend/public/images/elephant.jpg",
+    "title": "File:Elephas maximus (Bandipur).jpg",
+    "artist": "Yathin S Krishnappa",
+    "license": "CC BY-SA 3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Elephas_maximus_(Bandipur).jpg"
+  },
+  {
+    "key": "deer",
+    "app_file": "frontend/public/images/deer.jpg",
+    "title": "File:004 Chital in Keoladeo National Park Photo by Giles Laurent.jpg",
+    "artist": "Giles Laurent",
+    "license": "CC BY-SA 4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:004_Chital_in_Keoladeo_National_Park_Photo_by_Giles_Laurent.jpg"
+  },
+  {
+    "key": "forest",
+    "app_file": "frontend/public/images/forest.jpg",
+    "title": "File:Pench jungle road by Ananth T.jpg",
+    "artist": "Anantht84",
+    "license": "CC BY-SA 4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Pench_jungle_road_by_Ananth_T.jpg"
+  },
+  {
+    "key": "boar",
+    "app_file": "frontend/public/images/boar.jpg",
+    "title": "File:Wild Boar Habbitat 3.jpg",
+    "artist": "Richard Bartz, Munich Makro Freak",
+    "license": "CC BY-SA 2.5",
+    "source": "https://commons.wikimedia.org/wiki/File:Wild_Boar_Habbitat_3.jpg"
+  },
+  {
+    "key": "camera_trap",
+    "app_file": "demo_data/detection_images (reference)",
+    "title": "File:Camera trap damaged by elephants in Pakke Tiger Reserve.JPG",
+    "artist": "Nandini Velho",
+    "license": "CC BY-SA 3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Camera_trap_damaged_by_elephants_in_Pakke_Tiger_Reserve.JPG"
+  },
+  {
+    "key": "bear",
+    "app_file": "frontend/public/images/bear.jpg",
+    "title": "File:Sri Lankan sloth bear (Melursus ursinus inornatus) male 1.jpg",
+    "artist": "Charles J. Sharp",
+    "license": "CC BY-SA 4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Sri_Lankan_sloth_bear_(Melursus_ursinus_inornatus)_male_1.jpg"
+  }
+]

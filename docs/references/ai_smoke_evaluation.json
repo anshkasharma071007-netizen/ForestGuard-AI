@@ -1,0 +1,191 @@
+{
+  "generated_at": "2026-11-11T02:14:52.819173Z",
+  "engine": {
+    "mode": "auto",
+    "loaded": true,
+    "device": "cpu",
+    "detector": "YOLO-World v2 (open-vocabulary animal localisation)",
+    "classifier": "CLIP ViT-B/32 zero-shot species classifier",
+    "supported_species": [
+      {
+        "key": "tiger",
+        "name": "Bengal tiger",
+        "scientific": "Panthera tigris tigris",
+        "risk_weight": 1.0
+      },
+      {
+        "key": "leopard",
+        "name": "Indian leopard",
+        "scientific": "Panthera pardus fusca",
+        "risk_weight": 0.86
+      },
+      {
+        "key": "elephant",
+        "name": "Asian elephant",
+        "scientific": "Elephas maximus",
+        "risk_weight": 0.9
+      },
+      {
+        "key": "sloth_bear",
+        "name": "Sloth bear",
+        "scientific": "Melursus ursinus",
+        "risk_weight": 0.8
+      },
+      {
+        "key": "wild_boar",
+        "name": "Wild boar",
+        "scientific": "Sus scrofa",
+        "risk_weight": 0.52
+      },
+      {
+        "key": "deer",
+        "name": "Chital (spotted deer)",
+        "scientific": "Axis axis",
+        "risk_weight": 0.18
+      }
+    ],
+    "confidence_note": "Species confidence is CLIP zero-shot probability. Low-confidence crops are labelled 'unidentified' rather than forced into a species.",
+    "loaded_in_seconds": 5.16
+  },
+  "image_source": "Wikimedia Commons, CC BY-SA licensed reference photographs shipped in demo_data/wildlife_images",
+  "method": "YOLO-World 'animal' localisation + CLIP zero-shot species classification, CPU, single image per class",
+  "sample_size": 6,
+  "top1_correct": 6,
+  "top1_accuracy": 1.0,
+  "elapsed_seconds": 1.8,
+  "images": [
+    {
+      "file": "bear.jpg",
+      "expected": "sloth_bear",
+      "predicted": "sloth_bear",
+      "predicted_name": "Sloth bear",
+      "confidence": 0.903,
+      "correct": true,
+      "detections": [
+        {
+          "species": "sloth_bear",
+          "confidence": 0.903,
+          "species_confidence": 0.992,
+          "detector_confidence": 0.7956,
+          "is_full_frame": false
+        }
+      ],
+      "image_size": [
+        1800,
+        1200
+      ],
+      "warnings": []
+    },
+    {
+      "file": "boar.jpg",
+      "expected": "wild_boar",
+      "predicted": "wild_boar",
+      "predicted_name": "Wild boar",
+      "confidence": 0.813,
+      "correct": true,
+      "detections": [
+        {
+          "species": "wild_boar",
+          "confidence": 0.813,
+          "species_confidence": 0.999,
+          "detector_confidence": 0.5863,
+          "is_full_frame": false
+        }
+      ],
+      "image_size": [
+        1800,
+        1163
+      ],
+      "warnings": []
+    },
+    {
+      "file": "deer.jpg",
+      "expected": "deer",
+      "predicted": "deer",
+      "predicted_name": "Chital (spotted deer)",
+      "confidence": 0.831,
+      "correct": true,
+      "detections": [
+        {
+          "species": "deer",
+          "confidence": 0.831,
+          "species_confidence": 0.999,
+          "detector_confidence": 0.6244,
+          "is_full_frame": false
+        }
+      ],
+      "image_size": [
+        1800,
+        1200
+      ],
+      "warnings": []
+    },
+    {
+      "file": "elephant.jpg",
+      "expected": "elephant",
+      "predicted": "elephant",
+      "predicted_name": "Asian elephant",
+      "confidence": 0.847,
+      "correct": true,
+      "detections": [
+        {
+          "species": "elephant",
+          "confidence": 0.847,
+          "species_confidence": 1.0,
+          "detector_confidence": 0.6611,
+          "is_full_frame": false
+        }
+      ],
+      "image_size": [
+        1800,
+        1200
+      ],
+      "warnings": []
+    },
+    {
+      "file": "leopard.jpg",
+      "expected": "leopard",
+      "predicted": "leopard",
+      "predicted_name": "Indian leopard",
+      "confidence": 0.753,
+      "correct": true,
+      "detections": [
+        {
+          "species": "leopard",
+          "confidence": 0.753,
+          "species_confidence": 0.999,
+          "detector_confidence": 0.4523,
+          "is_full_frame": false
+        }
+      ],
+      "image_size": [
+        1800,
+        1285
+      ],
+      "warnings": []
+    },
+    {
+      "file": "tiger.jpg",
+      "expected": "tiger",
+      "predicted": "tiger",
+      "predicted_name": "Bengal tiger",
+      "confidence": 0.714,
+      "correct": true,
+      "detections": [
+        {
+          "species": "tiger",
+          "confidence": 0.714,
+          "species_confidence": 0.965,
+          "detector_confidence": 0.4086,
+          "is_full_frame": false
+        }
+      ],
+      "image_size": [
+        1800,
+        1200
+      ],
+      "warnings": []
+    }
+  ],
+  "caveat": "This six-image smoke check uses promotional reference photographs, one per species. It is NOT a validation of field accuracy, does not cover camera-trap conditions, occlusion, night IR imagery or population-level variation, and must not be cited as model performance. A proper evaluation requires a licensed, labelled open dataset (e.g. a LILA BC camera-trap collection) and species-level train/test splits."
+}
