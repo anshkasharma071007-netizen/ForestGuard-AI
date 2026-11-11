@@ -1,0 +1,192 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Forest Guard AI system architecture</title>
+  <desc id="desc">React client, FastAPI API, domain services, AI engine, SQLite storage, and map tile providers.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#6E7A68"/>
+    </marker>
+    <style>
+      .bg { fill: #F6F2E6; }
+      .panel { fill: #FFFDF7; stroke: #D9D2BF; stroke-width: 1.5; }
+      .panel-head { font: 700 15px 'Segoe UI', Arial, sans-serif; fill: #1F3B2C; letter-spacing: 2px; }
+      .box { fill: #F1F4EA; stroke: #C9D4C1; stroke-width: 1.2; rx: 10; }
+      .box-alt { fill: #FBF1E7; stroke: #E2C8B6; }
+      .box-dark { fill: #1F3B2C; }
+      .label { font: 600 14px 'Segoe UI', Arial, sans-serif; fill: #2E3B32; }
+      .label-light { font: 600 14px 'Segoe UI', Arial, sans-serif; fill: #F5F7EE; }
+      .sub { font: 12px 'Segoe UI', Arial, sans-serif; fill: #6B7568; }
+      .sub-light { font: 12px 'Segoe UI', Arial, sans-serif; fill: #C8D6C4; }
+      .mono { font: 12px Consolas, monospace; fill: #5C6B5B; }
+      .arrow { stroke: #6E7A68; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #9EA897; stroke-width: 1.6; stroke-dasharray: 6 5; fill: none; marker-end: url(#arrow); }
+      .title { font: 700 30px Georgia, serif; fill: #1F3B2C; }
+      .tag { font: 700 11px 'Segoe UI', Arial, sans-serif; fill: #4E5C4F; letter-spacing: 1.4px; }
+      .note { font: 11.5px 'Segoe UI', Arial, sans-serif; fill: #7A8479; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1600" height="900"/>
+  <text class="title" x="56" y="64">Forest Guard AI — system architecture</text>
+  <text class="note" x="58" y="90">Single-node hackathon deployment. All observations are synthetic demo records; uploaded media is genuinely analysed by a local pipeline.</text>
+
+  <!-- CLIENT -->
+  <rect class="panel" x="48" y="122" width="356" height="612" rx="16"/>
+  <text class="panel-head" x="72" y="156">CLIENT · REACT SPA</text>
+  <text class="sub" x="72" y="178">Vite 6 · React 18 · Tailwind · Recharts</text>
+
+  <rect class="box" x="72" y="198" width="308" height="52" rx="9"/>
+  <text class="label" x="88" y="220">Operations console</text>
+  <text class="sub" x="88" y="238">Overview · Live Monitoring · Risk · Analytics</text>
+
+  <rect class="box" x="72" y="260" width="308" height="52" rx="9"/>
+  <text class="label" x="88" y="282">GIS Intelligence Map</text>
+  <text class="sub" x="88" y="300">Leaflet 1.9 · clusters · layers · filters</text>
+
+  <rect class="box" x="72" y="322" width="308" height="52" rx="9"/>
+  <text class="label" x="88" y="344">Wildlife &amp; Guard Panel</text>
+  <text class="sub" x="88" y="362">history · tracks · task lifecycle · audit</text>
+
+  <rect class="box" x="72" y="384" width="308" height="52" rx="9"/>
+  <text class="label" x="88" y="406">Community portal (public)</text>
+  <text class="sub" x="88" y="424">advisories · reports · status · guidance</text>
+
+  <rect class="box box-alt" x="72" y="452" width="308" height="70" rx="9"/>
+  <text class="label" x="88" y="474">Demo &amp; provenance badges</text>
+  <text class="sub" x="88" y="492">“synthetic”, “not a live feed”, confidence</text>
+  <text class="sub" x="88" y="508">and privacy notices are rendered inline</text>
+
+  <rect class="box" x="72" y="538" width="308" height="60" rx="9"/>
+  <text class="label" x="88" y="560">Axios API client</text>
+  <text class="sub" x="88" y="578">Bearer token · 120 s timeout · media URLs</text>
+
+  <rect class="box box-dark" x="72" y="620" width="308" height="88" rx="10"/>
+  <text class="label-light" x="88" y="644">Design system</text>
+  <text class="sub-light" x="88" y="664">Deep forest / charcoal / parchment,</text>
+  <text class="sub-light" x="88" y="680">Fraunces + Inter, OSM basemap</text>
+
+  <!-- API -->
+  <rect class="panel" x="448" y="122" width="352" height="612" rx="16"/>
+  <text class="panel-head" x="472" y="156">API · FASTAPI</text>
+  <text class="sub" x="472" y="178">Pydantic v2 · SQLAlchemy 2.0 · RBAC</text>
+
+  <rect class="box" x="472" y="198" width="304" height="64" rx="9"/>
+  <text class="label" x="488" y="220">/api/auth</text>
+  <text class="sub" x="488" y="238">PBKDF2 passwords · signed 12 h tokens</text>
+  <text class="mono" x="488" y="253">role: admin | guard</text>
+
+  <rect class="box" x="472" y="272" width="304" height="64" rx="9"/>
+  <text class="label" x="488" y="294">/api/core</text>
+  <text class="sub" x="488" y="312">overview · cameras · villages · detections</text>
+  <text class="sub" x="488" y="327">guards · tracks · map layers · upload · AI status</text>
+
+  <rect class="box" x="472" y="346" width="304" height="64" rx="9"/>
+  <text class="label" x="488" y="368">/api/risk</text>
+  <text class="sub" x="488" y="386">zones · config GET/PATCH/reset · analytics</text>
+  <text class="sub" x="488" y="401">CSV export (guard-readable)</text>
+
+  <rect class="box" x="472" y="420" width="304" height="64" rx="9"/>
+  <text class="label" x="488" y="442">/api/alerts</text>
+  <text class="sub" x="488" y="460">lifecycle actions · incidents · reports</text>
+  <text class="sub" x="488" y="475">append-only alert event audit trail</text>
+
+  <rect class="box" x="472" y="494" width="304" height="64" rx="9"/>
+  <text class="label" x="488" y="516">/api/guard</text>
+  <text class="sub" x="488" y="534">12 km zone brief · assigned tasks</text>
+  <text class="sub" x="488" y="549">admin dispatch or personal board</text>
+
+  <rect class="box" x="472" y="568" width="304" height="64" rx="9"/>
+  <text class="label" x="488" y="590">/api/community (public)</text>
+  <text class="sub" x="488" y="608">sanitised advisories · report intake</text>
+  <text class="sub" x="488" y="623">reference status · guidelines</text>
+
+  <rect class="box box-alt" x="472" y="642" width="304" height="66" rx="9"/>
+  <text class="label" x="488" y="664">/media static</text>
+  <text class="sub" x="488" y="682">original and annotated uploads,</text>
+  <text class="sub" x="488" y="697">served locally only</text>
+
+  <!-- SERVICES -->
+  <rect class="panel" x="844" y="122" width="332" height="612" rx="16"/>
+  <text class="panel-head" x="868" y="156">DOMAIN SERVICES</text>
+  <text class="sub" x="868" y="178">Pure-Python geospatial + rule engine</text>
+
+  <rect class="box" x="868" y="198" width="284" height="92" rx="9"/>
+  <text class="label" x="884" y="220">Risk service</text>
+  <text class="sub" x="884" y="238">Haversine distance to village boundary,</text>
+  <text class="sub" x="884" y="253">recency, frequency, verified incidents,</text>
+  <text class="sub" x="884" y="268">movement evidence · configurable weights</text>
+  <text class="mono" x="884" y="283">thresholds 35 / 65 · alert ≥ 60</text>
+
+  <rect class="box" x="868" y="300" width="284" height="76" rx="9"/>
+  <text class="label" x="884" y="322">Alert sync</text>
+  <text class="sub" x="884" y="340">deduplicates alerts per detection,</text>
+  <text class="sub" x="884" y="355">assigns nearest available guard</text>
+
+  <rect class="box" x="868" y="386" width="284" height="76" rx="9"/>
+  <text class="label" x="884" y="408">Tracking</text>
+  <text class="sub" x="884" y="426">associates sequential camera detections</text>
+  <text class="sub" x="884" y="441">≤ 24 h · ≤ 7 km · ≥ 3 points</text>
+
+  <rect class="box" x="868" y="472" width="284" height="76" rx="9"/>
+  <text class="label" x="884" y="494">Village exposure</text>
+  <text class="sub" x="884" y="512">gridded indicative zones, coarse</text>
+  <text class="sub" x="884" y="527">public labels (no coordinates)</text>
+
+  <rect class="box" x="868" y="558" width="284" height="76" rx="9"/>
+  <text class="label" x="884" y="580">Seed &amp; serializers</text>
+  <text class="sub" x="884" y="598">deterministic synthetic dataset,</text>
+  <text class="sub" x="884" y="613">role-aware payload shaping</text>
+
+  <rect class="box box-dark" x="868" y="648" width="284" height="60" rx="9"/>
+  <text class="label-light" x="884" y="670">Privacy boundary</text>
+  <text class="sub-light" x="884" y="688">public endpoints never expose exact</text>
+
+  <!-- AI -->
+  <rect class="panel" x="1208" y="122" width="344" height="268" rx="16"/>
+  <text class="panel-head" x="1232" y="156">AI ENGINE (LOCAL, CPU)</text>
+  <rect class="box box-alt" x="1232" y="178" width="296" height="88" rx="9"/>
+  <text class="label" x="1248" y="200">Stage 1 · YOLO-World v2</text>
+  <text class="sub" x="1248" y="218">open-vocabulary “animal” boxes</text>
+  <text class="mono" x="1248" y="236">conf ≥ 0.15 · min box area 0.8%</text>
+  <text class="sub" x="1248" y="253">weights: yolov8s-worldv2.pt</text>
+  <rect class="box box-alt" x="1232" y="276" width="296" height="88" rx="9"/>
+  <text class="label" x="1248" y="298">Stage 2 · CLIP ViT-B/32</text>
+  <text class="sub" x="1248" y="316">zero-shot species prompts + negatives</text>
+  <text class="mono" x="1248" y="334">species floor 0.45 → “unidentified”</text>
+  <text class="sub" x="1248" y="351">no fine-tuning, no individual IDs</text>
+  <text class="note" x="1232" y="382">Video: up to 5 sampled frames, not continuous tracking.</text>
+
+  <!-- DATA -->
+  <rect class="panel" x="1208" y="410" width="344" height="324" rx="16"/>
+  <text class="panel-head" x="1232" y="444">DATA &amp; CONFIG</text>
+  <rect class="box" x="1232" y="464" width="296" height="58" rx="9"/>
+  <text class="label" x="1248" y="486">SQLite (SQLAlchemy 2.0)</text>
+  <text class="sub" x="1248" y="504">WAL · foreign keys on · demo seed on boot</text>
+  <rect class="box" x="1232" y="532" width="296" height="58" rx="9"/>
+  <text class="label" x="1248" y="554">Media store</text>
+  <text class="sub" x="1248" y="572">backend/uploads/&#123;demo,uploads,annotated,community&#125;</text>
+  <rect class="box" x="1232" y="600" width="296" height="58" rx="9"/>
+  <text class="label" x="1248" y="622">GeoJSON &amp; configuration</text>
+  <text class="sub" x="1248" y="640">study area, villages, risk_config.json</text>
+  <rect class="box" x="1232" y="668" width="296" height="48" rx="9"/>
+  <text class="label" x="1248" y="690">Wikimedia reference imagery</text>
+  <text class="sub" x="1248" y="707">CC BY-SA — see docs/references</text>
+
+  <!-- external -->
+  <rect x="1208" y="752" width="344" height="42" rx="10" fill="none" stroke="#9EA897" stroke-width="1.4" stroke-dasharray="6 5"/>
+  <text class="note" x="1232" y="778">External: OpenStreetMap tiles (basemap only)</text>
+
+  <!-- arrows -->
+  <path class="arrow" d="M 380 250 L 448 250"/>
+  <path class="arrow" d="M 380 360 L 448 360"/>
+  <path class="arrow" d="M 380 570 L 448 570"/>
+  <path class="arrow" d="M 776 396 L 844 396"/>
+  <path class="arrow" d="M 776 512 L 844 512"/>
+  <path class="arrow" d="M 1152 396 L 1208 396"/>
+  <path class="arrow" d="M 1152 512 L 1208 512"/>
+  <path class="arrow" d="M 776 300 L 1232 300 L 1232 266" stroke-dasharray="5 5"/>
+  <path class="dash" d="M 72 790 L 380 790 L 380 708" />
+  <text class="note" x="620" y="814">HTTPS/JSON · bearer token · guards are authenticated; community reads and report intake are public and sanitised.</text>
+
+  <text class="tag" x="58" y="858">DEPLOYMENT</text>
+  <text class="note" x="152" y="858">Uvicorn serves the API and can also serve the built React bundle from frontend/dist. Vite is used for development only.</text>
+</svg>

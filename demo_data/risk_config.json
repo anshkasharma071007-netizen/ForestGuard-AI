@@ -1,0 +1,36 @@
+{
+  "influence_radius_km": 6.0,
+  "alert_radius_km": 3.5,
+  "alert_threshold": 60.0,
+  "thresholds": {
+    "moderate": 35.0,
+    "high": 65.0
+  },
+  "weights": {
+    "proximity": 0.55,
+    "recency": 0.15,
+    "frequency": 0.12,
+    "incident": 0.1,
+    "movement": 0.08
+  },
+  "species_weights": {
+    "tiger": 1.0,
+    "leopard": 0.86,
+    "elephant": 0.9,
+    "deer": 0.18,
+    "wild_boar": 0.52,
+    "sloth_bear": 0.8
+  },
+  "frequency_radius_km": 5.0,
+  "frequency_window_days": 7,
+  "frequency_target": 8,
+  "incident_radius_km": 5.0,
+  "incident_window_days": 30,
+  "incident_target": 3,
+  "recency_halflife_days": 10.0,
+  "zone_cell_deg": 0.0075,
+  "zone_window_days": 21,
+  "zone_detection_radius_km": 3.0,
+  "zone_min_score": 25.0,
+  "notes": "Edit via the Risk & Alerts page (admin) or this file. Scores are prioritisation aids, not predictions."
+}

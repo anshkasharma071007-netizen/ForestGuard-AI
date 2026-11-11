@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Forest Guard AI detection-to-response pipeline</title>
+  <desc id="desc">Media analysis, geolocation, explainable risk scoring, alert dispatch, community advisory and response tracking.</desc>
+  <defs>
+    <marker id="arrow2" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto">
+      <path d="M0 0 L11 5.5 L0 11 z" fill="#4D6B55"/>
+    </marker>
+    <style>
+      .bg { fill: #F6F2E6; }
+      .step { fill: #FFFDF7; stroke: #CFD8C8; stroke-width: 1.5; }
+      .step-dark { fill: #1F3B2C; }
+      .num { font: 700 12px 'Segoe UI', Arial, sans-serif; fill: #2F7250; letter-spacing: 1px; }
+      .num-light { font: 700 12px 'Segoe UI', Arial, sans-serif; fill: #B9E08A; letter-spacing: 1px; }
+      .h { font: 700 17px Georgia, serif; fill: #1F3B2C; }
+      .h-light { font: 700 17px Georgia, serif; fill: #F4F7EC; }
+      .b { font: 12.5px 'Segoe UI', Arial, sans-serif; fill: #5F695F; }
+      .b-light { font: 12.5px 'Segoe UI', Arial, sans-serif; fill: #D2DECC; }
+      .small { font: 11px 'Segoe UI', Arial, sans-serif; fill: #8A9287; }
+      .mono { font: 11.5px Consolas, monospace; fill: #3E5A44; }
+      .arrow { stroke: #4D6B55; stroke-width: 2.4; fill: none; marker-end: url(#arrow2); }
+      .branch { stroke: #9AA792; stroke-width: 1.8; stroke-dasharray: 6 5; fill: none; marker-end: url(#arrow2); }
+      .title { font: 700 30px Georgia, serif; fill: #1F3B2C; }
+      .note { font: 12px 'Segoe UI', Arial, sans-serif; fill: #6E7A68; }
+      .tag { font: 700 10.5px 'Segoe UI', Arial, sans-serif; letter-spacing: 1.2px; }
+      .chip { fill: #EEF3E8; stroke: #C9D4C1; }
+      .chip-text { font: 600 11px 'Segoe UI', Arial, sans-serif; fill: #35523D; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1600" height="900"/>
+  <text class="title" x="56" y="62">From frame to field response</text>
+  <text class="note" x="58" y="88">Detection → geolocation → risk → village identification → alert → guard task → response tracking. Scores are explainable prioritisation aids, not predictions.</text>
+
+  <!-- row 1: steps 1-4 -->
+  <rect class="step" x="52" y="130" width="330" height="240" rx="14"/>
+  <text class="num" x="76" y="164">STEP 1 · MEDIA</text>
+  <text class="h" x="76" y="194">Camera frame or upload</text>
+  <text class="b" x="76" y="220">JPEG/PNG/WebP or short MP4/MOV/WebM.</text>
+  <text class="b" x="76" y="240">Each demo record carries a station code,</text>
+  <text class="b" x="76" y="258">timestamp, zone and synthetic label.</text>
+  <rect class="chip" x="76" y="278" width="274" height="36" rx="8"/>
+  <text class="chip-text" x="90" y="301">No live feeds · no government system access</text>
+  <text class="small" x="76" y="336">Uploads are stored locally and analysed once.</text>
+  <text class="small" x="76" y="354">Videos: 5 sampled frames, not tracking.</text>
+
+  <path class="arrow" d="M 384 250 L 438 250"/>
+
+  <rect class="step" x="442" y="130" width="330" height="240" rx="14"/>
+  <text class="num" x="466" y="164">STEP 2 · AI INFERENCE</text>
+  <text class="h" x="466" y="194">Localise, then classify</text>
+  <text class="b" x="466" y="220">YOLO-World v2 proposes “animal” boxes.</text>
+  <text class="b" x="466" y="240">CLIP ViT-B/32 scores text prompts for six</text>
+  <text class="b" x="466" y="258">regional species plus negative prompts.</text>
+  <rect class="chip" x="466" y="278" width="274" height="36" rx="8"/>
+  <text class="chip-text" x="480" y="301">Below floor → “unidentified”, never forced</text>
+  <text class="small" x="466" y="336">Bounding box, detector and species score,</text>
+  <text class="small" x="466" y="354">annotated copy. CPU only; no cloud upload.</text>
+
+  <path class="arrow" d="M 774 250 L 828 250"/>
+
+  <rect class="step" x="832" y="130" width="330" height="240" rx="14"/>
+  <text class="num" x="856" y="164">STEP 3 · GEOLOCATION</text>
+  <text class="h" x="856" y="194">Attach place, not GPS</text>
+  <text class="b" x="856" y="220">A detection inherits the registered station</text>
+  <text class="b" x="856" y="240">position. Distance is planar Haversine to</text>
+  <text class="b" x="856" y="258">the nearest village boundary polygon.</text>
+  <rect class="chip" x="856" y="278" width="274" height="36" rx="8"/>
+  <text class="chip-text" x="870" y="301">No animal GPS collar data is used or implied</text>
+  <text class="small" x="856" y="336">This is camera-station geography.</text>
+  <text class="small" x="856" y="354">Positions are illustrative, Seoni landscape.</text>
+
+  <path class="arrow" d="M 1164 250 L 1218 250"/>
+
+  <rect class="step step-dark" x="1222" y="130" width="326" height="240" rx="14"/>
+  <text class="num-light" x="1246" y="164">STEP 4 · RISK</text>
+  <text class="h-light" x="1246" y="194">Explainable score</text>
+  <text class="b-light" x="1246" y="220">weights: proximity 55 · recency 15 ·</text>
+  <text class="b-light" x="1246" y="238">frequency 12 · incident 10 · movement 8</text>
+  <text class="b-light" x="1246" y="256">multiplied by species weight (0.18–1.0).</text>
+  <text class="mono" x="1246" y="284" fill="#B9E08A">low &lt; 35 ≤ moderate &lt; 65 ≤ high</text>
+  <text class="small" x="1246" y="318" fill="#AFC2A8">Movement point only when a camera sequence</text>
+  <text class="small" x="1246" y="336" fill="#AFC2A8">supports direction toward a village.</text>
+  <text class="small" x="1246" y="354" fill="#AFC2A8">Recentering thresholds are admin-configurable.</text>
+
+  <!-- row 2: steps 5-7 -->
+  <path class="arrow" d="M 1385 374 L 1385 428"/>
+
+  <rect class="step" x="1222" y="432" width="326" height="226" rx="14"/>
+  <text class="num" x="1246" y="466">STEP 5 · ALERT</text>
+  <text class="h" x="1246" y="496">Threshold + village ID</text>
+  <text class="b" x="1246" y="522">Score ≥ alert threshold creates one alert per</text>
+  <text class="b" x="1246" y="542">detection. Villages inside the alert radius are</text>
+  <text class="b" x="1246" y="562">recorded, and the nearest available guard is</text>
+  <text class="b" x="1246" y="582">assigned in the demo.</text>
+  <rect class="chip" x="1246" y="600" width="278" height="34" rx="8"/>
+  <text class="chip-text" x="1260" y="622">Notifications are simulated; no SMS is sent</text>
+  <text class="small" x="1246" y="648">Severity, reason, timestamp, basis and evidence.</text>
+
+  <path class="arrow" d="M 1218 544 L 1164 544"/>
+
+  <rect class="step" x="832" y="432" width="330" height="226" rx="14"/>
+  <text class="num" x="856" y="466">STEP 6 · TWO AUDIENCES</text>
+  <text class="h" x="856" y="496">Guard task vs public advisory</text>
+  <text class="b" x="856" y="522">Guard console: exact detection, camera,</text>
+  <text class="b" x="856" y="542">score basis, ack / respond / resolve, audit.</text>
+  <text class="b" x="856" y="562">Community: coarse area, affected villages,</text>
+  <text class="b" x="856" y="582">safety advice — no camera or coordinates.</text>
+  <rect class="chip" x="856" y="602" width="282" height="34" rx="8"/>
+  <text class="chip-text" x="870" y="624">Privacy boundary enforced server-side</text>
+
+  <path class="arrow" d="M 828 544 L 774 544"/>
+
+  <rect class="step" x="442" y="432" width="330" height="226" rx="14"/>
+  <text class="num" x="466" y="466">STEP 7 · RESPONSE</text>
+  <text class="h" x="466" y="496">Close the loop</text>
+  <text class="b" x="466" y="522">Acknowledge → assign → responding → resolve.</text>
+  <text class="b" x="466" y="542">Every action appends an audit event with actor</text>
+  <text class="b" x="466" y="562">and note. Response history feeds analytics.</text>
+  <text class="b" x="466" y="582">Community reports are reviewed separately.</text>
+  <rect class="chip" x="466" y="602" width="282" height="34" rx="8"/>
+  <text class="chip-text" x="480" y="624">Synthetic response times are labelled artifactual</text>
+
+  <path class="arrow" d="M 438 544 L 384 544"/>
+
+  <rect class="step" x="52" y="432" width="330" height="226" rx="14"/>
+  <text class="num" x="76" y="466">OUTPUT · DECISION SUPPORT</text>
+  <text class="h" x="76" y="496">What the user receives</text>
+  <text class="b" x="76" y="522">Map layers, alert queues, guard tasks, public</text>
+  <text class="b" x="76" y="542">guidance, audit history, CSV/JSON exports and</text>
+  <text class="b" x="76" y="562">a written snapshot — every screen labelled</text>
+  <text class="b" x="76" y="582">as demonstration data.</text>
+  <rect class="chip" x="76" y="602" width="282" height="34" rx="8"/>
+  <text class="chip-text" x="90" y="624">Human verification remains essential</text>
+
+  <!-- bottom inference note -->
+  <rect x="52" y="700" width="1496" height="126" rx="14" fill="#FBF4E2" stroke="#EAD9B2" stroke-width="1.5"/>
+  <text class="tag" x="76" y="730" fill="#8A671E">INTEGRITY NOTES</text>
+  <text class="b" x="76" y="758">• Camera feeds are not connected; site positions, statuses and seeded detections are synthetic and marked in the UI and API payloads.</text>
+  <text class="b" x="76" y="780">• Tracks are inferred from sequential camera observations (≤24 h, ≤7 km, ≥3 points, ≥2 cameras). They are not GPS telemetry or individual identification.</text>
+  <text class="b" x="76" y="802">• The six-image AI smoke check in docs/references is not an accuracy claim. Field validation requires a licensed open dataset and species-level splits.</text>
+  <text class="small" x="76" y="820">• No passwords, tokens or private datasets are stored in this repository. Demo credentials are intentionally public and must be changed for any real deployment.</text>
+
+  <text class="small" x="56" y="866">Forest Guard AI · data pipeline v1.0 · 11 Nov 2026</text>
+</svg>
