@@ -1,0 +1,479 @@
+{
+  "type": "FeatureCollection",
+  "name": "Forest Guard AI demo study area",
+  "metadata": {
+    "region": "Pench landscape, Madhya Pradesh, India",
+    "crs": "EPSG:4326",
+    "disclaimer": "Illustrative geometries generated for a hackathon demonstration. Not an official forest boundary, village boundary, or wildlife observation dataset.",
+    "attribution": "Forest Guard AI demo data \u00b7 basemap \u00a9 OpenStreetMap contributors"
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              79.226,
+              21.7
+            ],
+            [
+              79.238,
+              21.662
+            ],
+            [
+              79.282,
+              21.643
+            ],
+            [
+              79.341,
+              21.637
+            ],
+            [
+              79.402,
+              21.651
+            ],
+            [
+              79.447,
+              21.681
+            ],
+            [
+              79.467,
+              21.73
+            ],
+            [
+              79.458,
+              21.778
+            ],
+            [
+              79.43,
+              21.815
+            ],
+            [
+              79.378,
+              21.838
+            ],
+            [
+              79.315,
+              21.837
+            ],
+            [
+              79.265,
+              21.812
+            ],
+            [
+              79.232,
+              21.766
+            ],
+            [
+              79.226,
+              21.7
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "id": "landscape",
+        "layer": "landscape",
+        "name": "Pench landscape \u2014 demo study area",
+        "kind": "Illustrative landscape boundary",
+        "disclaimer": "Simplified demonstration geometry; not an official forest-department boundary."
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              79.283,
+              21.716
+            ],
+            [
+              79.341,
+              21.699
+            ],
+            [
+              79.402,
+              21.721
+            ],
+            [
+              79.424,
+              21.771
+            ],
+            [
+              79.389,
+              21.806
+            ],
+            [
+              79.324,
+              21.802
+            ],
+            [
+              79.28,
+              21.766
+            ],
+            [
+              79.283,
+              21.716
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "id": "core",
+        "layer": "core",
+        "name": "Core habitat (illustrative)",
+        "kind": "Illustrative core zone",
+        "disclaimer": "Generalised for demonstration only."
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              79.346474,
+              21.7065
+            ],
+            [
+              79.346212,
+              21.710209
+            ],
+            [
+              79.343454,
+              21.713527
+            ],
+            [
+              79.338844,
+              21.713969
+            ],
+            [
+              79.33463,
+              21.712258
+            ],
+            [
+              79.332975,
+              21.708416
+            ],
+            [
+              79.33194,
+              21.704301
+            ],
+            [
+              79.335014,
+              21.701154
+            ],
+            [
+              79.339106,
+              21.700724
+            ],
+            [
+              79.343069,
+              21.700257
+            ],
+            [
+              79.345204,
+              21.703393
+            ],
+            [
+              79.346474,
+              21.7065
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "id": "V-TUR",
+        "layer": "village",
+        "name": "Turia",
+        "population": 420,
+        "households": 96,
+        "lat": 21.7065,
+        "lon": 79.34,
+        "note": "Southern buffer village near the Turia gate; livestock rearing and tourism livelihoods.",
+        "disclaimer": "Approximate village location and generalised boundary for demonstration."
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              79.324155,
+              21.688
+            ],
+            [
+              79.321572,
+              21.691925
+            ],
+            [
+              79.319358,
+              21.696867
+            ],
+            [
+              79.313527,
+              21.697517
+            ],
+            [
+              79.309264,
+              21.694151
+            ],
+            [
+              79.305941,
+              21.690472
+            ],
+            [
+              79.307438,
+              21.685937
+            ],
+            [
+              79.309823,
+              21.682448
+            ],
+            [
+              79.313842,
+              21.680515
+            ],
+            [
+              79.318964,
+              21.679935
+            ],
+            [
+              79.321623,
+              21.684045
+            ],
+            [
+              79.324155,
+              21.688
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "id": "V-KOH",
+        "layer": "village",
+        "name": "Kohka",
+        "population": 680,
+        "households": 151,
+        "lat": 21.688,
+        "lon": 79.315,
+        "note": "Agriculture-dominated settlement along the south-western buffer.",
+        "disclaimer": "Approximate village location and generalised boundary for demonstration."
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              79.294853,
+              21.752
+            ],
+            [
+              79.29497,
+              21.755564
+            ],
+            [
+              79.291455,
+              21.756993
+            ],
+            [
+              79.287953,
+              21.75876
+            ],
+            [
+              79.284367,
+              21.756966
+            ],
+            [
+              79.282782,
+              21.753696
+            ],
+            [
+              79.282187,
+              21.750142
+            ],
+            [
+              79.284439,
+              21.747111
+            ],
+            [
+              79.288207,
+              21.746876
+            ],
+            [
+              79.291853,
+              21.746197
+            ],
+            [
+              79.294978,
+              21.748431
+            ],
+            [
+              79.294853,
+              21.752
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "id": "V-AWA",
+        "layer": "village",
+        "name": "Awarghani",
+        "population": 350,
+        "households": 82,
+        "lat": 21.752,
+        "lon": 79.289,
+        "note": "Western buffer hamlet with a seasonal stream and cattle paths into the forest.",
+        "disclaimer": "Approximate village location and generalised boundary for demonstration."
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              79.423925,
+              21.789
+            ],
+            [
+              79.42091,
+              21.793124
+            ],
+            [
+              79.417769,
+              21.796664
+            ],
+            [
+              79.412701,
+              21.797388
+            ],
+            [
+              79.409139,
+              21.79421
+            ],
+            [
+              79.407307,
+              21.790825
+            ],
+            [
+              79.405659,
+              21.786726
+            ],
+            [
+              79.409338,
+              21.784004
+            ],
+            [
+              79.412866,
+              21.781673
+            ],
+            [
+              79.418002,
+              21.780864
+            ],
+            [
+              79.422055,
+              21.784193
+            ],
+            [
+              79.423925,
+              21.789
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "id": "V-SIL",
+        "layer": "village",
+        "name": "Sillari",
+        "population": 540,
+        "households": 121,
+        "lat": 21.789,
+        "lon": 79.414,
+        "note": "Eastern settlement close to a known elephant movement corridor.",
+        "disclaimer": "Approximate village location and generalised boundary for demonstration."
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              79.391087,
+              21.672
+            ],
+            [
+              79.389054,
+              21.677407
+            ],
+            [
+              79.384257,
+              21.680663
+            ],
+            [
+              79.378806,
+              21.679719
+            ],
+            [
+              79.374256,
+              21.67816
+            ],
+            [
+              79.370232,
+              21.674666
+            ],
+            [
+              79.369903,
+              21.669245
+            ],
+            [
+              79.375013,
+              21.666651
+            ],
+            [
+              79.378838,
+              21.664487
+            ],
+            [
+              79.384507,
+              21.662829
+            ],
+            [
+              79.38672,
+              21.667986
+            ],
+            [
+              79.391087,
+              21.672
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "id": "V-PIP",
+        "layer": "village",
+        "name": "Piparia",
+        "population": 760,
+        "households": 168,
+        "lat": 21.672,
+        "lon": 79.38,
+        "note": "Southern agricultural village adjoining the landscape boundary.",
+        "disclaimer": "Approximate village location and generalised boundary for demonstration."
+      }
+    }
+  ]
+}
