@@ -29,6 +29,7 @@ and response workflow, a guard console and a public community portal.
 | Community portal | Built (public) | Sanitised advisories, sighting/conflict reports with optional image, reference-code status check, safety guidance |
 | Auth & RBAC | Built | PBKDF2 passwords, signed 12 h tokens, `admin` / `guard` roles; sensitive endpoints guard-only |
 | Analytics & reports | Built | Trends, species mix, village exposure, response metrics, CSV export |
+| Bilingual UI | Built | English / हिन्दी switcher on every page, saved preference, Devanagari typography, API-provided content translated in the client |
 | Tests | Built | 28 pytest tests covering auth, seeding, risk, alerts, tracking, privacy and RBAC |
 
 Everything button, filter, form and chart on the eight dashboard pages is wired to the API —
@@ -92,7 +93,9 @@ npm run dev                        # http://127.0.0.1:5173
 | Admin | `admin@forestguard.ai` | `forest123` |
 | Guard | `guard@forestguard.ai` | `guard123` |
 
-The community portal is public at `/community` and needs no login.
+The community portal is public at `/community` and needs no login. The **EN / हिं** control
+in the header (and on the login screen) switches the whole interface to Hindi; the choice is
+remembered in the browser.
 
 ### Model weights
 

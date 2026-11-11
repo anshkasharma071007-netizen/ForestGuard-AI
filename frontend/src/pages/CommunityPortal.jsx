@@ -21,6 +21,7 @@ import {
   X,
 } from 'lucide-react'
 import api, { errorMessage } from '../api/client'
+import LanguageSwitcher from '../components/LanguageSwitcher'
 import { useApi } from '../hooks/useApi'
 import { Badge, DemoNotice, ErrorBox, Loading, Logo, SectionTitle, StatusBadge } from '../components/ui'
 import { formatDateTime, timeAgo, titleCase } from '../utils/format'
@@ -156,7 +157,8 @@ export default function CommunityPortal() {
             ))}
           </nav>
           <div className="flex items-center gap-2">
-            <span className="hidden rounded-full border border-[#ddd6c6] bg-[#f6f2e4] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[#877a5b] sm:block">
+            <LanguageSwitcher className="hidden sm:inline-flex" />
+            <span className="hidden rounded-full border border-[#ddd6c6] bg-[#f6f2e4] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[#877a5b] xl:block">
               Public portal
             </span>
             <Link to="/login" className="btn-outline !px-3 !py-2 !text-[11px]">
@@ -714,6 +716,7 @@ export default function CommunityPortal() {
       <footer className="border-t border-[#e2ddce] bg-[#f6f2e6]">
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-6 text-[10px] text-[#8f938a] sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div>
+            <LanguageSwitcher className="mb-2 inline-flex sm:hidden" />
             <div className="font-semibold text-[#5f695f]">Forest Guard AI · Community portal</div>
             <div className="mt-0.5">Protecting Forests. Preventing Conflict. Saving Lives.</div>
           </div>

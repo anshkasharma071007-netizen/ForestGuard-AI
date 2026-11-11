@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import LanguageSwitcher from './LanguageSwitcher'
 import { Logo } from './ui'
 
 const SECTIONS = [
@@ -217,6 +218,7 @@ export default function Layout({ children }) {
               </div>
             </div>
             <div className="flex items-center gap-2.5">
+              <LanguageSwitcher />
               <div className="hidden items-center gap-2 rounded-full border border-[#ddd6c6] bg-parchment/70 px-3 py-1.5 md:flex">
                 <span className="h-1.5 w-1.5 rounded-full bg-amber" />
                 <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#7c7461]">

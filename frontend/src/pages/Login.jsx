@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, KeyRound, Loader2, LockKeyhole, ShieldCheck, Mail } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import LanguageSwitcher from '../components/LanguageSwitcher'
 import { Logo } from '../components/ui'
 import { errorMessage } from '../api/client'
 
@@ -92,8 +93,11 @@ export default function Login() {
 
       <div className="flex w-full flex-col justify-center px-5 py-10 sm:px-10 lg:w-[44%] lg:px-14 xl:px-20">
         <div className="mx-auto w-full max-w-[400px]">
-          <div className="mb-8 lg:hidden">
-            <Logo />
+          <div className="mb-8 flex items-center justify-between gap-3">
+            <div className="lg:hidden">
+              <Logo />
+            </div>
+            <LanguageSwitcher className="ml-auto" />
           </div>
           <div className="eyebrow">Authorised access</div>
           <h2 className="mt-2 font-display text-[32px] leading-tight tracking-[-0.02em] text-ink">

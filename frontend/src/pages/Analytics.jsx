@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import api, { errorMessage } from '../api/client'
 import { useApi } from '../hooks/useApi'
+import { useLanguage } from '../i18n'
 import { ActivityArea, BasisBars, CategoryBars, HourBars, RiskDonut, SpeciesBars } from '../components/charts'
 import {
   Badge,
@@ -36,6 +37,7 @@ const WINDOWS = [
 ]
 
 export default function Analytics() {
+  const { lang } = useLanguage()
   const [days, setDays] = useState(30)
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState(null)
@@ -438,12 +440,25 @@ export default function Analytics() {
                     <BarChart3 className="h-3.5 w-3.5" /> Summary
                   </div>
                   <p className="mt-2 text-[11.5px] leading-relaxed text-[#5f695f]">
-                    In the {data.window_days}-day demonstration window, {totals.detections} wildlife detections were
-                    recorded across {data.species.length} validated species. {totals.high_risk} records were classified
-                    high risk and {totals.alerts} alerts were generated, of which {totals.open_alerts} remain open.{' '}
-                    {totals.tracked_sequences} camera-sequence tracks were inferred. The busiest zone was{' '}
-                    <span className="font-semibold text-ink">{data.zones[0]?.name || 'unavailable'}</span> with{' '}
-                    {data.zones[0]?.count ?? 0} records.
+                    {lang === 'hi' ? (
+                      <>
+                        {data.window_days} दिनों की प्रदर्शन विंडो में {totals.detections} वन्यजीव डिटेक्शन दर्ज हुए और{' '}
+                        {data.species.length} सत्यापित प्रजातियाँ पाई गईं। {totals.high_risk} रिकॉर्ड उच्च जोखिम
+                        वर्गीकृत हुए और {totals.alerts} अलर्ट बने, जिनमें से {totals.open_alerts} अभी खुले हैं।{' '}
+                        {totals.tracked_sequences} कैमरा-क्रम ट्रैक अनुमानित किए गए। सबसे व्यस्त क्षेत्र{' '}
+                        <span className="font-semibold text-ink">{data.zones[0]?.name || 'उपलब्ध नहीं'}</span> रहा,
+                        जहाँ {data.zones[0]?.count ?? 0} रिकॉर्ड दर्ज हुए।
+                      </>
+                    ) : (
+                      <>
+                        In the {data.window_days}-day demonstration window, {totals.detections} wildlife detections were
+                        recorded across {data.species.length} validated species. {totals.high_risk} records were classified
+                        high risk and {totals.alerts} alerts were generated, of which {totals.open_alerts} remain open.{' '}
+                        {totals.tracked_sequences} camera-sequence tracks were inferred. The busiest zone was{' '}
+                        <span className="font-semibold text-ink">{data.zones[0]?.name || 'unavailable'}</span> with{' '}
+                        {data.zones[0]?.count ?? 0} records.
+                      </>
+                    )}
                   </p>
                   <p className="mt-2 text-[9.5px] leading-relaxed text-[#8b9188]">
                     Generated {formatDateTime(data.generated_at)} from the Forest Guard AI demo database. All records
