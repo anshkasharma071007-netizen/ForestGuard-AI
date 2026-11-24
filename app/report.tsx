@@ -42,6 +42,13 @@ export default function ReportScreen() {
   async function captureLocation() {
     setLocating(true);
     setLocationMessage('Finding your location…');
+    if (Platform.OS === 'web') {
+      setLocationMessage('GPS capture is available on Android and iOS. Select your village below.');
+      setLocating(false);
+      return;
+    }
+
+    let hasLocation = Boolean(coordinates);
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== 'granted') {
@@ -55,11 +62,18 @@ export default function ReportScreen() {
         return;
       }
 
-      const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const lastKnown = await Location.getLastKnownPositionAsync();
+      if (lastKnown) {
+        hasLocation = true;
+        setCoordinates({ lat: lastKnown.coords.latitude, lon: lastKnown.coords.longitude });
+        setLocationMessage('Using your last known location while refreshing GPS…');
+      }
+
+      const current = await getCurrentPositionWithTimeout();
       setCoordinates({ lat: current.coords.latitude, lon: current.coords.longitude });
       setLocationMessage('Location captured automatically');
     } catch {
-      setLocationMessage('Unable to capture location. Select your village below.');
+      setLocationMessage(hasLocation ? 'Using your last known location. Select a village to change it.' : 'Unable to capture location. Select your village below.');
     } finally {
       setLocating(false);
     }
@@ -67,6 +81,10 @@ export default function ReportScreen() {
 
   async function choosePhoto(source: 'camera' | 'gallery') {
     setPhotoError('');
+    if (source === 'camera' && Platform.OS === 'web') {
+      setPhotoError('Camera capture is unavailable in browser preview. Use the photo library instead.');
+      return;
+    }
     try {
       const result = source === 'camera' ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (result.status !== 'granted') {
@@ -80,6 +98,18 @@ export default function ReportScreen() {
       if (!pickerResult.canceled) setPhoto(pickerResult.assets[0]);
     } catch {
       setPhotoError('The photo could not be selected. Please try again.');
+    }
+  }
+
+  async function getCurrentPositionWithTimeout() {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error('Location timed out')), 12000);
+    });
+    try {
+      return await Promise.race([Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }), timeout]);
+    } finally {
+      if (timer) clearTimeout(timer);
     }
   }
 
@@ -104,7 +134,7 @@ export default function ReportScreen() {
         formData.append('lon', String(coordinates.lon));
       }
       if (photo) {
-        formData.append('image', { uri: photo.uri, name: photo.fileName ?? 'wildlife-report.jpg', type: photo.mimeType ?? 'image/jpeg' } as unknown as Blob);
+        await appendPhoto(formData, photo);
       }
       const response = await submitCommunityReport(formData);
       await saveStoredReport({ referenceCode: response.reference_code, status: response.status, submittedAt: new Date().toISOString() });
@@ -119,6 +149,18 @@ export default function ReportScreen() {
   if (submitted) return <Confirmation response={submitted} />;
 
   return <><Stack.Screen options={{ presentation: 'modal', headerShown: false }} /><KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}><Pressable onPress={() => router.back()} style={styles.back}><ArrowLeft size={20} color={colors.primaryText} /><Text style={[styles.backText, { color: colors.primaryText }]}>Back</Text></Pressable><Text style={[styles.heading, { color: colors.primaryText }]}>Report a sighting</Text><Text style={[styles.intro, { color: colors.secondaryText }]}>Share what you noticed so forest officials can review it.</Text><View style={[styles.reminder, { backgroundColor: colors.warningTint }]}><Text style={[styles.reminderText, { color: colors.secondaryText }]}>Safety reminder: never approach wildlife to capture a photograph. Keep a safe distance.</Text></View><FieldLabel label="INCIDENT CATEGORY" colors={colors} /><View style={styles.optionRow}>{[['sighting', 'Animal sighting'], ['conflict', 'Human-wildlife conflict']].map(([value, label]) => <Pressable key={value} onPress={() => setCategory(value as Category)} style={[styles.choice, { borderColor: colors.border, backgroundColor: category === value ? colors.successTint : colors.card }]}><Text style={[styles.choiceText, { color: category === value ? colors.primaryText : colors.secondaryText }]}>{label}</Text></Pressable>)}</View><FieldLabel label="ANIMAL SPECIES" colors={colors} /><SelectField label={species} open={showSpecies} onPress={() => setShowSpecies(!showSpecies)} colors={colors} />{showSpecies && <OptionList options={demoSpecies} selected={species} onSelect={(value) => { setSpecies(value); setShowSpecies(false); }} colors={colors} />}<FieldLabel label="PHOTO (OPTIONAL)" colors={colors} />{photo ? <View style={[styles.previewCard, { backgroundColor: colors.card, borderColor: colors.border }]}><Image source={{ uri: photo.uri }} style={styles.preview} /><View style={styles.previewActions}><Pressable onPress={() => choosePhoto('gallery')} style={styles.smallAction}><RefreshCw size={16} color={colors.moss} /><Text style={[styles.smallActionText, { color: colors.secondaryText }]}>Replace</Text></Pressable><Pressable onPress={() => setPhoto(null)} style={styles.smallAction}><X size={17} color={colors.clay} /><Text style={[styles.smallActionText, { color: colors.secondaryText }]}>Remove</Text></Pressable></View></View> : <View style={[styles.photoBox, { backgroundColor: colors.card, borderColor: colors.border }]}><ImageIcon size={23} color={colors.moss} /><View style={styles.photoCopy}><Text style={[styles.photoTitle, { color: colors.primaryText }]}>Add a photo if safe</Text><Text style={[styles.photoDetail, { color: colors.mutedText }]}>Use your camera or choose an existing image.</Text></View><Pressable onPress={() => choosePhoto('camera')} style={[styles.photoButton, { backgroundColor: colors.successTint }]}><Camera size={18} color={colors.moss} /></Pressable><Pressable onPress={() => choosePhoto('gallery')} style={[styles.photoButton, { backgroundColor: colors.successTint }]}><ImageIcon size={18} color={colors.moss} /></Pressable></View>}{photoError ? <Text style={[styles.errorText, { color: colors.clay }]}>{photoError}</Text> : null}<FieldLabel label="LOCATION" colors={colors} /><View style={[styles.locationCard, { backgroundColor: colors.card, borderColor: colors.border }]}><MapPin size={20} color={coordinates ? colors.moss : colors.amber} /><View style={styles.locationCopy}><Text style={[styles.locationStatus, { color: colors.primaryText }]}>{locationMessage}</Text>{coordinates && <Text style={[styles.coordinates, { color: colors.mutedText }]}>{coordinates.lat.toFixed(5)}, {coordinates.lon.toFixed(5)}</Text>}</View>{locating ? <ActivityIndicator color={colors.moss} /> : <Pressable onPress={captureLocation} accessibilityLabel="Refresh location"><RefreshCw size={18} color={colors.moss} /></Pressable>}</View><Text style={[styles.orText, { color: colors.mutedText }]}>Or choose your village</Text><SelectField label={selectedVillageName} open={showVillages} onPress={() => setShowVillages(!showVillages)} colors={colors} />{showVillages && <OptionList options={demoVillages.map((village) => village.name)} selected={selectedVillageName} onSelect={(value) => { setSelectedVillage(demoVillages.find((village) => village.name === value)?.code ?? demoVillages[0].code); setShowVillages(false); }} colors={colors} />}<FieldLabel label="YOUR NAME" colors={colors} /><TextInput value={reporterName} onChangeText={setReporterName} placeholder="Enter your name" placeholderTextColor={colors.mutedText} style={[styles.input, { backgroundColor: colors.input, borderColor: colors.border, color: colors.primaryText }]} /><FieldLabel label="CONTACT (OPTIONAL)" colors={colors} /><TextInput value={contact} onChangeText={setContact} placeholder="Phone or email" placeholderTextColor={colors.mutedText} keyboardType="phone-pad" style={[styles.input, { backgroundColor: colors.input, borderColor: colors.border, color: colors.primaryText }]} /><FieldLabel label="WHAT DID YOU NOTICE?" colors={colors} /><TextInput value={description} onChangeText={setDescription} placeholder="Describe what you saw…" placeholderTextColor={colors.mutedText} multiline textAlignVertical="top" style={[styles.textarea, { backgroundColor: colors.input, borderColor: colors.border, color: colors.primaryText }]} /><Text style={[styles.counter, { color: description.trim().length < 12 ? colors.mutedText : colors.moss }]}>{description.trim().length}/12 minimum characters</Text>{error ? <Text style={[styles.errorText, { color: colors.clay }]}>{error}</Text> : null}<PrimaryButton label={submitting ? 'Submitting report…' : 'Submit report'} onPress={submitReport} />{submitting && <ActivityIndicator color={colors.moss} style={styles.loader} />}<Text style={[styles.modeText, { color: colors.mutedText }]}>{isApiConfigured ? 'Connected to Forest Guard reporting' : 'Demonstration mode · reports are not sent'}</Text></ScrollView></KeyboardAvoidingView></>;
+}
+
+async function appendPhoto(formData: FormData, photo: PhotoAsset) {
+  const name = photo.fileName ?? 'wildlife-report.jpg';
+  const type = photo.mimeType ?? 'image/jpeg';
+  if (Platform.OS === 'web') {
+    const response = await fetch(photo.uri);
+    if (!response.ok) throw new Error('The selected photo could not be prepared for upload.');
+    formData.append('image', await response.blob(), name);
+    return;
+  }
+  formData.append('image', { uri: photo.uri, name, type } as unknown as Blob);
 }
 
 function FieldLabel({ label, colors }: { label: string; colors: { mutedText: string } }) { return <Text style={[styles.fieldLabel, { color: colors.mutedText }]}>{label}</Text>; }

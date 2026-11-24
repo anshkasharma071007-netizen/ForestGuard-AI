@@ -7,10 +7,42 @@
     "icon": "./assets/images/icon.png",
     "scheme": "forestguardai",
     "userInterfaceStyle": "automatic",
-    "ios": { "supportsTablet": true },
-    "android": { "adaptiveIcon": { "foregroundImage": "./assets/images/icon.png", "backgroundColor": "#0C2418" } },
-    "web": { "bundler": "metro", "output": "single", "favicon": "./assets/images/favicon.png" },
-    "plugins": ["expo-router", "expo-font", "expo-splash-screen", "expo-status-bar"],
-    "experiments": { "typedRoutes": true }
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#0C2418"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-splash-screen",
+      "expo-status-bar",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Forest Guard AI to use your location to attach the nearest coordinates to a wildlife report."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Forest Guard AI to attach a photo to a wildlife report.",
+          "cameraPermission": "Allow Forest Guard AI to take a photo for a wildlife report."
+        }
+      ],
+      "expo-web-browser"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
   }
 }
