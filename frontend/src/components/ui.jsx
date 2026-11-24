@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { AlertTriangle, Info, Loader2, ShieldAlert, X } from 'lucide-react'
-import { RISK_COLOR, RISK_SOFT, statusTone, titleCase } from '../utils/format'
+import { RISK_COLOR, statusTone, titleCase } from '../utils/format'
 
 export function Logo({ compact = false, light = false }) {
   return (
@@ -19,14 +19,14 @@ export function Logo({ compact = false, light = false }) {
         <div className="leading-tight">
           <div
             className={`font-display text-[19px] font-semibold tracking-tight ${
-              light ? 'text-parchment' : 'text-ink'
+              light ? 'text-brand-light' : 'text-ink'
             }`}
           >
             Forest Guard <span className="text-moss">AI</span>
           </div>
           <div
             className={`mt-0.5 text-[9px] font-medium uppercase tracking-[0.2em] ${
-              light ? 'text-forest-200/80' : 'text-[#85907f]'
+              light ? 'text-forest-200/80' : 'text-muted-7'
             }`}
           >
             Conservation intelligence
@@ -38,11 +38,11 @@ export function Logo({ compact = false, light = false }) {
 }
 
 const TONES = {
-  success: 'border-[#bcd6c2] bg-[#e7f2e9] text-[#245c3b]',
-  warning: 'border-[#e8cf9a] bg-[#f8edcf] text-[#82601c]',
-  danger: 'border-[#e6b9ac] bg-[#f7e3dd] text-[#8b3524]',
-  neutral: 'border-[#ddd8ca] bg-[#f1eee5] text-[#596257]',
-  forest: 'border-[#bcd6c2] bg-[#e7f2e9] text-[#245c3b]',
+  success: 'border-success-line-1 bg-success-surface-2 text-success-1',
+  warning: 'border-warning-line-1 bg-warning-surface-1 text-warning-3',
+  danger: 'border-danger-line-1 bg-danger-surface-1 text-danger-2',
+  neutral: 'border-control-line-6 bg-inset-8 text-secondary-7',
+  forest: 'border-success-line-1 bg-success-surface-2 text-success-1',
   dark: 'border-forest-700 bg-forest-800 text-forest-100',
 }
 
@@ -79,7 +79,7 @@ export function StatusBadge({ status }) {
 export function SpeciesTag({ species, name, color, className = '' }) {
   return (
     <span
-      className={`inline-flex items-center gap-2 rounded-full border border-[#e2ddcf] bg-white/80 px-2.5 py-1 text-[11px] font-semibold text-[#374038] ${className}`}
+      className={`inline-flex items-center gap-2 rounded-full border border-line-6 bg-raised/80 px-2.5 py-1 text-[11px] font-semibold text-secondary-1 ${className}`}
     >
       <span className="h-2 w-2 rounded-full" style={{ background: color || '#64748B' }} />
       {name || titleCase(species)}
@@ -93,7 +93,7 @@ export function PageHeader({ eyebrow, title, description, actions, children }) {
       <div>
         {eyebrow && <div className="eyebrow mb-2">{eyebrow}</div>}
         <h1 className="font-display text-[30px] leading-[1.1] tracking-[-0.02em] text-ink">{title}</h1>
-        {description && <p className="mt-2 max-w-2xl text-[13.5px] leading-relaxed text-[#677166]">{description}</p>}
+        {description && <p className="mt-2 max-w-2xl text-[13.5px] leading-relaxed text-secondary-11">{description}</p>}
         {children}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -106,7 +106,7 @@ export function SectionTitle({ title, subtitle, action, className = '' }) {
     <div className={`flex items-end justify-between gap-4 ${className}`}>
       <div>
         <h2 className="font-display text-[19px] font-semibold tracking-tight text-ink">{title}</h2>
-        {subtitle && <p className="mt-0.5 text-[12px] text-[#7a8379]">{subtitle}</p>}
+        {subtitle && <p className="mt-0.5 text-[12px] text-muted-2">{subtitle}</p>}
       </div>
       {action}
     </div>
@@ -115,16 +115,16 @@ export function SectionTitle({ title, subtitle, action, className = '' }) {
 
 export function StatCard({ label, value, hint, icon: Icon, tone = 'forest', mono = false, className = '' }) {
   const iconTone = {
-    forest: 'bg-forest-50 text-forest-600',
-    lime: 'bg-[#eef7db] text-[#4d6a22]',
-    clay: 'bg-[#f7e8e2] text-clay',
-    amber: 'bg-[#f8eed4] text-[#9a6c19]',
-    slate: 'bg-[#eef0ef] text-[#4f5c55]',
+    forest: 'bg-success-surface-5 text-success-7',
+    lime: 'bg-success-surface-4 text-success-3',
+    clay: 'bg-danger-surface-2 text-danger-5',
+    amber: 'bg-warning-surface-2 text-warning-5',
+    slate: 'bg-inset-6 text-secondary-6',
   }[tone]
   return (
     <div className={`card relative overflow-hidden p-5 ${className}`}>
       <div className="flex items-start justify-between">
-        <div className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-[#7b817a]">{label}</div>
+        <div className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted-3">{label}</div>
         {Icon && (
           <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${iconTone}`}>
             <Icon className="h-[17px] w-[17px]" strokeWidth={1.8} />
@@ -138,7 +138,7 @@ export function StatCard({ label, value, hint, icon: Icon, tone = 'forest', mono
       >
         {value}
       </div>
-      {hint && <div className="mt-2 text-[11.5px] leading-snug text-[#7c857b]">{hint}</div>}
+      {hint && <div className="mt-2 text-[11.5px] leading-snug text-muted-4">{hint}</div>}
     </div>
   )
 }
@@ -146,7 +146,7 @@ export function StatCard({ label, value, hint, icon: Icon, tone = 'forest', mono
 export function DemoNotice({ compact = false, children }) {
   return (
     <div
-      className={`flex items-start gap-2.5 rounded-xl border border-[#d9d2be] bg-[#f6f2e4] text-[#6d634b] ${
+      className={`flex items-start gap-2.5 rounded-xl border border-control-line-2 bg-inset-10 text-warning-1 ${
         compact ? 'px-3 py-2 text-[10.5px]' : 'px-3.5 py-2.5 text-[11.5px]'
       }`}
     >
@@ -166,9 +166,9 @@ export function DemoNotice({ compact = false, children }) {
 
 export function Loading({ label = 'Loading intelligence…', height = 'h-64' }) {
   return (
-    <div className={`flex ${height} flex-col items-center justify-center gap-3 rounded-2xl border border-[#e4dfd1] bg-parchment`}>
-      <Loader2 className="h-5 w-5 animate-spin text-forest-500" />
-      <div className="text-[12px] font-medium text-[#7b817a]">{label}</div>
+    <div className={`flex ${height} flex-col items-center justify-center gap-3 rounded-2xl border border-line-7 bg-parchment`}>
+      <Loader2 className="h-5 w-5 animate-spin text-success-5" />
+      <div className="text-[12px] font-medium text-muted-3">{label}</div>
     </div>
   )
 }
@@ -185,11 +185,11 @@ export function SkeletonRows({ rows = 5 }) {
 
 export function ErrorBox({ message, onRetry }) {
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-[#e6b9ac] bg-[#fbf0ec] p-4">
-      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-clay" />
+    <div className="flex items-start gap-3 rounded-2xl border border-danger-line-1 bg-danger-surface-3 p-4">
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-danger-5" />
       <div className="flex-1">
-        <div className="text-[12.5px] font-semibold text-[#7c2d12]">Could not load this view</div>
-        <div className="mt-0.5 text-[11.5px] leading-relaxed text-[#8b5a47]">{message}</div>
+        <div className="text-[12.5px] font-semibold text-danger-1">Could not load this view</div>
+        <div className="mt-0.5 text-[11.5px] leading-relaxed text-danger-3">{message}</div>
       </div>
       {onRetry && (
         <button type="button" className="btn-outline !px-3 !py-1.5 !text-[11px]" onClick={onRetry}>
@@ -202,12 +202,12 @@ export function ErrorBox({ message, onRetry }) {
 
 export function EmptyState({ icon: Icon = ShieldAlert, title, description, action }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#d8d2c2] bg-parchment/60 px-6 py-12 text-center">
-      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-forest-50 text-forest-500">
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-control-line-1 bg-parchment/60 px-6 py-12 text-center">
+      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-success-surface-5 text-success-5">
         <Icon className="h-5 w-5" />
       </div>
       <div className="mt-3 font-display text-[17px] text-ink">{title}</div>
-      {description && <div className="mt-1 max-w-md text-[12px] leading-relaxed text-[#7b817a]">{description}</div>}
+      {description && <div className="mt-1 max-w-md text-[12px] leading-relaxed text-muted-3">{description}</div>}
       {action && <div className="mt-4">{action}</div>}
     </div>
   )
@@ -230,23 +230,23 @@ export function Modal({ open, onClose, title, subtitle, children, footer, width 
   return (
     <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-forest-950/55 backdrop-blur-sm" onClick={onClose} />
-      <div className={`fade-in relative max-h-[90vh] w-full ${width} overflow-hidden rounded-2xl border border-[#e4dfd1] bg-parchment shadow-lift`}>
-        <div className="flex items-start justify-between gap-4 border-b border-[#e8e3d6] px-5 py-4">
+      <div className={`fade-in relative max-h-[90vh] w-full ${width} overflow-hidden rounded-2xl border border-line-7 bg-parchment shadow-lift`}>
+        <div className="flex items-start justify-between gap-4 border-b border-line-10 px-5 py-4">
           <div>
             <div className="font-display text-[20px] leading-tight text-ink">{title}</div>
-            {subtitle && <div className="mt-0.5 text-[11.5px] text-[#7b817a]">{subtitle}</div>}
+            {subtitle && <div className="mt-0.5 text-[11.5px] text-muted-3">{subtitle}</div>}
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-[#7b817a] transition hover:bg-[#efece2] hover:text-ink"
+            className="rounded-lg p-1.5 text-muted-3 transition hover:bg-hover-1 hover:text-ink"
             aria-label="Close"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
         <div className="max-h-[calc(90vh-8rem)] overflow-y-auto px-5 py-4">{children}</div>
-        {footer && <div className="flex justify-end gap-2 border-t border-[#e8e3d6] bg-[#f7f4ea] px-5 py-3">{footer}</div>}
+        {footer && <div className="flex justify-end gap-2 border-t border-line-10 bg-inset-13 px-5 py-3">{footer}</div>}
       </div>
     </div>
   )
@@ -257,24 +257,29 @@ export function MetricBar({ label, value, max = 100, color = '#2F7250', suffix =
   return (
     <div>
       <div className="mb-1 flex items-center justify-between text-[11px]">
-        <span className="font-medium text-[#4b574e]">{label}</span>
-        <span className="font-mono text-[10.5px] text-[#7b817a]">
+        <span className="font-medium text-secondary-4">{label}</span>
+        <span className="font-mono text-[10.5px] text-muted-3">
           {value}
           {suffix}
         </span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-[#e9e5d8]">
+      <div className="h-1.5 overflow-hidden rounded-full bg-line-3">
         <div className="h-full rounded-full transition-all" style={{ width: `${width}%`, background: color }} />
       </div>
     </div>
   )
 }
 
+const SOFT_RISK_TONES = {
+  low: 'bg-soft-risk-low text-soft-risk-low-ink',
+  moderate: 'bg-soft-risk-moderate text-soft-risk-moderate-ink',
+  high: 'bg-soft-risk-high text-soft-risk-high-ink',
+}
+
 export function SoftRisk({ level }) {
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10.5px] font-semibold"
-      style={{ background: RISK_SOFT[level] || RISK_SOFT.low, color: RISK_COLOR[level] || RISK_COLOR.low }}
+      className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10.5px] font-semibold ${SOFT_RISK_TONES[level] || SOFT_RISK_TONES.low}`}
     >
       <span className="h-1.5 w-1.5 rounded-full bg-current" />
       {titleCase(level)}

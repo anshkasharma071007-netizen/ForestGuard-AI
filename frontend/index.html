@@ -8,6 +8,22 @@
       name="description"
       content="Forest Guard AI — AI-assisted wildlife monitoring, geospatial risk mapping and human–wildlife conflict prevention."
     />
+    <script>
+      try {
+        if (localStorage.getItem('fga.theme') === 'dark') {
+          document.documentElement.dataset.theme = 'dark'
+        }
+      } catch {
+        // Storage may be unavailable. Use the default light theme.
+      }
+    </script>
+    <style>
+      :root[data-theme='dark'] {
+        color-scheme: dark;
+        --theme-canvas: #171f1b;
+        background: var(--theme-canvas);
+      }
+    </style>
     <title>Forest Guard AI</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

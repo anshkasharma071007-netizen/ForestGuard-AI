@@ -22,8 +22,9 @@ import {
 } from 'lucide-react'
 import api, { errorMessage } from '../api/client'
 import LanguageSwitcher from '../components/LanguageSwitcher'
+import ThemeToggle from '../components/ThemeToggle'
 import { useApi } from '../hooks/useApi'
-import { Badge, DemoNotice, ErrorBox, Loading, Logo, SectionTitle, StatusBadge } from '../components/ui'
+import { Badge, ErrorBox, Loading, Logo, SectionTitle, StatusBadge } from '../components/ui'
 import { formatDateTime, timeAgo, titleCase } from '../utils/format'
 
 const NAV = [
@@ -144,21 +145,22 @@ export default function CommunityPortal() {
 
   return (
     <div className="min-h-screen bg-sand">
-      <header className="sticky top-0 z-40 border-b border-[#e2ddce]/80 bg-parchment/90 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-line-5/80 bg-parchment/90 backdrop-blur-xl">
         <div className="mx-auto flex h-[66px] max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
           <Link to="/community" aria-label="Forest Guard AI community portal">
             <Logo />
           </Link>
           <nav className="hidden items-center gap-5 lg:flex">
             {NAV.map(([id, label]) => (
-              <a key={id} href={`#${id}`} className="text-[11.5px] font-medium text-[#5f695f] transition hover:text-forest-700">
+              <a key={id} href={`#${id}`} className="text-[11.5px] font-medium text-secondary-8 transition hover:text-success-8">
                 {label}
               </a>
             ))}
           </nav>
           <div className="flex items-center gap-2">
             <LanguageSwitcher className="hidden sm:inline-flex" />
-            <span className="hidden rounded-full border border-[#ddd6c6] bg-[#f6f2e4] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[#877a5b] xl:block">
+            <ThemeToggle />
+            <span className="hidden rounded-full border border-control-line-4 bg-inset-10 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-warning-4 xl:block">
               Public portal
             </span>
             <Link to="/login" className="btn-outline !px-3 !py-2 !text-[11px]">
@@ -178,7 +180,7 @@ export default function CommunityPortal() {
               <div className="flex items-center gap-2 text-[9.5px] font-semibold uppercase tracking-[0.22em] text-lime">
                 <span className="h-1.5 w-1.5 rounded-full bg-lime" /> Village safety · buffer landscape
               </div>
-              <h1 className="mt-3 font-display text-[34px] leading-[1.06] tracking-[-0.02em] text-parchment sm:text-[44px]">
+              <h1 className="mt-3 font-display text-[34px] leading-[1.06] tracking-[-0.02em] text-brand-light sm:text-[44px]">
                 Stay informed. Stay safe. Coexist with wildlife.
               </h1>
               <p className="mt-3 max-w-xl text-[13px] leading-relaxed text-forest-100/70">
@@ -201,19 +203,13 @@ export default function CommunityPortal() {
                 ['Villages covered', summary.data?.villages_covered ?? '—'],
               ].map(([label, value]) => (
                 <div key={label}>
-                  <div className="font-display text-[26px] leading-none text-parchment">{value}</div>
+                  <div className="font-display text-[26px] leading-none text-brand-light">{value}</div>
                   <div className="mt-1.5 text-[8.5px] uppercase tracking-[0.12em] text-forest-200/60">{label}</div>
                 </div>
               ))}
             </div>
           </div>
         </section>
-
-        <DemoNotice>
-          <strong className="font-semibold">Demonstration portal.</strong> Advisories are generated from a synthetic
-          demonstration dataset. For a real emergency call 112; for wildlife assistance contact your range office or
-          the national forest helpline.
-        </DemoNotice>
 
         <section id="advisories" className="scroll-mt-24">
           <SectionTitle
@@ -232,8 +228,8 @@ export default function CommunityPortal() {
                     onClick={() => setSeverity(value)}
                     className={`rounded-full border px-3 py-1 text-[10px] font-semibold transition ${
                       severity === value
-                        ? 'border-forest-600 bg-forest-50 text-forest-700'
-                        : 'border-[#e0dacb] bg-white text-[#7d867c] hover:border-[#c9d6c3]'
+                        ? 'border-forest-600 bg-success-surface-5 text-success-8'
+                        : 'border-control-line-8 bg-raised text-muted-5 hover:border-success-line-5'
                     }`}
                   >
                     {label}
@@ -267,7 +263,7 @@ export default function CommunityPortal() {
                         </Badge>
                         <StatusBadge status={advisory.status} />
                       </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-[#92988f]">
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-muted-13">
                         <span className="inline-flex items-center gap-1">
                           <MapPin className="h-2.5 w-2.5" /> {advisory.area_label}
                         </span>
@@ -276,24 +272,24 @@ export default function CommunityPortal() {
                         <span>·</span>
                         <span>{timeAgo(advisory.created_at)}</span>
                       </div>
-                      <p className="mt-2 text-[11.5px] leading-relaxed text-[#5f695f]">{advisory.summary}</p>
-                      <div className="mt-2 flex items-start gap-1.5 rounded-lg bg-[#f6f2e4] px-2.5 py-2 text-[10px] leading-relaxed text-[#7a6c50]">
+                      <p className="mt-2 text-[11.5px] leading-relaxed text-secondary-8">{advisory.summary}</p>
+                      <div className="mt-2 flex items-start gap-1.5 rounded-lg bg-inset-10 px-2.5 py-2 text-[10px] leading-relaxed text-warning-2">
                         <ShieldCheck className="mt-0.5 h-3 w-3 shrink-0" />
                         {advisory.advice}
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between border-t border-[#ece7da] bg-[#faf8f1] px-4 py-2 text-[9px] text-[#92988f]">
+                  <div className="flex items-center justify-between border-t border-line-13 bg-inset-16 px-4 py-2 text-[9px] text-muted-13">
                     <span>Precise locations withheld</span>
                     <span>{advisory.is_simulated ? 'Synthetic advisory' : 'Field advisory'}</span>
                   </div>
                 </article>
               ))}
               {!filteredAdvisories.length && (
-                <div className="col-span-full rounded-2xl border border-dashed border-[#d8d2c2] bg-parchment/60 px-6 py-12 text-center">
-                  <ShieldCheck className="mx-auto h-6 w-6 text-forest-500" />
+                <div className="col-span-full rounded-2xl border border-dashed border-control-line-1 bg-parchment/60 px-6 py-12 text-center">
+                  <ShieldCheck className="mx-auto h-6 w-6 text-success-5" />
                   <div className="mt-2 font-display text-[17px] text-ink">No advisories in this filter</div>
-                  <p className="mt-1 text-[11.5px] text-[#7b817a]">
+                  <p className="mt-1 text-[11.5px] text-muted-3">
                     There are no open {severity === 'all' ? '' : severity} advisories within the 21-day window.
                   </p>
                 </div>
@@ -301,7 +297,7 @@ export default function CommunityPortal() {
             </div>
           )}
 
-          <div className="mt-3 flex items-start gap-2 rounded-xl border border-[#e4dfd1] bg-[#f8f5ec] px-3.5 py-2.5 text-[10px] leading-relaxed text-[#7d867c]">
+          <div className="mt-3 flex items-start gap-2 rounded-xl border border-line-7 bg-inset-14 px-3.5 py-2.5 text-[10px] leading-relaxed text-muted-5">
             <EyeOff className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             Advisories describe a coarse buffer area and the villages likely to be affected. They deliberately omit
             camera positions, detection coordinates, patrol routes and individual animal identities.
@@ -316,26 +312,26 @@ export default function CommunityPortal() {
               action={<Badge tone="forest">public form</Badge>}
             />
             {receipt ? (
-              <div className="mt-4 rounded-2xl border border-[#bcd6c2] bg-[#eef6ef] p-5">
-                <div className="flex items-center gap-2 text-[#245c3b]">
+              <div className="mt-4 rounded-2xl border border-success-line-1 bg-success-surface-3 p-5">
+                <div className="flex items-center gap-2 text-success-1">
                   <CheckCircle2 className="h-4 w-4" />
                   <span className="text-[13px] font-semibold">Report received</span>
                 </div>
-                <div className="mt-2 text-[11.5px] leading-relaxed text-[#3f6b51]">{receipt.message}</div>
+                <div className="mt-2 text-[11.5px] leading-relaxed text-success-2">{receipt.message}</div>
                 <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <div className="rounded-lg border border-[#bcd6c2] bg-white px-3 py-2">
-                    <div className="text-[8px] uppercase tracking-[0.14em] text-[#7b817a]">Reference code</div>
-                    <div className="mt-0.5 font-mono text-[16px] font-bold text-[#245c3b]">{receipt.reference_code}</div>
+                  <div className="rounded-lg border border-success-line-1 bg-raised px-3 py-2">
+                    <div className="text-[8px] uppercase tracking-[0.14em] text-muted-3">Reference code</div>
+                    <div className="mt-0.5 font-mono text-[16px] font-bold text-success-1">{receipt.reference_code}</div>
                   </div>
                   <button type="button" className="btn-outline !py-2" onClick={copyReference}>
                     {copied ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                     {copied ? 'Copied' : 'Copy code'}
                   </button>
                 </div>
-                <div className="mt-2 text-[9.5px] text-[#5f7d69]">{receipt.contact_note}</div>
+                <div className="mt-2 text-[9.5px] text-success-4">{receipt.contact_note}</div>
                 <button
                   type="button"
-                  className="mt-3 text-[10.5px] font-semibold text-forest-700 hover:underline"
+                  className="mt-3 text-[10.5px] font-semibold text-success-8 hover:underline"
                   onClick={() => setReceipt(null)}
                 >
                   Submit another report
@@ -356,12 +352,12 @@ export default function CommunityPortal() {
                         onClick={() => update('category', value)}
                         className={`rounded-xl border px-3 py-2.5 text-left transition ${
                           form.category === value
-                            ? 'border-forest-500 bg-forest-50'
-                            : 'border-[#e0dacb] bg-white/70 hover:border-[#c9d6c3]'
+                            ? 'border-forest-500 bg-success-surface-5'
+                            : 'border-control-line-8 bg-raised/70 hover:border-success-line-5'
                         }`}
                       >
                         <div className="text-[11.5px] font-semibold text-ink">{label}</div>
-                        <div className="mt-0.5 text-[9px] leading-snug text-[#8b9188]">{hint}</div>
+                        <div className="mt-0.5 text-[9px] leading-snug text-muted-9">{hint}</div>
                       </button>
                     ))}
                   </div>
@@ -420,7 +416,7 @@ export default function CommunityPortal() {
                     onChange={(event) => update('description', event.target.value)}
                     placeholder="Describe the animal, its behaviour, the time, and an approximate landmark. Do not approach wildlife to confirm details."
                   />
-                  <div className="mt-1 flex items-center justify-between text-[9px] text-[#9a998e]">
+                  <div className="mt-1 flex items-center justify-between text-[9px] text-muted-16">
                     <span>Approximate landmarks are enough. Never enter the forest to verify.</span>
                     <span className="font-mono">{form.description.length} / 4000</span>
                   </div>
@@ -459,25 +455,25 @@ export default function CommunityPortal() {
                 <div>
                   <div className="field-label">Photograph (optional)</div>
                   {photo ? (
-                    <div className="flex items-center gap-3 rounded-xl border border-[#e0dacb] bg-white/70 p-2.5">
+                    <div className="flex items-center gap-3 rounded-xl border border-control-line-8 bg-raised/70 p-2.5">
                       {photoPreview ? (
                         <img src={photoPreview} alt="Report preview" className="h-14 w-20 rounded-lg object-cover" />
                       ) : (
-                        <div className="flex h-14 w-20 items-center justify-center rounded-lg bg-[#f2eee2]">
-                          <Camera className="h-5 w-5 text-[#9a998e]" />
+                        <div className="flex h-14 w-20 items-center justify-center rounded-lg bg-inset-1">
+                          <Camera className="h-5 w-5 text-muted-16" />
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-[11px] font-medium text-ink">{photo.name}</div>
-                        <div className="text-[9px] text-[#8b9188]">{Math.round(photo.size / 1024)} KB</div>
+                        <div className="text-[9px] text-muted-9">{Math.round(photo.size / 1024)} KB</div>
                       </div>
-                      <button type="button" className="rounded-lg p-1.5 text-[#8b9188] hover:bg-[#f2eee2]" onClick={clearPhoto} aria-label="Remove photo">
+                      <button type="button" className="rounded-lg p-1.5 text-muted-9 hover:bg-inset-1" onClick={clearPhoto} aria-label="Remove photo">
                         <X className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   ) : (
-                    <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-dashed border-[#d8d2c2] bg-[#faf7ee] px-3 py-3 text-[10.5px] text-[#7d867c] transition hover:border-[#b9c9b3]">
-                      <ImagePlus className="h-4 w-4 text-forest-500" />
+                    <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-dashed border-control-line-1 bg-inset-15 px-3 py-3 text-[10.5px] text-muted-5 transition hover:border-success-line-4">
+                      <ImagePlus className="h-4 w-4 text-success-5" />
                       Attach a JPEG, PNG or WebP image
                       <input type="file" accept="image/*" className="hidden" onChange={pickPhoto} />
                     </label>
@@ -485,7 +481,7 @@ export default function CommunityPortal() {
                 </div>
 
                 {submitError && (
-                  <div className="rounded-lg border border-[#e6b9ac] bg-[#fbf0ec] px-3 py-2 text-[10.5px] text-[#8b3524]">
+                  <div className="rounded-lg border border-danger-line-1 bg-danger-surface-3 px-3 py-2 text-[10.5px] text-danger-2">
                     {submitError}
                   </div>
                 )}
@@ -494,7 +490,7 @@ export default function CommunityPortal() {
                   {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />}
                   {submitting ? 'Submitting report…' : 'Submit report to range office'}
                 </button>
-                <p className="text-[9px] leading-relaxed text-[#9a998e]">
+                <p className="text-[9px] leading-relaxed text-muted-16">
                   For immediate danger to life call 112. Reports are queued for review; they do not trigger an
                   automated emergency response.
                 </p>
@@ -507,7 +503,7 @@ export default function CommunityPortal() {
               <SectionTitle
                 title="Check a report"
                 subtitle="Use the reference code from your submission"
-                action={<Search className="h-4 w-4 text-[#9a998e]" />}
+                action={<Search className="h-4 w-4 text-muted-16" />}
               />
               <form className="mt-3 flex gap-2" onSubmit={checkStatus}>
                 <input
@@ -523,30 +519,30 @@ export default function CommunityPortal() {
                 </button>
               </form>
               {statusError && (
-                <div className="mt-2 rounded-lg border border-[#e6b9ac] bg-[#fbf0ec] px-3 py-2 text-[10.5px] text-[#8b3524]">
+                <div className="mt-2 rounded-lg border border-danger-line-1 bg-danger-surface-3 px-3 py-2 text-[10.5px] text-danger-2">
                   {statusError}
                 </div>
               )}
               {statusResult && (
-                <div className="mt-3 rounded-xl border border-[#e8e3d6] bg-[#f8f5ec] p-3">
+                <div className="mt-3 rounded-xl border border-line-10 bg-inset-14 p-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-mono text-[12px] font-semibold text-ink">{statusResult.reference_code}</span>
                     <StatusBadge status={statusResult.status} />
                     <Badge tone="neutral">{titleCase(statusResult.category)}</Badge>
                   </div>
                   <div className="mt-2 text-[11px] font-semibold text-ink">{statusResult.species_name}</div>
-                  <p className="mt-1 text-[10.5px] leading-relaxed text-[#6f786e]">{statusResult.description}</p>
-                  <div className="mt-2 flex flex-wrap gap-2 text-[9px] text-[#92988f]">
+                  <p className="mt-1 text-[10.5px] leading-relaxed text-secondary-15">{statusResult.description}</p>
+                  <div className="mt-2 flex flex-wrap gap-2 text-[9px] text-muted-13">
                     <span>{statusResult.village_name || 'Village not specified'}</span>
                     <span>·</span>
                     <span>{formatDateTime(statusResult.created_at)}</span>
                   </div>
-                  <div className="mt-2 rounded-lg bg-white/70 px-2.5 py-1.5 text-[9.5px] leading-relaxed text-[#5f695f]">
+                  <div className="mt-2 rounded-lg bg-raised/70 px-2.5 py-1.5 text-[9.5px] leading-relaxed text-secondary-8">
                     {statusResult.status_note}
                   </div>
                 </div>
               )}
-              <div className="mt-3 rounded-lg bg-[#f2eee2] px-2.5 py-2 text-[9px] leading-relaxed text-[#7d867c]">
+              <div className="mt-3 rounded-lg bg-inset-1 px-2.5 py-2 text-[9px] leading-relaxed text-muted-5">
                 Status updates are made by forest staff after review. Keep your reference code private.
               </div>
             </div>
@@ -559,20 +555,19 @@ export default function CommunityPortal() {
                   ['Forest helpline', helplines?.forest_control_room || '1926', Siren],
                   ['Wildlife assistance', helplines?.wildlife_emergency || 'Contact your range office', ShieldCheck],
                 ].map(([label, value, Icon]) => (
-                  <div key={label} className="flex items-center gap-3 rounded-xl border border-[#e9e4d7] bg-white/60 px-3 py-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#f7e8e2] text-clay">
+                  <div key={label} className="flex items-center gap-3 rounded-xl border border-line-11 bg-raised/60 px-3 py-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-danger-surface-2 text-danger-5">
                       <Icon className="h-3.5 w-3.5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-[9px] uppercase tracking-[0.12em] text-[#9a998e]">{label}</div>
+                      <div className="text-[9px] uppercase tracking-[0.12em] text-muted-16">{label}</div>
                       <div className="mt-0.5 text-[11.5px] font-semibold text-ink">{value}</div>
                     </div>
                   </div>
                 ))}
               </div>
-              <p className="mt-3 text-[9px] leading-relaxed text-[#9a998e]">
-                Demonstrator helpline entries reference national services. Always follow instructions from local
-                authorities and the forest department.
+              <p className="mt-3 text-[9px] leading-relaxed text-muted-16">
+                Always follow instructions from local authorities and the forest department.
               </p>
             </div>
 
@@ -585,8 +580,8 @@ export default function CommunityPortal() {
                   'Guard names, patrol routes or response positions',
                   'Restricted forest-department operational data',
                 ].map((item) => (
-                  <li key={item} className="flex items-start gap-2 text-[10.5px] leading-relaxed text-[#5f695f]">
-                    <EyeOff className="mt-0.5 h-3 w-3 shrink-0 text-forest-500" /> {item}
+                  <li key={item} className="flex items-start gap-2 text-[10.5px] leading-relaxed text-secondary-8">
+                    <EyeOff className="mt-0.5 h-3 w-3 shrink-0 text-success-5" /> {item}
                   </li>
                 ))}
               </ul>
@@ -607,10 +602,10 @@ export default function CommunityPortal() {
           ) : (
             <div className="grid gap-4 lg:grid-cols-12">
               <div className="card p-5 lg:col-span-5">
-                <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#9a998e]">General guidance</div>
+                <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-16">General guidance</div>
                 <ol className="mt-3 space-y-2.5">
                   {(guidelines.data?.general || []).map((item, index) => (
-                    <li key={item} className="flex items-start gap-2.5 text-[10.5px] leading-relaxed text-[#5f695f]">
+                    <li key={item} className="flex items-start gap-2.5 text-[10.5px] leading-relaxed text-secondary-8">
                       <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-forest-900 font-mono text-[8px] font-bold text-lime">
                         {index + 1}
                       </span>
@@ -618,13 +613,13 @@ export default function CommunityPortal() {
                     </li>
                   ))}
                 </ol>
-                <div className="mt-4 rounded-xl border border-[#eccfc3] bg-[#fbf1ec] p-3">
-                  <div className="flex items-center gap-1.5 text-[10px] font-semibold text-[#8b3524]">
+                <div className="mt-4 rounded-xl border border-danger-line-2 bg-danger-surface-4 p-3">
+                  <div className="flex items-center gap-1.5 text-[10px] font-semibold text-danger-2">
                     <TriangleAlert className="h-3.5 w-3.5" /> If someone is injured
                   </div>
                   <ul className="mt-1.5 space-y-1">
                     {(guidelines.data?.emergency || []).map((item) => (
-                      <li key={item} className="text-[9.5px] leading-relaxed text-[#9a6a57]">
+                      <li key={item} className="text-[9.5px] leading-relaxed text-danger-4">
                         {item}
                       </li>
                     ))}
@@ -641,8 +636,8 @@ export default function CommunityPortal() {
                       onClick={() => setActiveSpecies(item.key)}
                       className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold transition ${
                         active?.key === item.key
-                          ? 'border-forest-500 bg-forest-50 text-forest-700'
-                          : 'border-[#e0dacb] bg-white text-[#7d867c] hover:border-[#c9d6c3]'
+                          ? 'border-forest-500 bg-success-surface-5 text-success-8'
+                          : 'border-control-line-8 bg-raised text-muted-5 hover:border-success-line-5'
                       }`}
                     >
                       <span className="h-1.5 w-1.5 rounded-full" style={{ background: item.color }} />
@@ -651,38 +646,38 @@ export default function CommunityPortal() {
                   ))}
                 </div>
                 {active && (
-                  <div className="mt-3 overflow-hidden rounded-xl border border-[#e8e3d6]">
+                  <div className="mt-3 overflow-hidden rounded-xl border border-line-10">
                     <div className="relative h-36 bg-forest-900">
                       <img src={active.image} alt={active.name} className="h-full w-full object-cover opacity-90" />
                       <div className="absolute inset-0 bg-gradient-to-t from-forest-950/85 to-transparent" />
                       <div className="absolute bottom-2.5 left-3 right-3">
-                        <div className="font-display text-[19px] leading-tight text-parchment">{active.name}</div>
+                        <div className="font-display text-[19px] leading-tight text-brand-light">{active.name}</div>
                         <div className="text-[9px] italic text-forest-100/60">{active.scientific}</div>
                       </div>
                     </div>
-                    <div className="bg-white/70 p-3.5">
-                      <p className="text-[10.5px] leading-relaxed text-[#5f695f]">{active.description}</p>
-                      <div className="mt-2.5 flex items-start gap-2 rounded-lg bg-[#f6f2e4] px-2.5 py-2 text-[10px] leading-relaxed text-[#7a6c50]">
+                    <div className="bg-raised/70 p-3.5">
+                      <p className="text-[10.5px] leading-relaxed text-secondary-8">{active.description}</p>
+                      <div className="mt-2.5 flex items-start gap-2 rounded-lg bg-inset-10 px-2.5 py-2 text-[10px] leading-relaxed text-warning-2">
                         <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {active.advice}
                       </div>
-                      <div className="mt-2 flex items-center gap-1.5 text-[9px] text-[#92988f]">
+                      <div className="mt-2 flex items-center gap-1.5 text-[9px] text-muted-13">
                         <Users className="h-3 w-3" /> Share this guidance within your household and village committee.
                       </div>
                     </div>
                   </div>
                 )}
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[9px] text-[#9a998e]">
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[9px] text-muted-16">
                   <span className="flex items-center gap-1.5">
                     <BellRing className="h-3 w-3" /> Advisories update as new alerts are verified.
                   </span>
-                  <a href="#advisories" className="inline-flex items-center gap-1 font-semibold text-forest-700 hover:underline">
+                  <a href="#advisories" className="inline-flex items-center gap-1 font-semibold text-success-8 hover:underline">
                     Back to advisories <ChevronDown className="h-3 w-3 rotate-180" />
                   </a>
                 </div>
               </div>
             </div>
           )}
-          <p className="mt-3 text-[9px] leading-relaxed text-[#9a998e]">{guidelines.data?.source_note}</p>
+          <p className="mt-3 text-[9px] leading-relaxed text-muted-16">{guidelines.data?.source_note}</p>
         </section>
 
         <section className="card-dark relative overflow-hidden p-6 sm:p-8">
@@ -693,7 +688,7 @@ export default function CommunityPortal() {
               <div className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.2em] text-lime/80">
                 <ShieldCheck className="h-3 w-3" /> Working together
               </div>
-              <h2 className="mt-2 font-display text-[24px] leading-snug text-parchment">
+              <h2 className="mt-2 font-display text-[24px] leading-snug text-brand-light">
                 Early reports protect people and wildlife.
               </h2>
               <p className="mt-2 text-[11.5px] leading-relaxed text-forest-100/65">
@@ -713,16 +708,16 @@ export default function CommunityPortal() {
         </section>
       </main>
 
-      <footer className="border-t border-[#e2ddce] bg-[#f6f2e6]">
-        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-6 text-[10px] text-[#8f938a] sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <footer className="border-t border-line-5 bg-inset-11">
+        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-6 text-[10px] text-muted-12 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div>
             <LanguageSwitcher className="mb-2 inline-flex sm:hidden" />
-            <div className="font-semibold text-[#5f695f]">Forest Guard AI · Community portal</div>
+            <div className="font-semibold text-secondary-8">Forest Guard AI · Community portal</div>
             <div className="mt-0.5">Protecting Forests. Preventing Conflict. Saving Lives.</div>
           </div>
           <div className="text-left sm:text-right">
-            <div>Demonstration prototype · synthetic advisories · illustrative geography</div>
-            <div className="mt-0.5">No government surveillance access is implied or provided.</div>
+            <div>VanDrishti · Forest Department & Community Coexistence</div>
+            <div className="mt-0.5">For wildlife emergencies, contact your local forest range office or call 112.</div>
           </div>
         </div>
       </footer>

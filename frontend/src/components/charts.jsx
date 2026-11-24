@@ -18,7 +18,7 @@ import {
 import { RISK_COLOR, SPECIES_COLOR } from '../utils/format'
 
 const AXIS = {
-  tick: { fill: '#8d938a', fontSize: 10, fontWeight: 500 },
+  tick: { fill: 'var(--chart-label, #656b62)', fontSize: 10, fontWeight: 500 },
   tickLine: false,
   axisLine: false,
 }
@@ -26,12 +26,12 @@ const AXIS = {
 function ChartTip({ active, payload, label, formatter }) {
   if (!active || !payload?.length) return null
   return (
-    <div className="rounded-xl border border-[#e4dfd1] bg-parchment px-3 py-2 shadow-card">
-      {label !== undefined && <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8d938a]">{label}</div>}
+    <div className="rounded-xl border border-line-7 bg-parchment px-3 py-2 shadow-card">
+      {label !== undefined && <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-11">{label}</div>}
       {payload.map((item) => (
         <div key={`${item.dataKey}-${item.name}`} className="flex items-center gap-2 text-[11.5px]">
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: item.color }} />
-          <span className="text-[#5f695f]">{item.name}</span>
+          <span className="text-secondary-8">{item.name}</span>
           <span className="ml-auto font-mono font-semibold text-ink">
             {formatter ? formatter(item.value, item) : item.value}
           </span>
@@ -41,7 +41,7 @@ function ChartTip({ active, payload, label, formatter }) {
   )
 }
 
-export function ActivityArea({ data, height = 220, color = '#2F7250', showAxis = true }) {
+export function ActivityArea({ data, height = 220, color = 'var(--chart-green, #2F7250)', showAxis = true }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
       <AreaChart data={data} margin={{ top: 8, right: 6, left: -22, bottom: 0 }}>
@@ -51,7 +51,7 @@ export function ActivityArea({ data, height = 220, color = '#2F7250', showAxis =
             <stop offset="100%" stopColor={color} stopOpacity={0.02} />
           </linearGradient>
         </defs>
-        <CartesianGrid stroke="#ece7da" vertical={false} strokeDasharray="3 3" />
+        <CartesianGrid stroke="var(--chart-grid, #ece7da)" vertical={false} strokeDasharray="3 3" />
         <XAxis
           dataKey="date"
           {...AXIS}
@@ -63,14 +63,14 @@ export function ActivityArea({ data, height = 220, color = '#2F7250', showAxis =
           minTickGap={28}
         />
         <YAxis {...AXIS} width={38} allowDecimals={false} />
-        <Tooltip content={<ChartTip />} cursor={{ stroke: '#cdd8c8', strokeDasharray: '3 3' }} />
+        <Tooltip content={<ChartTip />} cursor={{ stroke: 'var(--chart-cursor, #cdd8c8)', strokeDasharray: '3 3' }} />
         <Area
           type="monotone"
           dataKey="detections"
           name="Detections"
           stroke={color}
           strokeWidth={2}
-          fill="url(#activityFill)"
+          fill="var(--chart-area-fill, url(#activityFill))"
           activeDot={{ r: 4, strokeWidth: 0, fill: color }}
         />
       </AreaChart>
@@ -82,19 +82,19 @@ export function SpeciesBars({ data, height = 230, landscape = false }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data} layout="vertical" margin={{ top: 4, right: 18, left: 4, bottom: 0 }} barSize={14}>
-        <CartesianGrid stroke="#ece7da" horizontal={false} strokeDasharray="3 3" />
+        <CartesianGrid stroke="var(--chart-grid, #ece7da)" horizontal={false} strokeDasharray="3 3" />
         <XAxis type="number" {...AXIS} allowDecimals={false} />
         <YAxis
           type="category"
           dataKey="name"
           {...AXIS}
           width={92}
-          tick={{ fill: landscape ? '#d7e6d3' : '#657062', fontSize: 10 }}
+          tick={{ fill: landscape ? '#d7e6d3' : 'var(--chart-label, #657062)', fontSize: 10 }}
         />
         <Tooltip content={<ChartTip />} cursor={{ fill: 'rgba(127,163,107,0.08)' }} />
         <Bar dataKey="count" name="Detections" radius={[0, 4, 4, 0]}>
           {data?.map((entry) => (
-            <Cell key={entry.key} fill={SPECIES_COLOR[entry.key] || '#2F7250'} />
+            <Cell key={entry.key} fill={`var(--chart-species-${entry.key}, ${SPECIES_COLOR[entry.key] || '#2F7250'})`} />
           ))}
         </Bar>
       </BarChart>
@@ -105,9 +105,9 @@ export function SpeciesBars({ data, height = 230, landscape = false }) {
 export function RiskDonut({ data, height = 220 }) {
   const total = (data?.low || 0) + (data?.moderate || 0) + (data?.high || 0)
   const rows = [
-    { key: 'high', label: 'High risk', value: data?.high || 0, color: RISK_COLOR.high },
+    { key: 'high', label: 'High risk', value: data?.high || 0, color: `var(--chart-clay, ${RISK_COLOR.high})` },
     { key: 'moderate', label: 'Moderate', value: data?.moderate || 0, color: RISK_COLOR.moderate },
-    { key: 'low', label: 'Low risk', value: data?.low || 0, color: RISK_COLOR.low },
+    { key: 'low', label: 'Low risk', value: data?.low || 0, color: `var(--chart-green, ${RISK_COLOR.low})` },
   ]
   return (
     <div className="relative">
@@ -131,12 +131,12 @@ export function RiskDonut({ data, height = 220 }) {
       </ResponsiveContainer>
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
         <div className="font-display text-[26px] leading-none text-ink">{total}</div>
-        <div className="mt-1 text-[9px] uppercase tracking-[0.16em] text-[#8d938a]">scores</div>
+        <div className="mt-1 text-[9px] uppercase tracking-[0.16em] text-muted-11">scores</div>
       </div>
       <div className="mt-1 grid grid-cols-3 gap-2">
         {rows.map((row) => (
-          <div key={row.key} className="rounded-lg border border-[#eae4d7] bg-white/60 px-2 py-1.5">
-            <div className="flex items-center gap-1.5 text-[9px] font-medium uppercase tracking-[0.08em] text-[#7d867c]">
+          <div key={row.key} className="rounded-lg border border-line-12 bg-raised/60 px-2 py-1.5">
+            <div className="flex items-center gap-1.5 text-[9px] font-medium uppercase tracking-[0.08em] text-muted-5">
               <span className="h-1.5 w-1.5 rounded-full" style={{ background: row.color }} />
               {row.label}
             </div>
@@ -152,7 +152,7 @@ export function HourBars({ data, height = 200, color = '#7FA36B' }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data} margin={{ top: 6, right: 4, left: -26, bottom: 0 }} barSize={8}>
-        <CartesianGrid stroke="#ece7da" vertical={false} strokeDasharray="3 3" />
+        <CartesianGrid stroke="var(--chart-grid, #ece7da)" vertical={false} strokeDasharray="3 3" />
         <XAxis
           dataKey="hour"
           {...AXIS}
@@ -169,15 +169,15 @@ export function HourBars({ data, height = 200, color = '#7FA36B' }) {
 
 export function BasisBars({ data, height = 210 }) {
   const rows = [
-    { name: 'Proximity only', value: data?.proximity || 0, color: '#2F7250' },
+    { name: 'Proximity only', value: data?.proximity || 0, color: 'var(--chart-green, #2F7250)' },
     { name: 'Buffer proximity', value: data?.buffer_proximity || 0, color: '#7FA36B' },
     { name: 'Core activity', value: data?.core_activity || 0, color: '#B8C4B5' },
-    { name: 'Movement-supported', value: data?.confirmed_movement || 0, color: '#C2410C' },
+    { name: 'Movement-supported', value: data?.confirmed_movement || 0, color: 'var(--chart-clay, #C2410C)' },
   ]
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={rows} layout="vertical" margin={{ top: 4, right: 24, left: 10, bottom: 0 }} barSize={16}>
-        <CartesianGrid stroke="#ece7da" horizontal={false} strokeDasharray="3 3" />
+        <CartesianGrid stroke="var(--chart-grid, #ece7da)" horizontal={false} strokeDasharray="3 3" />
         <XAxis type="number" {...AXIS} allowDecimals={false} />
         <YAxis type="category" dataKey="name" {...AXIS} width={126} />
         <Tooltip content={<ChartTip />} cursor={{ fill: 'rgba(127,163,107,0.08)' }} />
@@ -191,11 +191,11 @@ export function BasisBars({ data, height = 210 }) {
   )
 }
 
-export function TrendLine({ data, height = 190, dataKey = 'detections', color = '#2F7250', name = 'Detections' }) {
+export function TrendLine({ data, height = 190, dataKey = 'detections', color = 'var(--chart-green, #2F7250)', name = 'Detections' }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={data} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
-        <CartesianGrid stroke="#ece7da" vertical={false} strokeDasharray="3 3" />
+        <CartesianGrid stroke="var(--chart-grid, #ece7da)" vertical={false} strokeDasharray="3 3" />
         <XAxis
           dataKey="date"
           {...AXIS}
@@ -212,7 +212,7 @@ export function TrendLine({ data, height = 190, dataKey = 'detections', color = 
   )
 }
 
-export function CategoryBars({ items, height = 200, color = '#B85C38' }) {
+export function CategoryBars({ items, height = 200, color = 'var(--chart-clay, #B85C38)' }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart
@@ -220,8 +220,8 @@ export function CategoryBars({ items, height = 200, color = '#B85C38' }) {
         margin={{ top: 4, right: 8, left: -26, bottom: 4 }}
         barSize={14}
       >
-        <CartesianGrid stroke="#ece7da" vertical={false} strokeDasharray="3 3" />
-        <XAxis dataKey="name" {...AXIS} tick={{ fill: '#8d938a', fontSize: 9 }} interval={0} />
+        <CartesianGrid stroke="var(--chart-grid, #ece7da)" vertical={false} strokeDasharray="3 3" />
+        <XAxis dataKey="name" {...AXIS} tick={{ fill: 'var(--chart-label, #656b62)', fontSize: 9 }} interval={0} />
         <YAxis {...AXIS} width={38} allowDecimals={false} />
         <Tooltip content={<ChartTip />} cursor={{ fill: 'rgba(184,92,56,0.06)' }} />
         <Bar dataKey="count" name="Incidents" fill={color} radius={[4, 4, 0, 0]} />
@@ -234,7 +234,7 @@ export function MiniLegend({ items }) {
   return (
     <div className="flex flex-wrap items-center gap-3">
       {items.map((item) => (
-        <span key={item.label} className="flex items-center gap-1.5 text-[10px] text-[#7d867c]">
+        <span key={item.label} className="flex items-center gap-1.5 text-[10px] text-muted-5">
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: item.color }} />
           {item.label}
         </span>

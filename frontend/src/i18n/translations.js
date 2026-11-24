@@ -2,6 +2,8 @@
 // (leading/trailing whitespace is handled by translateText).
 const HI = {
   // ---------- Navigation & chrome ----------
+  'Switch to dark theme': 'डार्क थीम चुनें',
+  'Switch to light theme': 'लाइट थीम चुनें',
   'Overview': 'अवलोकन',
   'Live Monitoring': 'लाइव निगरानी',
   'Live monitoring': 'लाइव निगरानी',
@@ -20,6 +22,15 @@ const HI = {
   'Insight': 'इनसाइट',
   'Community': 'समुदाय',
   'Open village portal': 'गाँव पोर्टल खोलें',
+  'Pench Landscape': 'पेंच लैंडस्केप',
+  'Pench Conservation Landscape': 'पेंच संरक्षण लैंडस्केप',
+  'Pench Reserve': 'पेंच रिज़र्व',
+  'Quick sign-in credentials': 'त्वरित लॉगिन क्रेडेंशियल',
+  'Access notice': 'पहुँच सूचना',
+  'camera station': 'कैमरा स्टेशन',
+  'station': 'स्टेशन',
+  'Landscape data': 'लैंडस्केप डेटा',
+  'Conservation Intelligence & Human–Wildlife Coexistence': 'संरक्षण इंटेलिजेंस और मानव-वन्यजीव सहअस्तित्व',
   'Demo landscape · Pench': 'डेमो लैंडस्केप · पेंच',
   'Demo data': 'डेमो डेटा',
   'DEMO': 'डेमो',

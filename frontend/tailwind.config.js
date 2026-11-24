@@ -1,9 +1,13 @@
+import themeColors from './theme-colors.js'
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
+      opacity: { disabled: 'var(--theme-disabled-opacity, 0.5)' },
       colors: {
+        ...themeColors,
         forest: {
           950: '#081A12',
           900: '#0C2418',
@@ -19,9 +23,6 @@ export default {
         },
         moss: '#7FA36B',
         lime: '#C4E87A',
-        sand: '#F4F1E8',
-        parchment: '#FBFAF5',
-        ink: '#17211B',
         clay: '#B85C38',
         amber: '#D9A441',
       },

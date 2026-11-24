@@ -156,7 +156,7 @@ export default function Wildlife() {
             <section>
               <SectionTitle
                 title="Species roster"
-                subtitle="Counts are a demonstration dataset, not a population estimate"
+                subtitle="Recorded detections by identified species"
                 action={<Badge tone="neutral">click to filter history</Badge>}
                 className="mb-3"
               />
@@ -168,9 +168,8 @@ export default function Wildlife() {
                       key={row.key}
                       type="button"
                       onClick={() => handleSpecies(row.key)}
-                      className={`group relative overflow-hidden rounded-xl border bg-parchment text-left transition ${
-                        active ? 'border-forest-500 shadow-[0_0_0_2px_rgba(47,114,80,0.12)]' : 'border-[#e2ddce] hover:border-[#c9d6c3]'
-                      }`}
+                      className={`group relative overflow-hidden rounded-xl border bg-parchment text-left transition ${active ? 'border-forest-500 shadow-[0_0_0_2px_rgba(47,114,80,0.12)]' : 'border-line-5 hover:border-success-line-5'
+                        }`}
                     >
                       <div className="relative h-[104px] overflow-hidden bg-forest-900">
                         <img
@@ -190,16 +189,16 @@ export default function Wildlife() {
                         />
                       </div>
                       <div className="p-2.5">
-                        <div className="flex items-center justify-between text-[9px] text-[#8d938a]">
+                        <div className="flex items-center justify-between text-[9px] text-muted-11">
                           <span>{row.share}% of records</span>
                           <RiskBadge level={row.avg_risk >= 65 ? 'high' : row.avg_risk >= 35 ? 'moderate' : 'low'} score={row.avg_risk} />
                         </div>
-                        <div className="mt-1 text-[9px] text-[#9a998e]">{row.high_risk} high-risk signals</div>
+                        <div className="mt-1 text-[9px] text-muted-16">{row.high_risk} high-risk signals</div>
                       </div>
                     </button>
                   )
                 })}
-                {!speciesRows.length && <div className="col-span-full text-[12px] text-[#8a9187]">No species activity in this window.</div>}
+                {!speciesRows.length && <div className="col-span-full text-[12px] text-muted-8">No species activity in this window.</div>}
               </div>
             </section>
 
@@ -208,7 +207,7 @@ export default function Wildlife() {
                 <SectionTitle
                   title="Species distribution"
                   subtitle="30-day records by validated class"
-                  action={<span className="font-mono text-[10px] text-[#92988f]">{totalSpeciesSignals} records</span>}
+                  action={<span className="font-mono text-[10px] text-muted-13">{totalSpeciesSignals} records</span>}
                 />
                 <div className="mt-3">
                   <SpeciesBars data={speciesRows} height={236} />
@@ -219,9 +218,8 @@ export default function Wildlife() {
                 <div className="mt-3">
                   <HourBars data={analytics.data.hours} height={206} />
                 </div>
-                <div className="mt-2 text-[9.5px] leading-relaxed text-[#8b9188]">
-                  Time-of-day patterns reflect camera scheduling and animal behaviour in the synthetic dataset. They
-                  are not a behavioural study.
+                <div className="mt-2 text-[9.5px] leading-relaxed text-muted-9">
+                  Temporal distribution of wildlife detections across morning, day, and nocturnal periods.
                 </div>
               </div>
             </section>
@@ -239,9 +237,8 @@ export default function Wildlife() {
                         setRisk('')
                         setPage(1)
                       }}
-                      className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${
-                        !species && !risk ? 'border-forest-500 bg-forest-50 text-forest-700' : 'border-[#e0dacb] bg-white text-[#7d867c]'
-                      }`}
+                      className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${!species && !risk ? 'border-forest-500 bg-success-surface-5 text-success-8' : 'border-control-line-8 bg-raised text-muted-5'
+                        }`}
                     >
                       All
                     </button>
@@ -250,9 +247,8 @@ export default function Wildlife() {
                         key={level}
                         type="button"
                         onClick={() => handleRisk(level)}
-                        className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold capitalize ${
-                          risk === level ? 'border-transparent text-white' : 'border-[#e0dacb] bg-white text-[#7d867c]'
-                        }`}
+                        className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold capitalize ${risk === level ? `border-transparent ${level === 'moderate' ? 'text-forest-950' : 'text-white'}` : 'border-control-line-8 bg-raised text-muted-5'
+                          }`}
                         style={
                           risk === level
                             ? { background: level === 'high' ? '#B83B2B' : level === 'moderate' ? '#D9A441' : '#2F7250' }
@@ -267,9 +263,9 @@ export default function Wildlife() {
               />
               {species && (
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="text-[10px] text-[#8b9188]">Species filter:</span>
+                  <span className="text-[10px] text-muted-9">Species filter:</span>
                   <SpeciesTag species={species} name={speciesRows.find((row) => row.key === species)?.name || titleCase(species)} />
-                  <button type="button" className="text-[9.5px] text-forest-600 hover:underline" onClick={() => handleSpecies(species)}>
+                  <button type="button" className="text-[9.5px] text-success-7 hover:underline" onClick={() => handleSpecies(species)}>
                     remove
                   </button>
                 </div>
@@ -283,8 +279,8 @@ export default function Wildlife() {
                   <DetectionTable items={detections.data?.items || []} />
                 )}
               </div>
-              <div className="mt-3 flex items-center justify-between border-t border-[#ece7da] pt-3">
-                <span className="text-[10px] text-[#8b9188]">
+              <div className="mt-3 flex items-center justify-between border-t border-line-13 pt-3">
+                <span className="text-[10px] text-muted-9">
                   Page {detections.data?.pagination?.page || page} of {detections.data?.pagination?.pages || 1} ·{' '}
                   {detections.data?.pagination?.total || 0} records
                 </span>
@@ -310,7 +306,7 @@ export default function Wildlife() {
             </section>
 
             <section className="card overflow-hidden">
-              <div className="flex flex-col gap-2 border-b border-[#e8e3d6] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-2 border-b border-line-10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="eyebrow">Camera-sequence tracking</div>
                   <h2 className="mt-1 font-display text-[19px] text-ink">Inferred movement, not GPS telemetry</h2>
@@ -367,7 +363,7 @@ export default function Wildlife() {
                       showLegend={false}
                     />
                   ) : (
-                    <div className="flex h-[390px] items-center justify-center rounded-2xl border border-[#e4dfd1] bg-parchment text-[12px] text-[#8a9187]">
+                    <div className="flex h-[390px] items-center justify-center rounded-2xl border border-line-7 bg-parchment text-[12px] text-muted-8">
                       Loading track geometry…
                     </div>
                   )}
@@ -379,14 +375,14 @@ export default function Wildlife() {
                         ['Distance', `${selectedTrack.distance_km} km`],
                         ['Camera points', selectedTrack.point_count],
                       ].map(([label, value]) => (
-                        <div key={label} className="rounded-xl border border-[#e8e3d6] bg-[#f8f5ec] px-3 py-2">
-                          <div className="text-[8.5px] uppercase tracking-[0.12em] text-[#9a998e]">{label}</div>
-                          <div className="mt-0.5 text-[10.5px] font-semibold text-[#435046]">{value}</div>
+                        <div key={label} className="rounded-xl border border-line-10 bg-inset-14 px-3 py-2">
+                          <div className="text-[8.5px] uppercase tracking-[0.12em] text-muted-16">{label}</div>
+                          <div className="mt-0.5 text-[10.5px] font-semibold text-secondary-3">{value}</div>
                         </div>
                       ))}
-                      <div className="sm:col-span-4 flex items-start gap-2 rounded-lg bg-[#f2eee2] px-3 py-2 text-[9.5px] leading-relaxed text-[#7d867c]">
+                      <div className="sm:col-span-4 flex items-start gap-2 rounded-lg bg-inset-1 px-3 py-2 text-[9.5px] leading-relaxed text-muted-5">
                         <Compass className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                        {selectedTrack.disclaimer} Detection chain: {formatDateTime(selectedTrack.started_at)} →{' '}
+                        Detection chain: {formatDateTime(selectedTrack.started_at)} →{' '}
                         {formatDateTime(selectedTrack.ended_at)} · mean confidence {confidencePercent(selectedTrack.confidence)}.
                       </div>
                     </div>
@@ -403,7 +399,7 @@ export default function Wildlife() {
                   <div className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.2em] text-lime/80">
                     <ShieldAlert className="h-3 w-3" /> Method note
                   </div>
-                  <h3 className="mt-2 font-display text-[21px] text-parchment">What a “track” means here</h3>
+                  <h3 className="mt-2 font-display text-[21px] text-brand-light">What a “track” means here</h3>
                   <p className="mt-2 text-[11px] leading-relaxed text-forest-100/65">
                     A track links sequential detections of the same species that are close in space and time. It
                     estimates a path and a direction relative to the nearest village boundary. It does not identify an
@@ -419,7 +415,7 @@ export default function Wildlife() {
                   ].map(([value, label]) => (
                     <div key={label} className="text-center">
                       <div className="font-display text-[24px] text-lime">{value}</div>
-                      <div className="mt-0.5 text-[8px] uppercase tracking-[0.12em] text-forest-200/55">{label}</div>
+                      <div className="mt-0.5 text-[8px] uppercase tracking-[0.12em] text-muted-21/55">{label}</div>
                     </div>
                   ))}
                 </div>
