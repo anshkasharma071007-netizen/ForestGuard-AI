@@ -1,6 +1,6 @@
 import { ArrowRight, Plus } from 'lucide-react-native';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
-import { radius, spacing, typography, useTheme } from '../theme';
+import { radius, sizing, spacing, typeScale, useTheme } from '../theme';
 
 type Props = { label: string; onPress: () => void; icon?: 'arrow' | 'plus'; disabled?: boolean; loading?: boolean };
 
@@ -19,6 +19,6 @@ export function PrimaryButton({ label, onPress, icon = 'arrow', disabled = false
 }
 
 const styles = StyleSheet.create({
-  button: { minHeight: 52, borderRadius: radius.input, padding: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-  text: { flexShrink: 1, fontFamily: typography.body, fontSize: 15, fontWeight: '700' },
+  button: { minHeight: sizing.button, borderRadius: radius.input, padding: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  text: { flexShrink: 1, ...typeScale.action },
 });

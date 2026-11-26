@@ -9,7 +9,7 @@ import { SectionTitle } from '@/components/SectionTitle';
 import { TextAction } from '@/components/TextAction';
 import { getReportStatus, isApiConfigured } from '@/services/api';
 import { loadStoredReports, saveStoredReport, type StoredReport } from '@/services/report-storage';
-import { radius, spacing, typography, useTheme } from '@/theme';
+import { radius, sizing, spacing, typography, typeScale, useTheme } from '@/theme';
 
 export default function ReportsScreen() {
   const { colors } = useTheme();
@@ -86,10 +86,10 @@ export default function ReportsScreen() {
           <TextInput accessibilityLabel="Reference code" value={reference} autoCapitalize="characters" autoCorrect={false}
             onChangeText={setReference} placeholder="Reference code" placeholderTextColor={colors.mutedText}
             returnKeyType="search" onSubmitEditing={() => void checkStatus()} editable={busyReference === null}
-            style={[styles.input, { backgroundColor: colors.input, borderColor: colors.border, color: colors.primaryText }]} />
+            style={[styles.input, { backgroundColor: colors.input, borderColor: colors.controlBorder, color: colors.primaryText }]} />
           <PrimaryButton label={busyReference === '' ? 'Checking status…' : 'Check status'}
             onPress={() => void checkStatus()} loading={busyReference === ''} disabled={busyReference !== null} />
-          {!isApiConfigured && <Text style={{ color: colors.secondaryText }}>Report status lookup is unavailable.</Text>}
+          {!isApiConfigured && <Text style={{ color: colors.secondaryText, ...typeScale.supporting }}>Report status lookup is unavailable.</Text>}
           {!!error && <Text accessibilityLiveRegion="polite" style={{ color: colors.clay }}>{error}</Text>}
         </View>
         <View style={styles.group}>
@@ -101,12 +101,12 @@ export default function ReportsScreen() {
             <EmptyState title="No saved reports" detail="Report references you submit or look up on this device appear here." />}
           {reports.map((report) => (
             <View key={report.referenceCode} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text selectable style={{ color: colors.primaryText, fontFamily: typography.mono, fontSize: 16, fontWeight: '700' }}>{report.referenceCode}</Text>
+              <Text selectable style={{ color: colors.primaryText, ...typeScale.card, fontFamily: typography.mono }}>{report.referenceCode}</Text>
               <Text style={{ color: colors.primaryText }}>Status: {report.status}</Text>
-              <Text style={{ color: colors.secondaryText }}>
+              <Text style={{ color: colors.secondaryText, ...typeScale.supporting }}>
                 {report.createdAt ? 'Submitted' : 'Saved'} {formatDate(report.createdAt ?? report.submittedAt)}
               </Text>
-              {report.statusCheckedAt && <Text style={{ color: colors.secondaryText }}>Status checked {formatDate(report.statusCheckedAt)}</Text>}
+              {report.statusCheckedAt && <Text style={{ color: colors.secondaryText, ...typeScale.supporting }}>Status checked {formatDate(report.statusCheckedAt)}</Text>}
               <TextAction label={busyReference === report.referenceCode ? 'Refreshing…' : 'Refresh status'}
                 disabled={busyReference !== null} onPress={() => void checkStatus(report)} />
             </View>
@@ -125,6 +125,6 @@ function formatDate(value: string) {
 const styles = StyleSheet.create({
   content: { gap: spacing.lg },
   group: { gap: spacing.sm },
-  input: { minHeight: 48, borderWidth: 1, borderRadius: radius.input, paddingHorizontal: spacing.md, fontSize: 16 },
+  input: { minHeight: sizing.touch, borderWidth: 1, borderRadius: radius.input, paddingHorizontal: spacing.md, fontSize: 16 },
   card: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.xs },
 });

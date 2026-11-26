@@ -1,22 +1,28 @@
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { ChevronDown } from 'lucide-react-native';
-import { useRef, useState } from 'react';
-import { Image, Platform, Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { Check, PawPrint, TriangleAlert } from 'lucide-react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Platform, Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { EvidenceImage } from '@/components/EvidenceImage';
+import { IdentificationResult } from '@/components/IdentificationResult';
+import { PhotoViewer } from '@/components/PhotoViewer';
+import { SectionTitle } from '@/components/SectionTitle';
+import { SpeciesSelector, type SpeciesSelection } from '@/components/SpeciesSelector';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { TextAction } from '@/components/TextAction';
 import { VillageSelector } from '@/components/VillageSelector';
-import { speciesOptions } from '@/data';
-import { isApiConfigured, submitCommunityReport, type ReportSubmissionResponse, type Village } from '@/services/api';
+import { speciesOptions, unknownSpecies, type CatalogSpecies } from '@/data';
+import type { IdentificationState } from '@/identification';
+import { getCommunitySpecies, isApiConfigured, submitCommunityReport, type ReportSubmissionResponse, type Village } from '@/services/api';
 import { saveStoredReport } from '@/services/report-storage';
-import { radius, spacing, typography, useTheme } from '@/theme';
+import { radius, sizing, spacing, typography, typeScale, useTheme } from '@/theme';
 
 const categories = [
-  { id: 'sighting', label: 'Animal sighting' },
-  { id: 'conflict', label: 'Human-wildlife conflict' },
+  { id: 'sighting', label: 'Animal Sighting', icon: PawPrint },
+  { id: 'conflict', label: 'Human-Wildlife Conflict', icon: TriangleAlert },
 ] as const;
 const locationMethods = [
   { id: 'gps', label: 'Use my current location' },
@@ -24,18 +30,21 @@ const locationMethods = [
 ] as const;
 
 type Category = typeof categories[number]['id'];
-type Species = typeof speciesOptions[number]['id'];
 type LocationMethod = typeof locationMethods[number]['id'];
 const availableLocationMethods = Platform.OS === 'web' ? locationMethods.filter(({ id }) => id === 'village') : locationMethods;
 type PhotoAsset = ImagePicker.ImagePickerAsset;
+type Attachment = { original: PhotoAsset; analysis: IdentificationState };
+const descriptionLimit = 4000;
 type Coordinates = { lat: number; lon: number };
 
 export default function ReportScreen() {
   const { colors } = useTheme();
   const [category, setCategory] = useState<Category>('sighting');
-  const [species, setSpecies] = useState<Species>('unidentified');
-  const [showSpecies, setShowSpecies] = useState(false);
-  const [photo, setPhoto] = useState<PhotoAsset | null>(null);
+  const [species, setSpecies] = useState<SpeciesSelection>({ species: unknownSpecies });
+  const [catalog, setCatalog] = useState<readonly CatalogSpecies[]>(speciesOptions);
+  const [attachment, setAttachment] = useState<Attachment | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [animalId, setAnimalId] = useState<string>();
   const [photoError, setPhotoError] = useState('');
   const [picking, setPicking] = useState(false);
   const [method, setMethod] = useState<LocationMethod | null>(null);
@@ -50,6 +59,21 @@ export default function ReportScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState<{ response: ReportSubmissionResponse; saved: boolean } | null>(null);
   const submissionInProgress = useRef(false);
+  const photo = attachment?.original;
+  const analysis = attachment?.analysis ?? { kind: 'idle' };
+  const result = 'result' in analysis ? analysis.result : undefined;
+  const activeAnimal = result?.animals.find((animal) => animal.id === animalId) ?? result?.animals[0];
+  const speciesNote = species.customName ? `Reported species name: ${species.customName}` : '';
+  const descriptionBudget = descriptionLimit - (speciesNote ? speciesNote.length + 2 : 0);
+
+  useEffect(() => {
+    let active = true;
+    // Keep the checked-in backend catalogue available on slow or offline connections.
+    getCommunitySpecies().then((items) => {
+      if (active && items.length) setCatalog(items);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   function changeMethod(next: LocationMethod) {
     if (next === method) return;
@@ -96,9 +120,18 @@ export default function ReportScreen() {
           return;
         }
       }
-      const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.75 };
+      const options: ImagePicker.ImagePickerOptions = {
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 1,
+        preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Current,
+      };
       const result = source === 'camera' ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
-      if (!result.canceled) setPhoto(result.assets[0]);
+      if (!result.canceled) {
+        const [original] = result.assets;
+        setAttachment({ original, analysis: { kind: 'idle' } });
+        setAnimalId(undefined);
+      }
     } catch {
       setPhotoError('The photo could not be selected. Please try again.');
     } finally {
@@ -111,6 +144,14 @@ export default function ReportScreen() {
     setError('');
     if (!reporterName.trim()) { setError('Enter your name before submitting.'); return; }
     if (description.trim().length < 12) { setError('Description must be at least 12 characters.'); return; }
+    if (description.trim().length > descriptionBudget) {
+      setError(`Shorten the description to ${descriptionBudget.toLocaleString()} characters to fit the species name.`);
+      return;
+    }
+    if (species.species.id !== unknownSpecies.id && !catalog.some(({ id }) => id === species.species.id)) {
+      setError('The species catalog changed. Choose a species from the current list.');
+      return;
+    }
     if (!isApiConfigured) { setError('Reporting is unavailable. Your report was not sent.'); return; }
     const reportCoordinates = method === 'gps' ? coordinates : null;
     const reportVillage = method === 'village' ? village : null;
@@ -124,8 +165,8 @@ export default function ReportScreen() {
     try {
       const formData = new FormData();
       formData.append('category', category);
-      formData.append('species', species);
-      formData.append('description', description.trim());
+      formData.append('species', species.species.id);
+      formData.append('description', speciesNote ? `${description.trim()}\n\n${speciesNote}` : description.trim());
       formData.append('reporter_name', reporterName.trim());
       if (contact.trim()) formData.append('contact', contact.trim());
       if (reportCoordinates) {
@@ -164,43 +205,62 @@ export default function ReportScreen() {
     <Screen>
       <ScreenHeader title="Report an incident" back />
       <View style={styles.form}>
-        <Text style={[styles.reminder, { backgroundColor: colors.warningTint, color: colors.primaryText }]}>
-          Keep a safe distance. Never approach wildlife to take a photo.
-        </Text>
         <View style={styles.field}>
-          <FieldLabel label="Incident category" />
-          <ChoiceList options={categories} selected={category} onSelect={setCategory} disabled={submitting} />
+          <SectionTitle title="Incident type" />
+          <View accessibilityRole="radiogroup" style={styles.categoryRow}>
+            {categories.map(({ id, label, icon: Icon }) => {
+              const selected = category === id;
+              return (
+                <Pressable key={id} accessibilityRole="radio" accessibilityState={{ checked: selected, disabled: submitting }}
+                  disabled={submitting} onPress={() => setCategory(id)}
+                  style={[styles.category, { backgroundColor: selected ? colors.successTint : colors.card,
+                    borderColor: selected ? colors.focus : colors.controlBorder }]}>
+                  <View style={styles.categoryIcons}>
+                    <Icon size={sizing.icon} color={colors.primaryText} />
+                    {selected && <Check size={sizing.icon} color={colors.focus} />}
+                  </View>
+                  <Text style={{ ...typeScale.card, color: colors.primaryText }}>{label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
         <View style={styles.field}>
-          <FieldLabel label="Animal species" />
-          <Pressable accessibilityRole="button" accessibilityLabel={`Animal species: ${speciesOptions.find((item) => item.id === species)?.label}`}
-            accessibilityState={{ expanded: showSpecies, disabled: submitting }} disabled={submitting}
-            onPress={() => setShowSpecies(!showSpecies)}
-            style={[styles.selector, { backgroundColor: colors.input, borderColor: colors.border }]}>
-            <Text style={{ flex: 1, color: colors.primaryText }}>{speciesOptions.find((item) => item.id === species)?.label}</Text>
-            <ChevronDown size={18} color={colors.primaryText} style={{ transform: [{ rotate: showSpecies ? '180deg' : '0deg' }] }} />
-          </Pressable>
-          {showSpecies && <ChoiceList options={speciesOptions} selected={species} onSelect={(id) => {
-            setSpecies(id);
-            setShowSpecies(false);
-          }} disabled={submitting} />}
-        </View>
-        <View style={styles.field}>
-          <FieldLabel label="Photo (optional)" />
-          {photo && <Image accessibilityLabel="Attached incident photo" source={{ uri: photo.uri }} style={styles.preview} />}
+          <SectionTitle title="Photo evidence" />
+          <Text style={{ ...typeScale.body, color: colors.secondaryText }}>
+            Optional. Keep a safe distance and never approach wildlife to take a photo.
+          </Text>
+          {photo && (
+            <Pressable accessibilityRole="button" accessibilityLabel="View original incident photo"
+              onPress={() => setViewerOpen(true)} style={styles.previewWrap}>
+              <EvidenceImage photo={photo} style={[styles.preview, {
+                aspectRatio: photo.width > 0 && photo.height > 0 ? photo.width / photo.height : 4 / 3,
+              }]} overlay={result ? { ...result, activeId: activeAnimal?.id } : undefined} />
+              <Text style={{ ...typeScale.supporting, color: colors.secondaryText }}>View full photo</Text>
+            </Pressable>
+          )}
           <View style={styles.actions}>
             {Platform.OS !== 'web' && <TextAction label={photo ? 'Retake photo' : 'Take photo'}
               onPress={() => void choosePhoto('camera')} disabled={submitting || picking} />}
             <TextAction label={photo ? 'Replace from library' : 'Choose from library'}
               onPress={() => void choosePhoto('gallery')} disabled={submitting || picking} />
-            {photo && <TextAction label="Remove photo" onPress={() => { setPhoto(null); setPhotoError(''); }} disabled={submitting || picking} />}
+            {photo && <TextAction label="Remove photo" onPress={() => {
+              setAttachment(null);
+              setAnimalId(undefined);
+              setPhotoError('');
+            }} disabled={submitting || picking} />}
           </View>
-          {picking && <Text style={{ color: colors.secondaryText }}>Opening photo picker…</Text>}
+          {picking && <Text accessibilityLiveRegion="polite" style={{ ...typeScale.supporting, color: colors.secondaryText }}>Opening photo picker…</Text>}
           <ErrorText text={photoError} />
         </View>
+        <IdentificationResult state={analysis} catalog={catalog} activeId={activeAnimal?.id} onSelect={setAnimalId} />
         <View style={styles.field}>
-          <FieldLabel label="Incident location" />
-          <Text style={{ color: colors.secondaryText }}>{Platform.OS === 'web' ? 'GPS is unavailable in the browser.' : 'Use GPS only if you’re at the incident location.'}</Text>
+          <SectionTitle title="Species" />
+          <SpeciesSelector catalog={catalog} selection={species} prediction={activeAnimal} disabled={submitting} onSelect={setSpecies} />
+        </View>
+        <View style={styles.field}>
+          <SectionTitle title="Incident location" />
+          <Text style={{ ...typeScale.supporting, color: colors.secondaryText }}>{Platform.OS === 'web' ? 'GPS is unavailable in the browser.' : 'Use GPS only if you’re at the incident location.'}</Text>
           <ChoiceList options={availableLocationMethods} selected={method} onSelect={changeMethod} disabled={submitting || locating} />
           {method === 'gps' && (
             <>
@@ -214,17 +274,24 @@ export default function ReportScreen() {
           {method === 'village' && <VillageSelector selected={village} onSelect={setVillage} disabled={submitting} />}
         </View>
         <InputField label="Description" value={description} onChangeText={setDescription} editable={!submitting}
-          multiline maxLength={4000} placeholder="Describe what you saw" />
-        <Text style={{ color: colors.secondaryText }}>Minimum 12 characters</Text>
-        <InputField label="Reporter name" value={reporterName} onChangeText={setReporterName} editable={!submitting}
-          maxLength={120} autoCapitalize="words" />
-        <InputField label="Contact (optional)" value={contact} onChangeText={setContact} editable={!submitting}
-          maxLength={80} autoCapitalize="none" placeholder="Phone or email" />
+          multiline maxLength={descriptionBudget} placeholder="Describe what you saw" />
+        <Text style={{ ...typeScale.supporting, color: colors.secondaryText }}>Minimum 12 characters.</Text>
+        {!!speciesNote && <Text style={{ ...typeScale.supporting, color: colors.secondaryText }}>
+          Added to your submitted description: {speciesNote}
+        </Text>}
+        <View style={styles.field}>
+          <SectionTitle title="Reporter details" />
+          <InputField label="Reporter name" value={reporterName} onChangeText={setReporterName} editable={!submitting}
+            maxLength={120} autoCapitalize="words" />
+          <InputField label="Contact (optional)" value={contact} onChangeText={setContact} editable={!submitting}
+            maxLength={80} autoCapitalize="none" placeholder="Phone or email" />
+        </View>
         {!isApiConfigured && <Text style={{ color: colors.secondaryText }}>Reporting is unavailable.</Text>}
         <ErrorText text={error} />
         <PrimaryButton label={submitting ? 'Submitting report…' : 'Submit report'} onPress={() => void submitReport()}
           loading={submitting} disabled={locating || picking} />
       </View>
+      {photo && viewerOpen && <PhotoViewer photo={photo} onClose={() => setViewerOpen(false)} />}
     </Screen>
   );
 }
@@ -264,7 +331,7 @@ function FieldLabel({ label }: { label: string }) {
 
 function ErrorText({ text }: { text: string }) {
   const { colors } = useTheme();
-  return text ? <Text accessibilityLiveRegion="polite" style={{ color: colors.clay, fontSize: 15 }}>{text}</Text> : null;
+  return text ? <Text accessibilityLiveRegion="polite" style={{ ...typeScale.body, color: colors.clay }}>{text}</Text> : null;
 }
 
 function InputField({ label, ...props }: TextInputProps & { label: string }) {
@@ -274,7 +341,7 @@ function InputField({ label, ...props }: TextInputProps & { label: string }) {
       <FieldLabel label={label} />
       <TextInput {...props} accessibilityLabel={label} placeholderTextColor={colors.mutedText}
         style={[styles.selector, styles.input, props.multiline && styles.description, {
-          backgroundColor: colors.input, borderColor: colors.border, color: colors.primaryText,
+          backgroundColor: colors.input, borderColor: colors.controlBorder, color: colors.primaryText,
         }]} />
     </View>
   );
@@ -292,8 +359,8 @@ function ChoiceList<T extends string>({ options, selected, onSelect, disabled }:
       {options.map(({ id, label }) => (
         <Pressable key={id} accessibilityRole="radio" accessibilityState={{ checked: selected === id, disabled }}
           onPress={() => onSelect(id)} disabled={disabled}
-          style={[styles.selector, { borderColor: colors.border, backgroundColor: selected === id ? colors.successTint : colors.card }]}>
-          <Text style={{ flex: 1, color: colors.primaryText, fontSize: 15, fontWeight: selected === id ? '700' : '400' }}>{label}</Text>
+          style={[styles.selector, { borderColor: selected === id ? colors.focus : colors.controlBorder, backgroundColor: selected === id ? colors.successTint : colors.card }]}>
+          <Text style={{ flex: 1, ...typeScale.body, color: colors.primaryText, fontWeight: selected === id ? '700' : '400' }}>{label}</Text>
           {selected === id && <Text style={{ color: colors.secondaryText }}>Selected</Text>}
         </Pressable>
       ))}
@@ -307,7 +374,7 @@ function Confirmation({ response, saved }: { response: ReportSubmissionResponse;
     <Screen>
       <ScreenHeader title="Report received" back />
       <View style={styles.form}>
-        <Text style={{ color: colors.primaryText, fontSize: 16, lineHeight: 23 }}>
+        <Text style={{ ...typeScale.body, color: colors.primaryText }}>
           {response.message || 'Forest officials can now review your report.'}
         </Text>
         <View style={[styles.reminder, { backgroundColor: colors.card, gap: spacing.sm }]}>
@@ -324,14 +391,18 @@ function Confirmation({ response, saved }: { response: ReportSubmissionResponse;
 }
 
 const styles = StyleSheet.create({
-  form: { gap: spacing.md },
+  form: { gap: spacing.lg },
   field: { gap: spacing.xs },
-  label: { fontSize: 16, fontWeight: '700' },
-  reminder: { borderRadius: radius.input, padding: spacing.md, fontSize: 15, lineHeight: 22 },
+  label: { ...typeScale.card },
+  reminder: { borderRadius: radius.input, padding: spacing.md },
   actions: { flexDirection: 'row', flexWrap: 'wrap' },
-  selector: { minHeight: 48, borderRadius: radius.input, borderWidth: 1, padding: spacing.md,
+  selector: { minHeight: sizing.touch, borderRadius: radius.input, borderWidth: 1, padding: spacing.md,
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  input: { fontSize: 16 },
+  input: { ...typeScale.body, fontSize: 16 },
   description: { minHeight: 110, textAlignVertical: 'top' },
-  preview: { width: '100%', height: 190, borderRadius: radius.input },
+  categoryRow: { flexDirection: 'row', alignItems: 'stretch', gap: spacing.sm },
+  category: { flex: 1, minWidth: 0, minHeight: sizing.touch, borderWidth: 1, borderRadius: radius.input, padding: spacing.md, gap: spacing.sm },
+  categoryIcons: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.xs },
+  previewWrap: { gap: spacing.xs },
+  preview: { width: '100%', minHeight: 96, maxHeight: 280, borderRadius: radius.input },
 });

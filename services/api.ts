@@ -79,3 +79,19 @@ function parseIdentity(record: Record<string, unknown>): ReportIdentity {
 function invalidResponse() {
   return new Error('The Forest Guard service returned an invalid response.');
 }
+
+export async function getCommunitySpecies(): Promise<{ id: string; label: string }[]> {
+  if (!isApiConfigured) return [];
+  const response = await fetchWithTimeout(`${API_URL}/api/community/guidelines`);
+  if (!response.ok) throw new Error('The species catalog could not be loaded.');
+  const { species } = await readRecord(response);
+  if (!Array.isArray(species)) throw invalidResponse();
+  const catalog = new Map<string, string>();
+  for (const item of species) {
+    if (!item || typeof item.key !== 'string' || !item.key.trim() || typeof item.name !== 'string' || !item.name.trim()) {
+      throw invalidResponse();
+    }
+    if (item.key !== 'unidentified') catalog.set(item.key, item.name);
+  }
+  return Array.from(catalog, ([id, label]) => ({ id, label }));
+}

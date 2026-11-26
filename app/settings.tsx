@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionTitle } from '@/components/SectionTitle';
-import { spacing, radius, useTheme } from '@/theme';
+import { spacing, radius, sizing, typeScale, useTheme } from '@/theme';
 import { useAppTheme } from '@/theme-context';
 
 const options = [
@@ -24,8 +24,8 @@ export default function SettingsScreen() {
           {options.map(({ id, label }) => (
             <Pressable key={id} accessibilityRole="radio" accessibilityState={{ checked: mode === id }}
               onPress={() => setMode(id)}
-              style={[styles.option, { backgroundColor: mode === id ? colors.successTint : colors.card, borderColor: colors.border }]}>
-              <Text style={{ color: colors.primaryText, fontSize: 15, fontWeight: mode === id ? '700' : '400' }}>{label}</Text>
+              style={[styles.option, { backgroundColor: mode === id ? colors.successTint : colors.card, borderColor: mode === id ? colors.focus : colors.controlBorder }]}>
+              <Text style={{ color: colors.primaryText, ...typeScale.body, fontWeight: mode === id ? '700' : '400' }}>{label}</Text>
               {mode === id && <Text style={{ color: colors.secondaryText }}>Selected</Text>}
             </Pressable>
           ))}
@@ -34,7 +34,7 @@ export default function SettingsScreen() {
       </View>
       <View style={styles.section}>
         <SectionTitle title="About" />
-        <Text style={{ color: colors.primaryText, fontSize: 15 }}>Forest Guard AI</Text>
+        <Text style={{ color: colors.primaryText, ...typeScale.body }}>Forest Guard AI</Text>
       </View>
     </Screen>
   );
@@ -43,5 +43,5 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   section: { gap: spacing.sm, marginBottom: spacing.xl },
   options: { gap: spacing.xs },
-  option: { minHeight: 48, padding: spacing.md, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderRadius: radius.input },
+  option: { minHeight: sizing.touch, padding: spacing.md, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderRadius: radius.input },
 });

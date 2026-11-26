@@ -1,19 +1,24 @@
-import { Droplets } from 'lucide-react-native';
 import { StyleSheet, Text, View } from 'react-native';
-import { spacing, typography, useTheme } from '../theme';
+import Svg, { Path } from 'react-native-svg';
+import { radius, sizing, spacing, typography, useTheme } from '../theme';
 
 export function BrandMark() {
   const { colors } = useTheme();
   return (
     <View style={styles.row}>
-      <View style={[styles.mark, { backgroundColor: colors.lime }]}><Droplets size={20} color={colors.deepForest} strokeWidth={2.5} /></View>
+      <View style={[styles.mark, { backgroundColor: colors.lime }]}>
+        <Svg width={24} height={24} viewBox="0 0 32 32" accessible={false}>
+          <Path d="M16 4c4.5 3.6 8 8 8 13a8 8 0 0 1-16 0c0-5 3.5-9.4 8-13z" fill={colors.deepForest} opacity={0.95} />
+          <Path d="M16 9.5v14M16 14.5l-4-3.5M16 18l4-3.5" stroke={colors.forest} strokeWidth={1.8} strokeLinecap="round" />
+        </Svg>
+      </View>
       <Text accessibilityRole="header" style={[styles.name, { color: colors.primaryText }]}>Forest Guard AI</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  mark: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  name: { flexShrink: 1, fontFamily: typography.heading, fontSize: 19, fontWeight: '700' },
+  row: { flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  mark: { width: sizing.brandMark, height: sizing.brandMark, borderRadius: radius.input, alignItems: 'center', justifyContent: 'center' },
+  name: { flexShrink: 1, fontFamily: typography.heading, fontSize: 20, fontWeight: '600' },
 });

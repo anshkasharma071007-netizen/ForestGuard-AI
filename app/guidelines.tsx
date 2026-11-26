@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { spacing, useTheme } from '@/theme';
+import { spacing, typeScale, useTheme } from '@/theme';
 
 const points = [
   'Keep a safe distance from all wildlife.',
@@ -31,5 +31,5 @@ export default function GuidelinesScreen() {
 const styles = StyleSheet.create({
   list: { gap: spacing.md },
   row: { flexDirection: 'row', gap: spacing.sm, alignItems: 'baseline' },
-  point: { flex: 1, fontSize: 16, lineHeight: 23 },
+  point: { flex: 1, ...typeScale.body },
 });

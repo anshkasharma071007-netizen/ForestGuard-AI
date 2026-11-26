@@ -1,5 +1,5 @@
 import { ActivityIndicator, Text, View } from 'react-native';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 import { EmptyState } from './EmptyState';
 
 export type Advisory = {
@@ -26,10 +26,10 @@ export function AdvisoryList({ state }: { state: AdvisoryState }) {
     <View style={{ gap: spacing.md }}>
       {state.items.map((item) => (
         <View key={item.id} style={{ gap: spacing.xs, padding: spacing.md, backgroundColor: colors.card, borderRadius: radius.card }}>
-          <Text style={{ color: colors.secondaryText }}>{item.severity} · {item.area}</Text>
-          <Text accessibilityRole="header" style={{ color: colors.primaryText, fontSize: 17, fontWeight: '700' }}>{item.title}</Text>
-          <Text style={{ color: colors.primaryText, fontSize: 15 }}>{item.precautions}</Text>
-          <Text style={{ color: colors.mutedText }}>Published {new Date(item.publishedAt).toLocaleString()}</Text>
+          <Text style={{ color: colors.secondaryText, ...typeScale.supporting }}>{item.severity} · {item.area}</Text>
+          <Text accessibilityRole="header" style={{ color: colors.primaryText, ...typeScale.card }}>{item.title}</Text>
+          <Text style={{ color: colors.primaryText, ...typeScale.body }}>{item.precautions}</Text>
+          <Text style={{ color: colors.mutedText, ...typeScale.supporting }}>Published {new Date(item.publishedAt).toLocaleString()}</Text>
         </View>
       ))}
     </View>

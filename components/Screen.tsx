@@ -1,7 +1,7 @@
 import type { PropsWithChildren } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { spacing, useTheme } from '../theme';
+import { sizing, spacing, useTheme } from '../theme';
 
 export function Screen({ children, tab = false }: PropsWithChildren<{ tab?: boolean }>) {
   const { colors } = useTheme();
@@ -19,5 +19,5 @@ export function Screen({ children, tab = false }: PropsWithChildren<{ tab?: bool
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  content: { flexGrow: 1, width: '100%', maxWidth: 720, alignSelf: 'center', padding: spacing.lg },
+  content: { flexGrow: 1, width: '100%', maxWidth: sizing.content, alignSelf: 'center', padding: spacing.lg },
 });
