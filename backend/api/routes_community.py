@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from geospatial.species import SPECIES, SPECIES_ORDER, species_meta
 
 from backend import config
-from backend.api.routes_citizen import no_store, onboarded_citizen
+from backend.api.routes_citizen import onboarded_citizen
 from backend.api.utils import now_iso, public_area_label
 from backend.database.session import get_db
 from backend.models import Alert, Incident, SightingReport, Village, utcnow
@@ -28,7 +28,7 @@ from backend.services.report_analysis import evidence_path
 from backend.services.serializers import serialize_village, species_info
 
 router = APIRouter(prefix="/api/community", tags=["community"])
-citizen_router = APIRouter(prefix="/api/citizen", tags=["citizen reports"], dependencies=[Depends(no_store)])
+citizen_router = APIRouter(prefix="/api/citizen", tags=["citizen reports"])
 
 GENERAL_GUIDELINES = [
     "Do not approach, chase, surround or corner a wild animal. Give it a clear escape route.",

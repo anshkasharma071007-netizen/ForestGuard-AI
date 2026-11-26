@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import secrets
 from datetime import timedelta
 from typing import Annotated, Literal
@@ -10,7 +11,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr, Field, StringConstraints, model_validator
 from sqlalchemy import delete, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.dialects.postgresql import insert as postgres_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 from backend import config
@@ -24,15 +26,14 @@ Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max
 Email = Annotated[EmailStr, Field(max_length=254)]
 
 
-def no_store(response: Response):
-    response.headers["Cache-Control"] = "no-store"
+router = APIRouter(prefix="/api/citizen", tags=["citizen"])
 
 
-router = APIRouter(prefix="/api/citizen", tags=["citizen"], dependencies=[Depends(no_store)])
+class PhoneInput(BaseModel):
+    phone: str = Field(max_length=40)
 
 
-class Verification(BaseModel):
-    phone: str = Field(min_length=1, max_length=40)
+class Verification(PhoneInput):
     code: str = Field(max_length=12)
     name: Name | None = None
     email: Email | None = None
@@ -59,13 +60,14 @@ class ProfileUpdate(BaseModel):
 
 
 def _normalize_phone(value: str) -> str:
-    try:
-        phone = phonenumbers.parse(value, "IN")
-        if not phone.extension and phonenumbers.is_valid_number(phone):
-            return phonenumbers.format_number(phone, phonenumbers.PhoneNumberFormat.E164)
-    except phonenumbers.NumberParseException:
-        pass
-    raise HTTPException(400, "Enter a valid phone number. Include the country code for numbers outside India.")
+    if not re.fullmatch(r"[6-9][0-9]{9}", value):
+        raise HTTPException(400, "Enter 10 digits starting with 6, 7, 8 or 9.")
+    canonical = "+91" + value
+    kind = phonenumbers.number_type(phonenumbers.parse(canonical))
+    if kind not in {phonenumbers.PhoneNumberType.MOBILE, phonenumbers.PhoneNumberType.FIXED_LINE_OR_MOBILE,
+                    phonenumbers.PhoneNumberType.UNKNOWN}:
+        raise HTTPException(400, "Enter an Indian mobile number.")
+    return canonical
 
 
 def _profile(citizen: Citizen) -> dict:
@@ -106,7 +108,14 @@ def _session(
     session = db.get(CitizenSession, _token_hash(token))
     if not session or session.expires_at <= utcnow():
         raise HTTPException(401, "Citizen session expired. Sign in again.")
+    _check_account(request, session)
     return session
+
+
+def _check_account(request: Request, session: CitizenSession):
+    expected = request.headers.get("X-Citizen-Account")
+    if expected is not None and expected != str(session.citizen_id):
+        raise HTTPException(401, "The citizen session changed. Sign in again.")
 
 
 def get_citizen(session: CitizenSession = Depends(_session)) -> Citizen:
@@ -119,31 +128,40 @@ def onboarded_citizen(citizen: Citizen = Depends(get_citizen)) -> Citizen:
     return citizen
 
 
-@router.post("/verify")
-def verify(payload: Verification, request: Request, response: Response, db: Session = Depends(get_db)):
+def _require_dev_verification():
     if not _dev_verification_enabled():
         raise HTTPException(403, "Development phone verification is disabled.")
+
+
+@router.post("/validate-phone", dependencies=[Depends(_require_dev_verification)])
+def validate_phone(payload: PhoneInput):
+    _normalize_phone(payload.phone)
+    return {"valid": True}
+
+
+@router.post("/verify", dependencies=[Depends(_require_dev_verification)])
+def verify(payload: Verification, request: Request, response: Response, db: Session = Depends(get_db)):
     if payload.transport == "cookie":
         _trusted_origin(request)
+    phone = _normalize_phone(payload.phone)
     if not secrets.compare_digest(payload.code.encode(), b"1234"):
         raise HTTPException(401, "Incorrect verification code.")
-    phone = _normalize_phone(payload.phone)
-    citizen = db.scalar(select(Citizen).where(Citizen.phone == phone))
-    if not citizen:
+    matches = db.scalars(select(Citizen).where(Citizen.normalized_phone == phone).limit(2)).all()
+    if len(matches) > 1:
+        raise HTTPException(409, "Multiple historical accounts use this number. Contact support to review them.")
+    if matches:
+        citizen = matches[0]
+    else:
         if not payload.name:
             raise HTTPException(400, "Enter your full name to create an account.")
-        try:
-            with db.begin_nested():
-                citizen = Citizen(phone=phone, name=payload.name, email=payload.email)
-                db.add(citizen)
-                db.flush()
-        except IntegrityError:
-            # A concurrent verification can create the same phone account first.
-            citizen = db.scalar(select(Citizen).where(Citizen.phone == phone))
-            if not citizen:
-                raise
+        insert = sqlite_insert if db.get_bind().dialect.name == "sqlite" else postgres_insert
+        db.execute(insert(Citizen).values(phone=phone, normalized_phone=phone, name=payload.name, email=payload.email)
+                   .on_conflict_do_nothing(index_elements=[Citizen.phone]))
+        citizen = db.scalars(select(Citizen).where(Citizen.phone == phone)).one()
 
     now = utcnow()
+    if payload.transport == "cookie" and (previous := request.cookies.get(COOKIE)) and len(previous) == 43:
+        db.execute(delete(CitizenSession).where(CitizenSession.token_hash == _token_hash(previous)))
     db.execute(delete(CitizenSession).where(CitizenSession.citizen_id == citizen.id, CitizenSession.expires_at <= now))
     token = secrets.token_urlsafe(32)
     db.add(CitizenSession(token_hash=_token_hash(token), citizen_id=citizen.id,
@@ -179,9 +197,18 @@ def update_profile(payload: ProfileUpdate, citizen: Citizen = Depends(get_citize
 
 
 @router.post("/sign-out")
-def sign_out(response: Response, session: CitizenSession = Depends(_session), db: Session = Depends(get_db)):
-    db.delete(session)
-    db.commit()
-    response.delete_cookie(COOKIE, path="/api/citizen", httponly=True,
-                           secure=config.APP_ENV != "development", samesite="strict")
+def sign_out(request: Request, response: Response, credentials: HTTPAuthorizationCredentials | None = Depends(security),
+             db: Session = Depends(get_db)):
+    if not credentials:
+        _trusted_origin(request)
+    token = credentials.credentials if credentials else request.cookies.get(COOKIE)
+    if token and len(token) == 43:
+        session = db.get(CitizenSession, _token_hash(token))
+        if session:
+            _check_account(request, session)
+            db.execute(delete(CitizenSession).where(CitizenSession.token_hash == session.token_hash))
+            db.commit()
+    if not credentials:
+        response.delete_cookie(COOKIE, path="/api/citizen", httponly=True,
+                               secure=config.APP_ENV != "development", samesite="strict")
     return {"signed_out": True}

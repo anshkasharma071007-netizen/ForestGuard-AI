@@ -3,17 +3,22 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions, type TextInputProps } from 'react-native';
 import { radius, sizing, spacing, typeScale, useTheme } from '@/theme';
 
-export function InputField({ label, hint, ...props }: TextInputProps & { label: string; hint?: string }) {
+export function InputField({ label, hint, prefix, ...props }: TextInputProps & { label: string; hint?: string; prefix?: string }) {
   const { colors } = useTheme();
   const [focused, setFocused] = useState(false);
   return (
     <View style={styles.field}>
       <Text style={[typeScale.card, { color: colors.primaryText }]}>{label}</Text>
-      <TextInput {...props} accessibilityLabel={label} placeholderTextColor={colors.mutedText}
+      <View style={prefix ? [styles.prefixedInput, { backgroundColor: colors.input,
+        borderColor: focused ? colors.focus : colors.controlBorder }] : undefined}>
+        {prefix && <Text style={[typeScale.input, { color: colors.primaryText }]}>{prefix}</Text>}
+        <TextInput {...props} accessibilityLabel={label} placeholderTextColor={colors.mutedText}
         onFocus={(event) => { setFocused(true); props.onFocus?.(event); }}
         onBlur={(event) => { setFocused(false); props.onBlur?.(event); }}
         style={[styles.input, props.multiline && styles.multiline, props.style,
-          { color: colors.primaryText, backgroundColor: colors.input, borderColor: focused ? colors.focus : colors.controlBorder }]} />
+          { color: colors.primaryText, backgroundColor: colors.input, borderColor: focused ? colors.focus : colors.controlBorder },
+          prefix && styles.inputWithPrefix]} />
+      </View>
       {hint && <Text style={[typeScale.supporting, { color: colors.secondaryText }]}>{hint}</Text>}
     </View>
   );
@@ -99,6 +104,8 @@ const styles = StyleSheet.create({
   field: { gap: spacing.xs },
   flex: { flex: 1 },
   input: { ...typeScale.input, minHeight: sizing.touch, borderRadius: radius.input, borderWidth: 1, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  prefixedInput: { flexDirection: 'row', alignItems: 'center', borderRadius: radius.input, borderWidth: 1, paddingLeft: spacing.md },
+  inputWithPrefix: { flex: 1, borderWidth: 0, backgroundColor: 'transparent', paddingLeft: spacing.sm },
   multiline: { minHeight: 100, textAlignVertical: 'top' },
   control: { minHeight: sizing.touch, borderRadius: radius.input, borderWidth: 1, paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm },

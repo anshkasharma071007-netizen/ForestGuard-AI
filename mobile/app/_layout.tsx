@@ -35,7 +35,7 @@ function AppShell() {
   if (restoreError) return <Screen><Feedback title="Could not restore your session" detail={restoreError} kind="error" retry={retry} /></Screen>;
   return (
     <>
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+      <Stack key={profile?.id ?? 'guest'} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
         <Stack.Protected guard={!profile}>
           <Stack.Screen name="onboarding" />
         </Stack.Protected>
@@ -46,7 +46,6 @@ function AppShell() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="report" options={{ presentation: 'modal' }} />
           <Stack.Screen name="report-detail" />
-          <Stack.Screen name="history" />
           <Stack.Screen name="settings" />
           <Stack.Screen name="guidelines" />
         </Stack.Protected>

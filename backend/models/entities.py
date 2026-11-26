@@ -57,6 +57,7 @@ class Citizen(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     phone: Mapped[str] = mapped_column(String(16), unique=True)
+    normalized_phone: Mapped[str | None] = mapped_column(String(13), index=True)
     name: Mapped[str] = mapped_column(String(120))
     email: Mapped[str | None] = mapped_column(String(254))
     village_id: Mapped[int | None] = mapped_column(ForeignKey("villages.id"))

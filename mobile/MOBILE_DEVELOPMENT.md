@@ -8,7 +8,7 @@ APP_ENV=development CITIZEN_DEV_OTP_ENABLED=true AI_MODE=auto \
   python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ```
 
-Both backend flags are required for local OTP `1234`. Development citizen sessions require those flags while in use.
+Both backend flags are required for local OTP `1234`. Development citizen sessions require those flags while in use. Citizen registration and sign-in take ten ASCII digits starting with 6, 7, 8 or 9. The API rejects numbers classified as landlines and saves accepted numbers with the `+91` prefix.
 
 Use the same Wi-Fi network for the computer and phone. Find the computer’s Wi-Fi IP on macOS with `ipconfig getifaddr en0`, or read the active interface’s IP in Network settings. From the phone, open `http://<computer-ip>:8000/api/health`. A response confirms the connection before you start Expo. If it fails, check the host firewall, IP and Wi-Fi client isolation. Use AI_MODE=demo to exercise the failed-analysis and retry states. Restart with AI_MODE=auto to run the installed model.
 
@@ -25,7 +25,7 @@ If Wi-Fi uses another interface or you are on another OS, substitute the IP from
 
 Scan the Expo QR code with an Expo Go version compatible with the project's installed SDK, or open it in your development build. Allow local network access if the OS prompts. If the native runtime disallows HTTP, use a trusted HTTPS backend origin. The production app should also use HTTPS. Expo’s Metro tunnel only transports the bundle. The phone still needs separate reachability to FastAPI.
 
-For browser development, the API defaults to Metro's hostname on port 8000. Visit `http://localhost:8081` or use the same hostname for both services. A web export can set `EXPO_PUBLIC_WEB_API_URL` when the API runs on another same-site origin. If the origins differ, include the exact web origin in `CORS_ORIGINS`. Web sessions use a same-site HttpOnly cookie. Native sessions use Expo SecureStore. A native development build must include the SecureStore module.
+For browser development, the API defaults to Metro's hostname on port 8000. Visit `http://localhost:8081` or use the same hostname for both services. A web export can set `EXPO_PUBLIC_WEB_API_URL` when the API runs on another same-site origin. If the origins differ, include the exact web origin in `CORS_ORIGINS`. Web sessions use a same-site HttpOnly cookie. Native sessions use Expo SecureStore. A native development build must include the SecureStore module. Sign-out immediately hides private data. If a browser cannot confirm server sign-out, it keeps the sign-out pending across reloads and offers a retry. Native sign-out clears the local credential and reports an unconfirmed server sign-out if the server is unreachable.
 
 The manual location picker reads the database village list. If the local database has no villages, use GPS. Seed data is optional and intended for an empty demo database.
 
@@ -33,6 +33,7 @@ The manual location picker reads the database village list. If the local databas
 
 | Endpoint | Mobile use |
 | --- | --- |
+| `POST /api/citizen/validate-phone` | Check the national mobile number before showing the OTP prompt. |
 | `POST /api/citizen/verify` | Verify the development OTP, create or retrieve an account, and start a session. |
 | `GET /api/citizen/profile`, `PUT /api/citizen/profile` | Restore or edit the current profile and location. |
 | `POST /api/citizen/sign-out` | Revoke the current session. |

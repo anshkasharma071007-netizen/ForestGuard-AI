@@ -14,7 +14,7 @@ Run `python -m tools.seed_demo` separately for the bundled demo. The command che
 
 ## Version the schema
 
-The baseline is revision `0001`. Revision `0003` adds citizen accounts, hashed sessions, and nullable ownership and title fields for reports. Legacy rows retain their existing references with no owner assigned. Revisions live under `backend/migrations/versions`. Use the owner URL only for administrative commands. For routine local upgrades use the initializer. The following owner URL example uses the Unix socket and OS account of the original migration host.
+The baseline is revision `0001`. Revision `0003` adds citizen accounts, hashed sessions, and nullable ownership and title fields for reports. Legacy reports retain their existing references and ownership. Revision `0004` indexes normalized Indian mobile numbers, canonicalizes unambiguous matches in place, and preserves foreign or otherwise unsupported historical numbers. If multiple historical accounts map to a single supported number, sign-in returns a conflict until those accounts are reviewed. Their IDs, phone records, and report ownership are preserved. Revisions live under `backend/migrations/versions`. Use the owner URL only for administrative commands. For routine local upgrades use the initializer. The following owner URL example uses the Unix socket and OS account of the original migration host.
 
 ```sh
 owner_url=postgresql+psycopg:///forest_guard_ai

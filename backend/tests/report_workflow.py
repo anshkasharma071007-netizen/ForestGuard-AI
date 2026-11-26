@@ -19,6 +19,13 @@ ROOT = Path(__file__).resolve().parents[2]
 PHOTO = ROOT / "frontend/public/images/elephant.jpg"
 
 
+class MobileWebHandler(SimpleHTTPRequestHandler):
+    def do_GET(self):
+        if not Path(self.path.split("?", 1)[0]).suffix:
+            self.path = "/index.html"
+        super().do_GET()
+
+
 def api_checks(client, auth):
     from ai_engine import config as ai_config
     from backend import config
@@ -210,7 +217,7 @@ def run():
             if not thread.is_alive() or monotonic() > deadline:
                 raise RuntimeError("Test API failed to start")
             sleep(.05)
-        http = ThreadingHTTPServer(("127.0.0.1", 18766), partial(SimpleHTTPRequestHandler, directory=str(mobile)))
+        http = ThreadingHTTPServer(("127.0.0.1", 18766), partial(MobileWebHandler, directory=str(mobile)))
         stack.callback(http.server_close)
         threading.Thread(target=http.serve_forever, daemon=True).start()
         stack.callback(http.shutdown)

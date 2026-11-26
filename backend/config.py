@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import os
+import secrets
 
 from dotenv import load_dotenv
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 load_dotenv(os.path.join(ROOT, ".env"))
 
-DEMO_MODE = os.getenv("DEMO_MODE", "true").strip().lower() in {"1", "true", "yes", "on"}
+DEMO_MODE = os.getenv("DEMO_MODE", "false").strip().lower() in {"1", "true", "yes", "on"}
 APP_ENV = os.getenv("APP_ENV", "production").strip().lower()
 CITIZEN_DEV_OTP_ENABLED = os.getenv("CITIZEN_DEV_OTP_ENABLED", "false").strip().lower() == "true"
 CORS_ORIGINS = [origin.strip() for origin in os.getenv(
@@ -15,7 +16,19 @@ CORS_ORIGINS = [origin.strip() for origin in os.getenv(
     "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,"
     "http://localhost:3000,http://localhost:8081,http://127.0.0.1:8081",
 ).split(",") if origin.strip()]
-SECRET_KEY = os.getenv("SECRET_KEY", "forest-guard-ai-demo-secret-change-me")
+_configured_secret = os.getenv("SECRET_KEY", "").strip()
+SECRET_KEY = _configured_secret or secrets.token_urlsafe(32)
+
+
+def validate_authority_secret():
+    if APP_ENV != "development" and (
+        len(_configured_secret) < 32
+        or _configured_secret in {
+            "forest-guard-ai-demo-secret-change-me",
+            "change-me-to-a-long-random-string",
+        }
+    ):
+        raise RuntimeError("Set SECRET_KEY to a securely generated random value of at least 32 characters.")
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL", "postgresql+psycopg://forest_guard_app@127.0.0.1:5432/forest_guard_ai"

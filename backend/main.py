@@ -46,8 +46,9 @@ def _seed_if_needed() -> dict:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    config.validate_authority_secret()
     app.state.seed_result = None
-    if os.getenv("SEED_ON_START", "false").strip().lower() in {"1", "true", "yes", "on"}:
+    if config.DEMO_MODE and os.getenv("SEED_ON_START", "false").strip().lower() in {"1", "true", "yes", "on"}:
         app.state.seed_result = _seed_if_needed()
     from backend.services.report_analysis import run_worker
     stop = Event()
@@ -77,6 +78,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def private_citizen_responses(request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/api/citizen/"):
+        response.headers["Cache-Control"] = "private, no-store"
+    return response
+
 
 app.include_router(routes_auth.router)
 app.include_router(routes_core.router)

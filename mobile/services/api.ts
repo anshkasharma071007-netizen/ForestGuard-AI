@@ -37,18 +37,17 @@ export function isReportStatus(value: unknown): value is ReportStatus {
 }
 type ReportIdentity = { reference_code: string; status: ReportStatus };
 export type ReportSubmissionResponse = ReportIdentity & { message: string };
-export type ReportStatusResponse = ReportIdentity & {
-  created_at?: string;
-  species_name?: string;
-  village_name?: string;
-  status_note?: string;
-};
 export type Village = { code: string; name: string; district?: string };
 export type Coordinates = { lat: number; lon: number };
 export type SavedLocation = ({ type: 'gps' } | { type: 'village'; village: Village }) & Coordinates;
 export type LocationInput = Coordinates | { village_code: string };
 export type CitizenProfile = { id: number; name: string; email: string | null; phone: string; location: SavedLocation | null };
-export type CitizenAccess = { token?: string; expire: () => void };
+export type CitizenAccess = {
+  token?: string;
+  citizenId?: number;
+  signal?: AbortSignal;
+  expire: () => void;
+};
 export type CitizenReport = ReportIdentity & { title: string; createdAt: string };
 export type Advisory = {
   id: number;
@@ -134,14 +133,6 @@ export async function submitCitizenReport(access: CitizenAccess, formData: FormD
   return { ...parseIdentity(record), message: record.message };
 }
 
-export async function recoverReceipt(key: string) {
-  const response = await request('/api/community/report-receipt', {
-    method: 'POST', body: new URLSearchParams({ submission_key: key }).toString(),
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-  }, { notFound: 'Submission has not been received.' });
-  return parseIdentity(response);
-}
-
 export async function recoverCitizenReceipt(access: CitizenAccess, key: string, signal?: AbortSignal) {
   const body = new FormData();
   body.append('submission_key', key);
@@ -158,6 +149,13 @@ export async function verifyCitizen(input: { phone: string; code: string; name?:
   return { profile: parseProfile(object(record.profile)), token: web ? undefined : requiredText(record.token) };
 }
 
+export async function validateCitizenPhone(phone: string) {
+  const result = await request('/api/citizen/validate-phone', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone }),
+  });
+  if (result.valid !== true) throw invalidResponse();
+}
+
 export async function getCitizenProfile(access: CitizenAccess, signal?: AbortSignal) {
   return parseProfile(await citizenRequest(access, '/profile', { signal }));
 }
@@ -169,7 +167,8 @@ export async function updateCitizenProfile(access: CitizenAccess, input: { name:
 }
 
 export async function endCitizenSession(access: CitizenAccess) {
-  await citizenRequest(access, '/sign-out', { method: 'POST' });
+  const result = await citizenRequest(access, '/sign-out', { method: 'POST' });
+  if (result.signed_out !== true) throw invalidResponse();
 }
 
 export async function getCitizenReports(access: CitizenAccess, signal?: AbortSignal) {
@@ -184,9 +183,21 @@ export async function getCitizenReport(access: CitizenAccess, code: string, sign
     hasPhoto: record.has_photo === true, analysis: requiredText(record.analysis_status), suggestions: textList(record.suggested_species) };
 }
 
-export function citizenEvidence(access: CitizenAccess, code: string) {
-  return { uri: `${API_URL}/api/citizen/reports/${encodeURIComponent(code)}/evidence`,
-    headers: access.token ? { Authorization: `Bearer ${access.token}` } : undefined };
+function citizenHeaders(access: CitizenAccess) {
+  return {
+    ...(access.token ? { Authorization: `Bearer ${access.token}` } : {}),
+    ...(access.citizenId ? { 'X-Citizen-Account': String(access.citizenId) } : {}),
+  };
+}
+
+export async function getCitizenEvidence(access: CitizenAccess, code: string, signal: AbortSignal) {
+  const response = await fetch(`${API_URL}/api/citizen/reports/${encodeURIComponent(code)}/evidence`, {
+    credentials: Platform.OS === 'web' ? 'include' : 'omit',
+    headers: citizenHeaders(access), signal, cache: 'no-store',
+  });
+  if (response.status === 401 && !signal.aborted && !access.signal?.aborted) access.expire();
+  if (!response.ok) throw new Error('Photo could not be loaded.');
+  return response.blob();
 }
 
 type RequestContext = { submission?: boolean; notFound?: string };
@@ -195,36 +206,25 @@ async function citizenRequest(access: CitizenAccess, path: string, init: Request
   try {
     return await request(`/api/citizen${path}`, {
       ...init, credentials: Platform.OS === 'web' ? 'include' : 'omit',
-      headers: { ...init.headers, ...(access.token ? { Authorization: `Bearer ${access.token}` } : {}) },
-    }, context);
+      headers: { ...init.headers, ...citizenHeaders(access) },
+    }, context, access.signal);
   } catch (error) {
-    if (error instanceof ApiError && error.kind === 'unauthorized') access.expire();
+    if (!access.signal?.aborted && !init.signal?.aborted && error instanceof ApiError && error.kind === 'unauthorized') {
+      access.expire();
+    }
     throw error;
   }
 }
 
-export async function getReportStatus(referenceCode: string, signal?: AbortSignal): Promise<ReportStatusResponse> {
-  const code = referenceCode.trim().toUpperCase();
-  if (!code) throw new ApiError('invalid-input', 'Enter a reference code.');
-  const path = `/api/community/reports/${encodeURIComponent(code)}`;
-  const record = await request(path, { signal }, { notFound: 'That report could not be found.' });
-  return {
-    ...parseIdentity(record),
-    created_at: optionalDate(record.created_at),
-    species_name: optionalText(record.species_name),
-    village_name: optionalText(record.village_name),
-    status_note: optionalText(record.status_note),
-  };
-}
-
-async function request(path: string, init: RequestInit, context?: RequestContext) {
+async function request(path: string, init: RequestInit, context?: RequestContext, sessionSignal?: AbortSignal) {
   if (!isApiConfigured) throw new ApiError('unavailable', 'The Forest Guard service is not configured on this device.');
 
   const controller = new AbortController();
   const cancel = () => controller.abort();
   const signal = init.signal;
-  if (signal?.aborted) cancel();
-  else signal?.addEventListener('abort', cancel, { once: true });
+  if (signal?.aborted || sessionSignal?.aborted) throw new ApiError('request-failed', 'The request was cancelled.');
+  signal?.addEventListener('abort', cancel, { once: true });
+  sessionSignal?.addEventListener('abort', cancel, { once: true });
   const timeout = setTimeout(cancel, REQUEST_TIMEOUT_MS);
   try {
     const response = await fetch(`${API_URL}${path}`, {
@@ -236,6 +236,7 @@ async function request(path: string, init: RequestInit, context?: RequestContext
     let value: unknown;
     try { value = JSON.parse(payload); } catch { value = null; }
 
+    if (controller.signal.aborted) throw new ApiError('request-failed', 'The request was cancelled.');
     if (response.ok) return object(value);
     if (response.status === 401) throw new ApiError('unauthorized', validationMessage(value) ?? 'Sign in again.');
     if (response.status === 404 && context?.notFound) throw new ApiError('not-found', context.notFound);
@@ -259,6 +260,7 @@ async function request(path: string, init: RequestInit, context?: RequestContext
   } finally {
     clearTimeout(timeout);
     signal?.removeEventListener('abort', cancel);
+    sessionSignal?.removeEventListener('abort', cancel);
   }
 }
 

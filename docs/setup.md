@@ -83,14 +83,14 @@ alongside the API. That gives a single-origin deployment without a separate web 
 
 ## 3. Environment variables
 
-Copy `.env.example` to `.env` and edit as needed. `.env` is git-ignored.
+Copy `.env.example` to `.env` and edit as needed. `.env` is git-ignored. The database initializer generates a random authority signing secret for a new environment. To set one in an existing environment, run `python -c "import secrets; print(secrets.token_urlsafe(32))"` and save the output privately as `SECRET_KEY`. Outside development, the API refuses startup if the value is missing, too short, or a shipped placeholder. Local development can use an ephemeral key, which resets authority sessions after a restart.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `DEMO_MODE` | `true` | Adds demo/synthetic badges and flags to API payloads |
-| `SECRET_KEY` | insecure dev default | Signs auth tokens. **Set a long random value for any shared deployment** |
+| `DEMO_MODE` | `false` | Enables demo labeling and allows opt-in startup seeding |
+| `SECRET_KEY` | Required outside development | Signs authority tokens. Generate a private random value of at least 32 characters |
 | `DATABASE_URL` | `postgresql+psycopg://forest_guard_app@127.0.0.1:5432/forest_guard_ai` | Runtime login. Tests override it |
-| `SEED_ON_START` | `false` | Legacy startup opt-in. Use the explicit seed command for setup |
+| `SEED_ON_START` | `false` | Startup seeding requires both this flag and `DEMO_MODE=true`. Use the explicit seed command for setup |
 | `APP_ENV` | `production` | Set `development` only for local development sessions |
 | `CITIZEN_DEV_OTP_ENABLED` | `false` | Set `true` together with `APP_ENV=development` to allow the local OTP `1234` |
 | `PGPASSFILE` | Set by the initializer | Path to the private runtime libpq passfile |
@@ -106,7 +106,7 @@ Copy `.env.example` to `.env` and edit as needed. `.env` is git-ignored.
 
 ## 4. Demonstration data
 
-Run `python -m tools.seed_demo` with the backend virtual environment and your local settings. It seeds only when all application tables are empty. Repeating the command on a populated database skips seeding. A seed failure rolls back the database changes. Demo image copies can remain in `backend/uploads/demo` and are reused on retry.
+Run `python -m tools.seed_demo` with the backend virtual environment and your local settings to opt in to synthetic data. Set `DEMO_MODE=true` in that demo environment to display demo labeling. It seeds only when all application tables are empty. Repeating the command on a populated database skips seeding. A seed failure rolls back the database changes. Demo image copies can remain in `backend/uploads/demo` and are reused on retry.
 
 To reset only the risk configuration, use **Risk & Alerts → Configuration → Reset**, or:
 

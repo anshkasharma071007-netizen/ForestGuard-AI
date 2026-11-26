@@ -134,7 +134,7 @@ export default function ReportScreen() {
       for (const [key, value] of Object.entries(incidentLocation)) formData.append(key, String(value));
       if (photo) await appendPhoto(formData, photo);
 
-      const key = await submissionKey(draft, profile.id);
+      const key = await submissionKey(draft, profile.id, access.signal);
       formData.append('submission_key', key);
       let response: ReportSubmissionResponse;
       try {
@@ -143,7 +143,7 @@ export default function ReportScreen() {
         if (failure instanceof ApiError && failure.kind === 'invalid-input') await finishSubmission(key, profile.id);
         throw failure;
       }
-      setConfirmation(response);
+      if (!access.signal.aborted) setConfirmation(response);
       await finishSubmission(key, profile.id).catch(() => {});
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'The report could not be submitted. Please try again.');

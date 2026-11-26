@@ -54,7 +54,7 @@ export default function HomeScreen() {
       <View style={{ gap: spacing.lg }}>
         <PrimaryButton label="New report" icon="plus" onPress={() => router.push('/report')} />
         <View style={{ gap: spacing.sm }}>
-          <SectionTitle title="My reports" action={{ label: 'Older references', onPress: () => router.push('/history') }} />
+          <SectionTitle title="My reports" />
           {reports.state.kind === 'loading' && <Feedback title="Loading reports…" kind="loading" />}
           {'message' in reports.state && <Feedback title="Could not load reports" detail={reports.state.message} kind="error" retry={reports.reload} />}
           {reports.state.kind === 'ready' && (reports.state.data.length ? reports.state.data.map((report) => (
