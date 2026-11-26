@@ -42,7 +42,7 @@ class IncidentUpdateRequest(BaseModel):
 
 
 class SightingStatusUpdate(BaseModel):
-    status: Literal["pending", "forwarded", "closed"] | None = None
+    status: Literal["pending", "forwarded", "closed", "verified", "rejected"] | None = None
     note: str | None = Field(default=None, max_length=1000)
 
 

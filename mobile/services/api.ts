@@ -1,4 +1,19 @@
-const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? '').trim().replace(/\/+$/, '');
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
+
+function defaultOrigin() {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    const url = new URL(window.location.origin);
+    if (__DEV__) url.port = '8000';
+    return url.origin;
+  }
+  if (!__DEV__) return '';
+  const expoHost = Constants.expoConfig?.hostUri;
+  const host = expoHost ? new URL(`http://${expoHost}`).hostname : 'localhost';
+  const androidLoopback = Platform.OS === 'android' && (host === 'localhost' || host === '127.0.0.1');
+  return `http://${androidLoopback ? '10.0.2.2' : host}:8000`;
+}
+const API_URL = (process.env.EXPO_PUBLIC_API_URL?.trim() || defaultOrigin()).replace(/\/+$/, '');
 const REQUEST_TIMEOUT_MS = 30000;
 
 export const isApiConfigured = /^https?:\/\/[^/\s]+(?::\d+)?(?:\/[^\s]*)?$/i.test(API_URL);
@@ -12,7 +27,11 @@ export class ApiError extends Error {
   }
 }
 
-export type ReportStatus = 'pending' | 'forwarded' | 'closed';
+const statuses = ['pending', 'forwarded', 'verified', 'rejected', 'closed'] as const;
+export type ReportStatus = typeof statuses[number];
+export function isReportStatus(value: unknown): value is ReportStatus {
+  return statuses.some((status) => status === value);
+}
 type ReportIdentity = { reference_code: string; status: ReportStatus };
 export type ReportSubmissionResponse = ReportIdentity & { message: string };
 export type ReportStatusResponse = ReportIdentity & {
@@ -56,8 +75,8 @@ export async function getCommunityVillages(signal?: AbortSignal): Promise<Villag
   }));
 }
 
-export async function getPublicAlerts(signal?: AbortSignal): Promise<PublicAdvisories> {
-  const { items, window_days } = await request('/api/community/alerts?limit=50', { signal });
+export async function getPublicAlerts(signal?: AbortSignal, villageCode?: string): Promise<PublicAdvisories> {
+  const { items, window_days } = await request(`/api/community/alerts?limit=50&field_only=true${villageCode ? '&village_code=' + encodeURIComponent(villageCode) : ''}`, { signal });
   if (typeof window_days !== 'number' || !Number.isInteger(window_days) || window_days < 1) throw invalidResponse();
   const results = list(items);
   if (results.some((item) => typeof item.is_simulated !== 'boolean')) throw invalidResponse();
@@ -102,6 +121,14 @@ export async function submitCommunityReport(formData: FormData): Promise<ReportS
   return { ...parseIdentity(record), message: record.message };
 }
 
+export async function recoverReceipt(key: string) {
+  const response = await request('/api/community/report-receipt', {
+    method: 'POST', body: new URLSearchParams({ submission_key: key }).toString(),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  }, { notFound: 'Submission has not been received.' });
+  return parseIdentity(response);
+}
+
 export async function getReportStatus(referenceCode: string, signal?: AbortSignal): Promise<ReportStatusResponse> {
   const code = referenceCode.trim().toUpperCase();
   if (!code) throw new ApiError('invalid-input', 'Enter a reference code.');
@@ -128,7 +155,7 @@ async function request(path: string, init: RequestInit, context?: { submission?:
   try {
     const response = await fetch(`${API_URL}${path}`, {
       ...init,
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', ...init.headers },
       signal: controller.signal,
     });
     const payload = await response.text();
@@ -140,19 +167,20 @@ async function request(path: string, init: RequestInit, context?: { submission?:
     if (response.status === 404 || response.status === 501 || response.status === 405) {
       throw new ApiError('unavailable', 'This feature is unavailable on the configured service.');
     }
-    if ([400, 413, 415, 422].includes(response.status)) {
+    if ([400, 409, 413, 415, 422].includes(response.status)) {
       throw new ApiError('invalid-input', validationMessage(value) ?? 'Check the information you entered and try again.');
     }
     if (response.status === 429) throw new ApiError('request-failed', 'Too many requests. Try again shortly.');
     throw new ApiError('request-failed', 'The Forest Guard service could not complete the request. Try again.');
   } catch (error) {
     if (error instanceof ApiError) throw error;
+    if (__DEV__) console.error('[API Error]', path, error);
     if (controller.signal.aborted) {
       throw new ApiError('timeout', context?.submission
-        ? 'The request timed out. The service may have received your report.'
+        ? 'The request timed out. Retry this report to retrieve its reference.'
         : 'The request timed out. Check your connection and try again.');
     }
-    throw new ApiError('unreachable', 'Could not reach Forest Guard. Check your connection and try again.');
+    throw new ApiError('unreachable', 'Could not reach Forest Guard. Check your Wi-Fi and API address, then retry.');
   } finally {
     clearTimeout(timeout);
     signal?.removeEventListener('abort', cancel);
@@ -173,7 +201,7 @@ function validationMessage(value: unknown) {
 
 function parseIdentity(record: Record<string, unknown>): ReportIdentity {
   const { status } = record;
-  if (status !== 'pending' && status !== 'forwarded' && status !== 'closed') throw invalidResponse();
+  if (!isReportStatus(status)) throw invalidResponse();
   return { reference_code: requiredText(record.reference_code), status };
 }
 

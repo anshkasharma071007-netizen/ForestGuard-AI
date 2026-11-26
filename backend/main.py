@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 import os
+from threading import Event, Thread
+from pathlib import Path
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -46,7 +48,15 @@ async def lifespan(app: FastAPI):
     app.state.seed_result = None
     if os.getenv("SEED_ON_START", "false").strip().lower() in {"1", "true", "yes", "on"}:
         app.state.seed_result = _seed_if_needed()
-    yield
+    from backend.services.report_analysis import run_worker
+    stop = Event()
+    worker = Thread(target=run_worker, args=(stop,), daemon=True, name="report-analysis")
+    worker.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        worker.join(timeout=3)
 
 
 app = FastAPI(
@@ -61,7 +71,7 @@ app = FastAPI(
 
 origins = os.getenv(
     "CORS_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:3000",
+    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:3000,http://localhost:8081,http://127.0.0.1:8081",
 ).split(",")
 app.add_middleware(
     CORSMiddleware,
@@ -78,11 +88,28 @@ app.include_router(routes_alerts.router)
 app.include_router(routes_guard.router)
 app.include_router(routes_community.router)
 
-app.mount("/media", StaticFiles(directory=config.UPLOAD_DIR), name="media")
+class PublicMedia(StaticFiles):
+    def lookup_path(self, path):
+        full_path, stat = super().lookup_path(path)
+        # Protect existing community uploads too, including case-insensitive filesystems.
+        if stat and "community" in [part.casefold() for part in Path(full_path).relative_to(Path(self.directory).resolve()).parts]:
+            return "", None
+        return full_path, stat
+
+
+app.mount("/media", PublicMedia(directory=config.UPLOAD_DIR), name="media")
+
+class WebsiteFiles(StaticFiles):
+    async def get_response(self, path, scope):
+        # These entry points are handled by React Router, including after official sign-in.
+        if path in {"reports", "login"}:
+            path = "index.html"
+        return await super().get_response(path, scope)
+
 
 frontend_dir = os.path.join(config.ROOT, "frontend", "dist")
 if os.path.isdir(frontend_dir):
-    app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
+    app.mount("/", WebsiteFiles(directory=frontend_dir, html=True), name="frontend")
 
 
 @app.get("/api")

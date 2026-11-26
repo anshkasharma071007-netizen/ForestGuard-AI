@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from geospatial.mapping import haversine_km, polygon_ring
 from geospatial.risk_analysis import RiskSettings, villages_within_radius
 from geospatial.species import species_meta
 
-from backend.models import Alert, AlertEvent, Detection, Guard, Village, utcnow
+from backend.models import Alert, AlertEvent, Detection, Guard, Incident, Village, utcnow
 
 SEVERITY_HIGH = 65.0
 SEVERITY_CRITICAL = 80.0
@@ -56,48 +56,45 @@ def _public_summary(species: str, severity: str, village_names: list[str]) -> st
     )
 
 
-def _has_recent_duplicate(db: Session, detection: Detection, villages: list[dict]) -> bool:
-    since = detection.detected_at - timedelta(hours=24)
-    recent = db.scalars(
-        select(Alert).where(
-            Alert.species == detection.species,
-            Alert.created_at >= since,
-            Alert.status != "resolved",
-        )
-    ).all()
-    new_village_ids = {v["id"] for v in villages}
-    for alert in recent:
-        if set(alert.village_ids or []) & new_village_ids:
-            return True
-        if detection.nearest_village_id and detection.nearest_village_id in (alert.village_ids or []):
-            return True
-    return False
-
-
 def maybe_create_alert(
     db: Session,
-    detection: Detection,
+    detection: Detection | Incident,
     risk: dict,
     settings: RiskSettings,
     *,
     actor: str = "Risk engine",
 ) -> Alert | None:
-    threshold = float(settings.data["alert_threshold"])
-    if risk["score"] < threshold:
+    incident = isinstance(detection, Incident)
+    if incident and (not detection.verified or not detection.report_id):
+        return None
+    if risk["score"] < float(settings.data["alert_threshold"]):
         return None
     villages = villages_within_radius(
         detection.lat, detection.lon, village_dicts(db), float(settings.data["alert_radius_km"])
     )
     if not villages:
         return None
-    if _has_recent_duplicate(db, detection, villages):
+    # Serialize the duplicate check and insert across concurrent API workers.
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(text("SELECT pg_advisory_xact_lock(71239410)"))
+    source = Alert.incident_id if incident else Alert.detection_id
+    if db.scalar(select(Alert.id).where(source == detection.id).limit(1)):
+        return None
+    observed_at = detection.created_at if incident else detection.detected_at
+    created_at = utcnow() if incident else observed_at + timedelta(minutes=2)
+    recent = db.scalars(select(Alert).where(
+        Alert.species == detection.species, Alert.is_simulated == detection.is_simulated,
+        Alert.created_at >= created_at - timedelta(hours=24), Alert.status != "resolved",
+    ))
+    village_ids = {v["id"] for v in villages}
+    if any(village_ids.intersection(alert.village_ids or []) for alert in recent):
         return None
 
     severity, priority = _severity(risk["score"])
     village_names = [v["name"] for v in villages]
-    created_at = detection.detected_at + timedelta(minutes=2)
     alert = Alert(
-        detection_id=detection.id,
+        detection_id=None if incident else detection.id,
+        incident_id=detection.id if incident else None,
         species=detection.species,
         severity=severity,
         score=risk["score"],
@@ -136,7 +133,7 @@ def maybe_create_alert(
             )
         )
     for village in db.scalars(select(Village).where(Village.id.in_([v["id"] for v in villages]))):
-        village.last_alert_at = detection.detected_at
+        village.last_alert_at = created_at
     db.flush()
     return alert
 
@@ -159,6 +156,13 @@ def sync_alerts(db: Session, settings: RiskSettings, *, days: int = 30, commit: 
         alert = maybe_create_alert(db, det, risk, settings)
         if alert:
             created.append(alert)
+    for incident in db.scalars(select(Incident).where(
+        Incident.report_id.is_not(None), Incident.verified.is_(True), Incident.created_at >= since
+    )):
+        if incident.report_risk:
+            alert = maybe_create_alert(db, incident, incident.report_risk, settings)
+            if alert:
+                created.append(alert)
     if commit:
         db.commit()
     else:

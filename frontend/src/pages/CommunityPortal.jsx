@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight,
@@ -45,7 +45,7 @@ const EMPTY_FORM = {
 
 export default function CommunityPortal() {
   const summary = useApi('/api/community/summary')
-  const advisories = useApi('/api/community/alerts?days=21&limit=20')
+  const advisories = useApi('/api/community/alerts?days=21&limit=20', { interval: 10000 })
   const guidelines = useApi('/api/community/guidelines')
   const villages = useApi('/api/community/villages')
 
@@ -55,6 +55,7 @@ export default function CommunityPortal() {
   const [photoPreview, setPhotoPreview] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState(null)
+  const submission = useRef(null)
   const [receipt, setReceipt] = useState(null)
   const [copied, setCopied] = useState(false)
 
@@ -96,6 +97,12 @@ export default function CommunityPortal() {
     setSubmitting(true)
     try {
       const body = new FormData()
+      const fingerprint = JSON.stringify([form, photo?.name, photo?.size, photo?.lastModified])
+      if (submission.current?.fingerprint !== fingerprint) {
+        const key = crypto.randomUUID?.()
+        submission.current = { fingerprint, key }
+      }
+      if (submission.current.key) body.append('submission_key', submission.current.key)
       body.append('category', form.category)
       body.append('species', form.species)
       body.append('description', form.description.trim())
@@ -104,6 +111,7 @@ export default function CommunityPortal() {
       if (form.village_code) body.append('village_code', form.village_code)
       if (photo) body.append('image', photo)
       const response = await api.post('/api/community/reports', body)
+      submission.current = null
       setReceipt(response.data)
       setReference(response.data.reference_code)
       resetForm()
@@ -384,10 +392,10 @@ export default function CommunityPortal() {
                   </div>
                   <div>
                     <label className="field-label" htmlFor="report-village">
-                      Nearest village (optional)
+                      Incident village
                     </label>
                     <select
-                      id="report-village"
+                      id="report-village" required
                       className="field"
                       value={form.village_code}
                       onChange={(event) => update('village_code', event.target.value)}

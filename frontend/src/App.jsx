@@ -7,6 +7,7 @@ import Overview from './pages/Overview'
 import LiveMonitoring from './pages/LiveMonitoring'
 import GISMapPage from './pages/GISMap'
 import Wildlife from './pages/Wildlife'
+import IncidentReports from './pages/IncidentReports'
 import RiskAlerts from './pages/RiskAlerts'
 import GuardPanel from './pages/GuardPanel'
 import Analytics from './pages/Analytics'
@@ -48,6 +49,7 @@ export default function App() {
         <Route path="/monitoring" element={<LiveMonitoring />} />
         <Route path="/map" element={<GISMapPage />} />
         <Route path="/wildlife" element={<Wildlife />} />
+        <Route path="/reports" element={<IncidentReports />} />
         <Route path="/risk" element={<RiskAlerts />} />
         <Route path="/guard" element={<GuardPanel />} />
         <Route path="/analytics" element={<Analytics />} />

@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   BarChart3,
+  ClipboardList,
   ChevronRight,
   Globe2,
   LayoutDashboard,
@@ -15,6 +16,7 @@ import {
   X,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useApi } from '../hooks/useApi'
 import LanguageSwitcher from './LanguageSwitcher'
 import ThemeToggle from './ThemeToggle'
 import { Logo } from './ui'
@@ -32,6 +34,7 @@ const SECTIONS = [
     label: 'Intelligence',
     items: [
       { to: '/wildlife', label: 'Wildlife Intelligence', icon: PawPrint },
+      { to: '/reports', label: 'Incident Reports', icon: ClipboardList },
       { to: '/risk', label: 'Risk & Alerts', icon: ShieldAlert },
       { to: '/guard', label: 'Forest Guard Panel', icon: Users },
     ],
@@ -47,12 +50,13 @@ const TITLES = {
   '/monitoring': 'Live monitoring',
   '/map': 'GIS intelligence',
   '/wildlife': 'Wildlife intelligence',
+  '/reports': 'Incident reports',
   '/risk': 'Risk & alerts',
   '/guard': 'Forest guard panel',
   '/analytics': 'Analytics & reports',
 }
 
-function SidebarContent({ onNavigate }) {
+function SidebarContent({ onNavigate, unread }) {
   const { user, logout } = useAuth()
   return (
     <div className="flex h-full flex-col">
@@ -102,7 +106,7 @@ function SidebarContent({ onNavigate }) {
                           }`}
                         strokeWidth={1.8}
                       />
-                      <span className="flex-1">{item.label}</span>
+                      <span className="flex-1">{item.label}{item.to === '/reports' && unread > 0 && ` (${unread})`}</span>
                       {isActive && <ChevronRight className="h-3.5 w-3.5 text-forest-200/60" />}
                     </>
                   )}
@@ -167,6 +171,11 @@ export default function Layout({ children }) {
   const { user } = useAuth()
   const title = TITLES[location.pathname] || 'Forest Guard AI'
 
+  const notifications = useApi('/api/reports/notifications', { interval: 6000 })
+  const latestAlert = notifications.data?.latest_alert
+  const unread = notifications.data?.unread ?? 0
+  const initialAlert = useRef(undefined)
+  if (notifications.data && initialAlert.current === undefined) initialAlert.current = latestAlert?.id ?? 0
   const today = new Date().toLocaleDateString('en-IN', {
     weekday: 'short',
     day: '2-digit',
@@ -177,7 +186,7 @@ export default function Layout({ children }) {
   return (
     <div className="min-h-screen bg-sand">
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-[264px] bg-forest-950 bg-topo lg:block">
-        <SidebarContent />
+        <SidebarContent unread={unread} />
       </aside>
 
       {mobileOpen && (
@@ -191,7 +200,7 @@ export default function Layout({ children }) {
             >
               <X className="h-4 w-4" />
             </button>
-            <SidebarContent onNavigate={() => setMobileOpen(false)} />
+            <SidebarContent unread={unread} onNavigate={() => setMobileOpen(false)} />
           </aside>
         </div>
       )}
@@ -216,6 +225,10 @@ export default function Layout({ children }) {
               </div>
             </div>
             <div className="flex items-center gap-2.5">
+              <div aria-live="polite" className="flex flex-wrap gap-2 text-xs">
+                {unread > 0 && <NavLink to="/reports" className="btn">{unread} unread reports</NavLink>}
+                {latestAlert?.id > initialAlert.current && <NavLink to="/risk" className="btn" title={latestAlert.summary}>New field alert #{latestAlert.id}</NavLink>}
+              </div>
               <LanguageSwitcher />
               <ThemeToggle />
               <div className="hidden text-right sm:block">

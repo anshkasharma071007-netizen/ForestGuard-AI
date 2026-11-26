@@ -67,6 +67,7 @@ def _incident_dicts(db: Session) -> list[dict]:
             "lat": incident.lat,
             "lon": incident.lon,
             "verified": incident.verified,
+            "is_simulated": incident.is_simulated,
             "created_at": incident.created_at,
         }
         for incident in incidents
@@ -107,7 +108,9 @@ def recalculate_all(
     tracks = {track.id: track.direction for track in db.scalars(select(Track)).all()}
     detections = db.scalars(select(Detection).order_by(Detection.detected_at)).all()
 
-    prior: list[dict] = []
+    history = {simulated: [item for item in incidents if item["is_simulated"] == simulated]
+               for simulated in (True, False)}
+    prior: dict[bool, list[dict]] = {True: [], False: []}
     counts = {"low": 0, "moderate": 0, "high": 0}
     alerts_eligible = 0
     threshold = float(settings.data["alert_threshold"])
@@ -115,8 +118,8 @@ def recalculate_all(
         risk = score_detection_record(
             det,
             villages=villages,
-            incidents=incidents,
-            prior=prior,
+            incidents=history[det.is_simulated],
+            prior=prior[det.is_simulated],
             track_direction=tracks.get(det.track_id),
             settings=settings,
             now=now,
@@ -130,7 +133,7 @@ def recalculate_all(
         counts[risk["level"]] += 1
         if risk["score"] >= threshold:
             alerts_eligible += 1
-        prior.append(
+        prior[det.is_simulated].append(
             {
                 "species": det.species,
                 "lat": det.lat,
@@ -140,17 +143,26 @@ def recalculate_all(
         )
     db.flush()
 
-    # Refresh village risk labels from recent detections around each boundary.
+    verified_reports = db.scalars(select(Incident).where(
+        Incident.report_id.is_not(None), Incident.verified.is_(True)
+    )).all()
+    for incident in verified_reports:
+        observations = [entry for entry in prior[incident.is_simulated]
+                        if entry["detected_at"] < incident.created_at]
+        incident.report_risk = score_detection(
+            species=incident.species, lat=incident.lat, lon=incident.lon, detected_at=incident.created_at,
+            villages=villages, incidents=history[incident.is_simulated], prior_detections=observations, track_direction=None,
+            settings=settings, now=now,
+        )
     recent_cutoff = now - timedelta(days=14)
+    recent_scores = [(d.lat, d.lon, d.risk_score) for d in detections if d.detected_at >= recent_cutoff]
+    recent_scores.extend((i.lat, i.lon, i.report_risk["score"]) for i in verified_reports
+                         if i.created_at >= recent_cutoff)
+    radius = float(settings.data["alert_radius_km"]) + 0.5
     for village in db.scalars(select(Village)).all():
         ring = polygon_ring(village.boundary_geojson)
-        best = 0.0
-        for det in detections:
-            if det.detected_at < recent_cutoff:
-                continue
-            distance = distance_to_polygon_km(det.lat, det.lon, ring)
-            if distance <= float(settings.data["alert_radius_km"]) + 0.5:
-                best = max(best, det.risk_score)
+        best = max((score for lat, lon, score in recent_scores
+                    if distance_to_polygon_km(lat, lon, ring) <= radius), default=0.0)
         village.risk_level = risk_level(best, settings.thresholds)
     if commit:
         db.commit()
@@ -158,6 +170,7 @@ def recalculate_all(
         db.flush()
     return {
         "detections_scored": len(detections),
+        "report_incidents_scored": len(verified_reports),
         "levels": counts,
         "alerts_eligible": alerts_eligible,
         "settings": settings.to_dict(),
@@ -169,10 +182,11 @@ def recalculate_all(
 def rescore_detection(db: Session, detection: Detection, settings: RiskSettings | None = None) -> dict:
     settings = settings or get_settings()
     villages = _village_dicts(db)
-    incidents = _incident_dicts(db)
+    incidents = [i for i in _incident_dicts(db) if i["is_simulated"] == detection.is_simulated]
     prior_models = db.scalars(
         select(Detection)
-        .where(Detection.detected_at < detection.detected_at, Detection.id != detection.id)
+        .where(Detection.detected_at < detection.detected_at, Detection.id != detection.id,
+               Detection.is_simulated == detection.is_simulated)
         .order_by(Detection.detected_at)
     ).all()
     prior = [

@@ -58,7 +58,7 @@ const FIELD_META = [
 
 export default function RiskAlerts() {
   const { isAdmin } = useAuth()
-  const { data, loading, error, reload } = useApi('/api/alerts?days=45&limit=200')
+  const { data, loading, error, reload } = useApi('/api/alerts?days=45&limit=200', { interval: 6000 })
   const zones = useApi('/api/risk/zones?days=21')
   const config = useApi('/api/risk/config')
   const guards = useApi('/api/guards')
@@ -486,7 +486,7 @@ export default function RiskAlerts() {
           detailAlert && (
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="text-[9.5px] text-muted-13">
-                {detailRecord?.is_simulated ? 'Station detection alert.' : 'Generated from uploaded media.'}
+                {detailAlert.is_simulated ? 'Simulated alert.' : detailAlert.incident_id ? 'Verified community incident.' : 'Field detection alert.'}
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {detailAlert.status !== 'resolved' && detailAlert.status !== 'responding' && (

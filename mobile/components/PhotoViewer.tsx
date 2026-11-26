@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   shell: { flex: 1, backgroundColor: colors.backdrop },
   bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, gap: spacing.md },
   title: { ...typeScale.section, color: colors.foreground, flexShrink: 1 },
-  canvas: { flex: 1, overflow: 'hidden', backgroundColor: colors.imageMatte, touchAction: 'none' },
+  canvas: { flex: 1, overflow: 'hidden', backgroundColor: colors.imageMatte, ...(Platform.OS === 'web' && { touchAction: 'none' as const }) },
   toolbar: { flexDirection: 'row', justifyContent: 'center', gap: spacing.lg, padding: spacing.sm },
   control: { minWidth: sizing.touch, minHeight: sizing.touch, alignItems: 'center', justifyContent: 'center' },
   disabled: { opacity: 0.35 },
