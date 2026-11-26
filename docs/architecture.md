@@ -12,9 +12,8 @@ Forest Guard AI is a single-node application with three runtimes:
 | API | FastAPI, Pydantic v2, SQLAlchemy 2.0 | Authentication, RBAC, domain logic, validation, media serving, CSV export |
 | Inference | PyTorch, Ultralytics YOLO-World v2, OpenAI CLIP | Manual uploads only; loaded lazily on the first analysis request |
 
-SQLite is the database of record. Column types are portable and the ORM is declarative, so a
-move to PostgreSQL/PostGIS is a connection-string change plus geometry columns — but nothing in
-this build requires a database server, which is deliberate for a hackathon laptop.
+Local PostgreSQL stores the application records. Alembic versions the schema for PostgreSQL
+and SQLite. The application stores geometry as JSON and computes spatial relationships in Python.
 
 The frontend is a static bundle. In development Vite proxies `/api` and `/media`; in production
 `backend.main` mounts `frontend/dist` at `/`, giving one process and one origin.
@@ -23,9 +22,10 @@ The frontend is a static bundle. In development Vite proxies `/api` and `/media`
 
 ```
 backend/
-  main.py              app factory, CORS, lifespan (init_db + optional seed), static mounts
+  main.py              app factory, CORS, lifespan (opt-in seed), static mounts
   config.py            env-driven settings, absolute paths, upload folders
-  database/session.py  engine, SessionLocal, init_db, SQLite PRAGMAs
+  database/session.py  engine, SessionLocal, SQLite PRAGMAs
+  migrations/          Alembic environment and versioned schema revisions
   api/                 routers (auth, core, risk, alerts, guard, community) + deps + utils
   services/            risk_service, alerts, tracking, seed, serializers
   models/entities.py   ten SQLAlchemy entities
@@ -197,7 +197,7 @@ are labelled as such.
 
 | Decision | Why | Cost |
 | --- | --- | --- |
-| SQLite instead of PostGIS | Zero-setup, portable demo | No spatial indexing; polygons are parsed in Python |
+| GeoJSON in standard SQL columns | Shared PostgreSQL and SQLite models | No spatial indexing; polygons are parsed in Python |
 | Open-vocabulary detector | Six classes without training data | Lower precision than a fine-tuned camera-trap model |
 | Zero-shot CLIP classifier | No labelled training set | Confuses similar species; not a field-validated classifier |
 | Direct Leaflet | Full control of clustering, polygons and filters | More imperative code than a React wrapper |

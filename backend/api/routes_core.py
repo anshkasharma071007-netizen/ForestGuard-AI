@@ -158,6 +158,7 @@ def overview(db: Session = Depends(get_db), _: User = Depends(require_guard)) ->
 
     active_alerts = db.scalars(
         select(Alert).where(Alert.status.in_(["active", "acknowledged", "responding"]))
+        .order_by(Alert.status, Alert.id)
     ).all()
     high_risk_24h = db.scalar(
         select(func.count(Detection.id)).where(

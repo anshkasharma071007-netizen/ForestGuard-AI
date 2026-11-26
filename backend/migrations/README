@@ -1,0 +1,2 @@
+Run Alembic from the repository root. See docs/database.md for upgrade, import,
+verification and recovery commands.

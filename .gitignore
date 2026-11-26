@@ -45,3 +45,7 @@ _assets_tmp/
 deliverables/_cover.jpg
 deliverables/_docx_cover.jpg
 deliverables/_*_preview*
+
+# Private migration snapshots and local PostgreSQL settings
+/backups/
+/.forest-guard-local/

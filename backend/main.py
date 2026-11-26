@@ -17,7 +17,7 @@ from backend.api import (
     routes_guard,
     routes_risk,
 )
-from backend.database.session import SessionLocal, init_db
+from backend.database.session import SessionLocal
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("forest-guard-ai")
@@ -43,9 +43,8 @@ def _seed_if_needed() -> dict:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
     app.state.seed_result = None
-    if os.getenv("SEED_ON_START", "true").strip().lower() in {"1", "true", "yes", "on"}:
+    if os.getenv("SEED_ON_START", "false").strip().lower() in {"1", "true", "yes", "on"}:
         app.state.seed_result = _seed_if_needed()
     yield
 

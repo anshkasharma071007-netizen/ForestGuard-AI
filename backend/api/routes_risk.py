@@ -220,7 +220,9 @@ def analytics(
             }
         )
 
-    incidents = db.scalars(select(Incident).where(Incident.created_at >= since)).all()
+    incidents = db.scalars(
+        select(Incident).where(Incident.created_at >= since).order_by(Incident.created_at, Incident.id)
+    ).all()
     incident_categories = Counter(incident.category for incident in incidents)
     incident_severity = Counter(incident.severity for incident in incidents)
 

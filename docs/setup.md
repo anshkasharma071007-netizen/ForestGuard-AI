@@ -24,17 +24,15 @@ pip install -r requirements.txt
 dashboard and API (no inference), install just the core block marked in the file, then set
 `AI_MODE=demo`.
 
-Start the API:
+Configure the local database and passfile using [database operations](database.md), then run
 
 ```bash
+DATABASE_URL=postgresql+psycopg:///forest_guard_ai .venv/bin/alembic upgrade head
 python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 
-On first boot the app:
-
-1. creates `backend/database/forest_guard.db` (WAL mode, foreign keys on);
-2. creates the upload folders under `backend/uploads/`;
-3. seeds the synthetic demo dataset unless the database already has data.
+The app creates the upload directories at startup. Schema upgrades run explicitly.
+Demonstration seeding requires `SEED_ON_START=true` and an empty database.
 
 Check it is alive:
 
@@ -85,8 +83,8 @@ Copy `.env.example` to `.env` and edit as needed. `.env` is git-ignored.
 | --- | --- | --- |
 | `DEMO_MODE` | `true` | Adds demo/synthetic badges and flags to API payloads |
 | `SECRET_KEY` | insecure dev default | Signs auth tokens. **Set a long random value for any shared deployment** |
-| `DATABASE_URL` | `sqlite:///backend/database/forest_guard.db` | SQLAlchemy URL. Tests override it with a temp file |
-| `SEED_ON_START` | `true` | Seed the demo dataset when the DB is empty |
+| `DATABASE_URL` | `postgresql+psycopg://forest_guard_app@127.0.0.1:5432/forest_guard_ai` | Runtime login. Tests override it |
+| `SEED_ON_START` | `false` | Seed the demo dataset when the DB is empty |
 | `AI_MODE` | `auto` | `auto` = load YOLO-World + CLIP; `demo` = no model loading, uploads 503 |
 | `YOLO_WORLD_WEIGHTS` | `yolov8s-worldv2.pt` | Detector weights path (relative to repo root or absolute) |
 | `CLIP_MODEL` | `ViT-B/32` | CLIP backbone |
@@ -97,19 +95,16 @@ Copy `.env.example` to `.env` and edit as needed. `.env` is git-ignored.
 | `DEMO_GUARD_EMAIL` / `DEMO_GUARD_PASSWORD` | `guard@forestguard.ai` / `guard123` | Seeded guard credentials |
 | `VITE_API_BASE_URL` | unset | Optional absolute API base for a split-origin frontend build |
 
-## 4. Resetting the demo
+## 4. Running an independent demo
 
-Stop the backend, delete the database files, and restart:
+Use a fresh temporary database and upload directory for a disposable demo.
 
 ```bash
-rm -f backend/database/forest_guard.db backend/database/forest_guard.db-wal backend/database/forest_guard.db-shm
-python -m uvicorn backend.main:app --port 8000
+demo_dir=$(mktemp -d)
+export DATABASE_URL="sqlite:///$demo_dir/demo.db" UPLOAD_DIR="$demo_dir/uploads"
+.venv/bin/alembic upgrade head
+SEED_ON_START=true python -m uvicorn backend.main:app --port 8001
 ```
-
-The deterministic seed recreates 5 villages, 12 cameras, 6 guards, 230 detections, 18 tracks,
-13 alerts and 6 incidents. Uploaded media under `backend/uploads/uploads/` and generated
-annotated files under `backend/uploads/annotated/` can be removed the same way; seeded evidence
-thumbnails are read from `demo_data/detection_images/`.
 
 To reset only the risk configuration, use **Risk & Alerts → Configuration → Reset**, or:
 
@@ -125,7 +120,7 @@ curl -X POST http://127.0.0.1:8000/api/risk/config/reset -H "Authorization: Bear
 | First upload stalls for seconds | Normal — models load once per process (≈5 s on CPU in the recorded smoke check) |
 | Grey map tiles | OSM tiles require internet. The app uses a single `tile.openstreetmap.org` host; a proxy or offline tile cache is needed in restricted networks |
 | `database is locked` | Another uvicorn process holds the SQLite write lock. Stop duplicates; WAL handles read concurrency only |
-| Login fails after changing env | Demo users are seeded once. Reset the DB or update the users through the seed config |
+| Login fails after changing env | Demo users are seeded once. Changing seed credentials does not change an existing account |
 | Frontend calls 404 | Backend not running, or `vite.config.js` proxy target changed. Confirm `http://127.0.0.1:8000/api/health` |
 | Screenshot script cannot launch browser | It uses `C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe`; adjust the path in `frontend/scripts/capture_screenshots.mjs` |
 
@@ -136,6 +131,5 @@ This build is configured for a local, single-user demonstration:
 - Set a strong `SECRET_KEY`, then change or remove the public demo accounts.
 - Put the app behind TLS and a reverse proxy; tokens are bearer tokens in `localStorage`.
 - Restrict `/media` if uploaded evidence must not be readable by every authenticated user.
-- Move off SQLite for multi-worker deployments (PostgreSQL + PostGIS is the natural upgrade).
 - Community submissions are unauthenticated by design; add rate limiting and moderation before
   exposing the portal publicly.

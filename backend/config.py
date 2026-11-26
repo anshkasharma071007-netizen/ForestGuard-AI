@@ -10,10 +10,11 @@ load_dotenv(os.path.join(ROOT, ".env"))
 DEMO_MODE = os.getenv("DEMO_MODE", "true").strip().lower() in {"1", "true", "yes", "on"}
 SECRET_KEY = os.getenv("SECRET_KEY", "forest-guard-ai-demo-secret-change-me")
 
-_default_db = os.path.join(ROOT, "backend", "database", "forest_guard.db")
-DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{_default_db}")
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", "postgresql+psycopg://forest_guard_app@127.0.0.1:5432/forest_guard_ai"
+)
 
-UPLOAD_DIR = os.path.join(ROOT, "backend", "uploads")
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", os.path.join(ROOT, "backend", "uploads"))
 DEMO_IMAGE_DIR = os.path.join(ROOT, "demo_data", "detection_images")
 DEMO_WILDLIFE_DIR = os.path.join(ROOT, "demo_data", "wildlife_images")
 DETECTION_ASSETS = os.path.join(ROOT, "demo_data", "detection_assets.json")
