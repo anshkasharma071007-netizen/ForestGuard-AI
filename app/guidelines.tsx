@@ -1,4 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { SupportingText } from '@/components/Feedback';
+import { usePublicData } from '@/hooks/usePublicData';
+import { getCommunityGuidance } from '@/services/api';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { spacing, typeScale, useTheme } from '@/theme';
@@ -13,11 +16,14 @@ const points = [
 
 export default function GuidelinesScreen() {
   const { colors } = useTheme();
+  const { state } = usePublicData(getCommunityGuidance);
+  const guidance = state.kind === 'ready' && state.data.general.length ? state.data : null;
   return (
     <Screen>
       <ScreenHeader title="Safety guidelines" back />
       <View style={styles.list}>
-        {points.map((point) => (
+        <SupportingText>{guidance?.sourceNote ?? 'General precautions. Follow instructions from your local forest authorities.'}</SupportingText>
+        {(guidance?.general ?? points).map((point) => (
           <View key={point} style={styles.row}>
             <Text style={{ color: colors.primaryText }}>•</Text>
             <Text style={[styles.point, { color: colors.primaryText }]}>{point}</Text>

@@ -1,3 +1,4 @@
+import { useFonts } from 'expo-font';
 import { View } from 'react-native';
 import { BrandMark } from '@/components/BrandMark';
 import { Stack } from 'expo-router';
@@ -16,10 +17,15 @@ export default function RootLayout() {
 function AppShell() {
   const { colors, isDark } = useTheme();
   const { ready } = useAppTheme();
-  if (!ready) {
+  const [fontsLoaded, fontError] = useFonts({
+    'Inter-Regular': require('../assets/fonts/Inter-Regular.ttf'),
+    'Inter-Semibold': require('../assets/fonts/Inter-Semibold.ttf'),
+    'Fraunces-Semibold': require('../assets/fonts/Fraunces-Semibold.ttf'),
+  });
+  if (!ready || (!fontsLoaded && !fontError)) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
-        <BrandMark />
+        <BrandMark fontReady={fontsLoaded} />
         <StatusBar style={isDark ? 'light' : 'dark'} />
       </View>
     );

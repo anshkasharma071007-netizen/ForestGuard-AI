@@ -1,49 +1,45 @@
 import { router } from 'expo-router';
+import { BookOpen } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 import { useState } from 'react';
 import { AdvisoryList } from '@/components/AdvisoryList';
-import { EmptyState } from '@/components/EmptyState';
+import { NavigationRow } from '@/components/Controls';
+import { SupportingText } from '@/components/Feedback';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionTitle } from '@/components/SectionTitle';
-import { TextAction } from '@/components/TextAction';
 import { VillageSelector } from '@/components/VillageSelector';
-import type { Village } from '@/services/api';
+import { usePublicData } from '@/hooks/usePublicData';
+import { getPublicAlerts, type Village } from '@/services/api';
 import { spacing } from '@/theme';
 
 export default function HomeScreen() {
   const [area, setArea] = useState<Village | null>(null);
+  const alerts = usePublicData(getPublicAlerts);
 
   return (
     <Screen tab>
-      <ScreenHeader />
+      <ScreenHeader settings />
       <View style={styles.content}>
+        <VillageSelector selected={area} onSelect={setArea} label="Area" />
         <View style={styles.group}>
-          <SectionTitle title="Area" />
-          <VillageSelector selected={area} onSelect={setArea} />
-        </View>
-        <View>
           <SectionTitle title="Local wildlife risk" />
-          <EmptyState title="Risk data unavailable" />
+          <SupportingText>A verified risk rating is unavailable. Check field alerts for active advisories.</SupportingText>
         </View>
         <PrimaryButton label="Report an incident" icon="plus" onPress={() => router.push('/report')} />
-        <View style={styles.shortcuts}>
-          <TextAction label="Map" onPress={() => router.navigate('/risk-map')} />
-          <TextAction label="My reports" onPress={() => router.navigate('/history')} />
-        </View>
         <View>
-          <SectionTitle title="Latest alerts" action={{ label: 'View all', onPress: () => router.navigate('/alerts') }} />
-          <AdvisoryList state={{ kind: 'unavailable' }} />
+          <SectionTitle title={area ? 'Nearby alerts' : 'Latest alerts'}
+            action={{ label: 'View all', onPress: () => router.navigate('/alerts') }} />
+          <AdvisoryList state={alerts.state} retry={alerts.reload} villageName={area?.name} limit={2} />
         </View>
-        <TextAction label="Safety guidelines" onPress={() => router.push('/guidelines')} />
+        <NavigationRow label="Safety guidelines" icon={BookOpen} onPress={() => router.push('/guidelines')} />
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { gap: spacing.md },
-  group: { gap: spacing.sm },
-  shortcuts: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  content: { gap: spacing.lg },
+  group: { gap: spacing.xs },
 });

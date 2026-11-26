@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { radius, sizing, spacing, typography, useTheme } from '../theme';
 
-export function BrandMark() {
+export function BrandMark({ fontReady = true }: { fontReady?: boolean }) {
   const { colors } = useTheme();
   return (
     <View style={styles.row}>
@@ -12,7 +12,7 @@ export function BrandMark() {
           <Path d="M16 9.5v14M16 14.5l-4-3.5M16 18l4-3.5" stroke={colors.forest} strokeWidth={1.8} strokeLinecap="round" />
         </Svg>
       </View>
-      <Text accessibilityRole="header" style={[styles.name, { color: colors.primaryText }]}>Forest Guard AI</Text>
+      <Text accessibilityRole="header" style={[styles.name, { color: colors.primaryText, fontFamily: fontReady ? typography.brand : undefined }]}>Forest Guard AI</Text>
     </View>
   );
 }
@@ -20,5 +20,5 @@ export function BrandMark() {
 const styles = StyleSheet.create({
   row: { flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   mark: { width: sizing.brandMark, height: sizing.brandMark, borderRadius: radius.input, alignItems: 'center', justifyContent: 'center' },
-  name: { flexShrink: 1, fontFamily: typography.heading, fontSize: 20, fontWeight: '600' },
+  name: { flexShrink: 1, fontSize: 20, lineHeight: 26 },
 });

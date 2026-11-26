@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { Bell, FileText, Home, Map } from 'lucide-react-native';
-import { sizing, useTheme } from '../../theme';
+import { sizing, typeScale, typography, useTheme } from '../../theme';
 
 export default function TabLayout() {
   const { colors } = useTheme();
@@ -10,7 +10,7 @@ export default function TabLayout() {
       tabBarActiveTintColor: colors.lime,
       tabBarInactiveTintColor: colors.tabInactive,
       tabBarStyle: { backgroundColor: colors.deepForest, borderTopWidth: 0 },
-      tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
+      tabBarLabelStyle: { fontSize: typeScale.supporting.fontSize, fontFamily: typography.strong },
       tabBarItemStyle: { minHeight: sizing.touch },
       tabBarHideOnKeyboard: true,
       sceneStyle: { backgroundColor: colors.background },

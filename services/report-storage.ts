@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { ReportStatus } from './api';
+import type { ReportStatus, ReportStatusResponse } from './api';
 
 const STORAGE_KEY = 'forest-guard-ai.report-references';
 
@@ -28,13 +28,29 @@ export async function loadStoredReports(): Promise<StoredReport[]> {
 let pendingWrite = Promise.resolve();
 
 export function saveStoredReport(report: StoredReport): Promise<void> {
+  return saveStoredReports([report]);
+}
+
+export function saveStoredReports(reports: readonly StoredReport[]): Promise<void> {
   const write = pendingWrite.then(async () => {
     const existing = await loadStoredReports();
-    const next = [report, ...existing.filter((item) => item.referenceCode !== report.referenceCode)].slice(0, 50);
+    const updated = new Set(reports.map(({ referenceCode }) => referenceCode));
+    const next = [...reports, ...existing.filter(({ referenceCode }) => !updated.has(referenceCode))].slice(0, 50);
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   });
   pendingWrite = write.catch(() => undefined);
   return write;
+}
+
+export function checkedReport(response: ReportStatusResponse, previous?: StoredReport): StoredReport {
+  const now = new Date().toISOString();
+  return {
+    referenceCode: response.reference_code,
+    status: response.status,
+    submittedAt: previous?.submittedAt ?? now,
+    createdAt: response.created_at ?? previous?.createdAt,
+    statusCheckedAt: now,
+  };
 }
 
 function isStoredReport(value: unknown): value is StoredReport {

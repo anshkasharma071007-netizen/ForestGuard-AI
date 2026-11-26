@@ -1,16 +1,21 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 import { sizing, spacing, typeScale, useTheme } from '../theme';
 
-export function TextAction({ label, onPress, disabled = false }: { label: string; onPress: () => void; disabled?: boolean }) {
+export type TextActionProps = { label: string; onPress: () => void; disabled?: boolean; loading?: boolean };
+
+export function TextAction({ label, onPress, disabled = false, loading = false }: TextActionProps) {
   const { colors } = useTheme();
   return (
-    <Pressable accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled}
-      onPress={onPress} style={styles.action}>
-      <Text style={{ color: disabled ? colors.mutedText : colors.primaryText, ...typeScale.action }}>{label}</Text>
+    <Pressable accessibilityRole="button" accessibilityState={{ disabled: disabled || loading, busy: loading }}
+      disabled={disabled || loading} onPress={onPress}
+      style={({ pressed }) => [styles.action, { opacity: pressed ? 0.72 : 1 }]}>
+      {loading && <ActivityIndicator color={colors.accent} />}
+      <Text style={[typeScale.action, styles.label, { color: disabled ? colors.mutedText : colors.accent }]}>{label}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  action: { minHeight: sizing.touch, justifyContent: 'center', paddingHorizontal: spacing.sm, flexShrink: 1 },
+  action: { minHeight: sizing.touch, justifyContent: 'center', alignItems: 'center', flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.sm, flexShrink: 1 },
+  label: { flexShrink: 1 },
 });

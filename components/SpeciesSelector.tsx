@@ -1,10 +1,11 @@
-import { ChevronDown, Search, X } from 'lucide-react-native';
+import { X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { type CatalogSpecies, unknownSpecies } from '@/data';
 import type { AnimalPrediction } from '@/identification';
-import { radius, sizing, spacing, typeScale, useTheme } from '@/theme';
+import { sizing, spacing, typeScale, useTheme } from '@/theme';
+import { Dropdown, InputField, SelectionRow } from './Controls';
 import { PrimaryButton } from './PrimaryButton';
 import { TextAction } from './TextAction';
 
@@ -53,16 +54,13 @@ export function SpeciesSelector({ catalog, selection, prediction, disabled, onSe
 
   return (
     <>
-      <Pressable accessibilityRole="button" accessibilityLabel={`Species: ${display}`} accessibilityState={{ disabled, expanded: open }}
-        disabled={disabled} onPress={() => {
+      <Dropdown label={display} accessibilityLabel={`Species: ${display}`} disabled={disabled} expanded={open}
+        onPress={() => {
           setQuery('');
           setCustom(selection.customName ?? '');
           setEditingOther(!!selection.customName);
           setOpen(true);
-        }} style={[styles.row, { borderColor: colors.controlBorder, backgroundColor: colors.input }]}>
-        <Text style={{ ...typeScale.body, color: colors.primaryText, flex: 1 }}>{display}</Text>
-        <ChevronDown size={sizing.icon} color={colors.primaryText} />
-      </Pressable>
+        }} />
       {open && (
         <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setOpen(false)}>
           <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} accessibilityViewIsModal>
@@ -76,39 +74,29 @@ export function SpeciesSelector({ catalog, selection, prediction, disabled, onSe
               <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.list}>
                 {editingOther ? (
                   <>
-                    <Text style={{ ...typeScale.card, color: colors.primaryText }}>Enter a species name</Text>
                     <Text style={{ ...typeScale.body, color: colors.secondaryText }}>
                       The report will use Unknown for its species. Your name for the animal will be included in the description.
                     </Text>
-                    <TextInput accessibilityLabel="Custom species name" value={custom} maxLength={80} onChangeText={setCustom}
-                      placeholder="Species name" placeholderTextColor={colors.mutedText}
-                      style={[styles.row, styles.input, { borderColor: colors.controlBorder, color: colors.primaryText, backgroundColor: colors.input }]} />
+                    <InputField label="Species name" value={custom} maxLength={80} onChangeText={setCustom} />
                     <PrimaryButton label="Use Unknown and include name" disabled={!custom.trim()}
                       onPress={() => choose(unknownSpecies, custom.trim().replace(/\s+/g, ' '))} />
                     <TextAction label="Back to species list" onPress={() => setEditingOther(false)} />
                   </>
                 ) : (
                   <>
-                    <View style={[styles.row, { borderColor: colors.controlBorder, backgroundColor: colors.input }]}>
-                      <Search size={18} color={colors.mutedText} />
-                      <TextInput accessibilityLabel="Search species" value={query} onChangeText={setQuery} autoCorrect={false}
-                        placeholder="Search species" placeholderTextColor={colors.mutedText} returnKeyType="search"
-                        style={[styles.search, { color: colors.primaryText }]} />
-                      {!!query && (
-                        <Pressable accessibilityRole="button" accessibilityLabel="Clear search" style={styles.iconButton} onPress={() => setQuery('')}>
-                          <X size={18} color={colors.primaryText} />
-                        </Pressable>
-                      )}
-                    </View>
+                    <InputField label="Search species" value={query} onChangeText={setQuery} autoCorrect={false} returnKeyType="search" />
+                    {!!query && <View style={{ alignItems: 'flex-start' }}>
+                      <TextAction label="Clear search" onPress={() => setQuery('')} />
+                    </View>}
                     {[...suggested, ...remaining].map((species) => (
-                      <SpeciesRow key={species.id} label={species.label} subtitle={suggestions.get(species.id)}
+                      <SelectionRow key={species.id} label={species.label} detail={suggestions.get(species.id)}
                         selected={selection.species.id === species.id} onPress={() => choose(species)} />
                     ))}
                     {query.trim() && suggested.length + remaining.length === 0 ?
                       <Text accessibilityLiveRegion="polite" style={{ ...typeScale.body, color: colors.secondaryText }}>No catalog species match that search.</Text> : null}
-                    <SpeciesRow label="Unknown" selected={selection.species.id === unknownSpecies.id && !selection.customName}
+                    <SelectionRow label="Unknown" selected={selection.species.id === unknownSpecies.id && !selection.customName}
                       onPress={() => choose(unknownSpecies)} />
-                    <SpeciesRow label="Other" subtitle="Enter a species name for the description" selected={!!selection.customName}
+                    <SelectionRow label="Other" detail="Enter a species name for the description" selected={!!selection.customName}
                       onPress={() => { setCustom(selection.customName ?? ''); setEditingOther(true); }} />
                   </>
                 )}
@@ -121,26 +109,9 @@ export function SpeciesSelector({ catalog, selection, prediction, disabled, onSe
   );
 }
 
-function SpeciesRow({ label, subtitle, selected, onPress }: { label: string; subtitle?: string; selected: boolean; onPress: () => void }) {
-  const { colors } = useTheme();
-  return (
-    <Pressable accessibilityRole="button" accessibilityState={{ selected }} onPress={onPress}
-      style={[styles.row, { borderColor: selected ? colors.focus : colors.border, backgroundColor: selected ? colors.successTint : colors.card }]}>
-      <View style={{ flex: 1 }}>
-        <Text style={{ ...typeScale.card, color: colors.primaryText }}>{label}</Text>
-        {subtitle && <Text style={{ ...typeScale.supporting, color: colors.secondaryText }}>{subtitle}</Text>}
-      </View>
-      {selected && <Text style={{ ...typeScale.supporting, color: colors.primaryText }}>Selected</Text>}
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   shell: { flex: 1, width: '100%', maxWidth: sizing.content, alignSelf: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.sm },
   list: { padding: spacing.lg, gap: spacing.sm },
-  row: { minHeight: sizing.touch, borderWidth: 1, borderRadius: radius.input, flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: spacing.sm },
   iconButton: { minWidth: sizing.touch, minHeight: sizing.touch, alignItems: 'center', justifyContent: 'center' },
-  input: { ...typeScale.body, fontSize: 16 },
-  search: { ...typeScale.body, fontSize: 16, flex: 1, minHeight: sizing.touch },
 });

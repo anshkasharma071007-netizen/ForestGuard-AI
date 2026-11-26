@@ -1,63 +1,43 @@
-import { ChevronDown } from 'lucide-react-native';
+import { MapPin } from 'lucide-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { getCommunityVillages, isApiConfigured, type Village } from '../services/api';
-import { radius, sizing, spacing, typeScale, useTheme } from '../theme';
-import { TextAction } from './TextAction';
+import { View } from 'react-native';
+import { usePublicData } from '@/hooks/usePublicData';
+import { getCommunityVillages, type Village } from '@/services/api';
+import { spacing } from '@/theme';
+import { Dropdown, SelectionRow } from './Controls';
+import { Feedback } from './Feedback';
 
-export function VillageSelector({ selected, onSelect, disabled = false }: {
+export function VillageSelector({ selected, onSelect, disabled = false, label = 'Village', startOpen = false }: {
   selected: Village | null;
   onSelect: (village: Village) => void;
   disabled?: boolean;
+  label?: string;
+  startOpen?: boolean;
 }) {
-  const { colors } = useTheme();
-  const [expanded, setExpanded] = useState(false);
-  const [villages, setVillages] = useState<Village[] | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  async function load() {
-    setLoading(true);
-    setError('');
-    try {
-      setVillages(await getCommunityVillages());
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'The village list could not be loaded.');
-    } finally {
-      setLoading(false);
-    }
-  }
+  const [expanded, setExpanded] = useState(startOpen);
+  const [requested, setRequested] = useState(startOpen);
+  const { state, reload } = usePublicData(getCommunityVillages, requested);
 
   return (
-    <View>
-      <Pressable accessibilityRole="button" accessibilityState={{ expanded, disabled }} disabled={disabled}
-        onPress={() => {
+    <View style={{ gap: spacing.xs }}>
+      <Dropdown label={selected?.name ?? 'Select a village'} accessibilityLabel={`${label}: ${selected?.name ?? 'Select a village'}`}
+        icon={MapPin} expanded={expanded} disabled={disabled} onPress={() => {
           setExpanded(!expanded);
-          if (!expanded && !villages && !loading && isApiConfigured) void load();
-        }} style={[styles.row, { borderColor: colors.controlBorder, backgroundColor: colors.input }]}>
-        <Text style={{ flex: 1, color: colors.primaryText, ...typeScale.body }}>{selected?.name ?? 'Select a village'}</Text>
-        <ChevronDown size={18} color={colors.primaryText} style={{ transform: [{ rotate: expanded ? '180deg' : '0deg' }] }} />
-      </Pressable>
+          setRequested(true);
+        }} />
       {expanded && (
-        <View style={{ paddingVertical: spacing.sm, gap: spacing.xs }}>
-          {!isApiConfigured && <Text style={{ color: colors.secondaryText }}>Village selection is unavailable.</Text>}
-          {loading && <ActivityIndicator accessibilityLabel="Loading villages" color={colors.primaryText} />}
-          {!!error && <Text accessibilityLiveRegion="polite" style={{ color: colors.clay }}>{error}</Text>}
-          {!!error && <TextAction label="Retry village list" onPress={load} disabled={loading || disabled} />}
-          {villages?.length === 0 && <Text style={{ color: colors.secondaryText }}>No villages are listed.</Text>}
-          {villages?.map((village) => (
-            <Pressable key={village.code} accessibilityRole="button" accessibilityState={{ selected: village.code === selected?.code, disabled }}
-              disabled={disabled} onPress={() => { onSelect(village); setExpanded(false); }}
-              style={[styles.row, { borderColor: colors.controlBorder, backgroundColor: village.code === selected?.code ? colors.successTint : colors.card }]}>
-              <Text style={{ color: colors.primaryText, ...typeScale.body }}>{village.name}</Text>
-            </Pressable>
-          ))}
+        <View style={{ paddingHorizontal: spacing.xs }}>
+          {state.kind === 'loading' && <Feedback title="Loading villages…" kind="loading" />}
+          {state.kind === 'unavailable' && <Feedback title="Village selection unavailable" detail={state.message} />}
+          {state.kind === 'error' && <Feedback title="Could not load villages" detail={state.message} kind="error" retry={reload} />}
+          {state.kind === 'ready' && (state.data.length === 0
+            ? <Feedback title="No villages are listed" />
+            : state.data.map((village) => (
+              <SelectionRow key={village.code} label={village.name} detail={village.district} selected={village.code === selected?.code}
+                onPress={() => { if (!disabled) { onSelect(village); setExpanded(false); } }} />
+            )))}
         </View>
       )}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  row: { minHeight: sizing.touch, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: 1, borderRadius: radius.input, padding: spacing.md },
-});

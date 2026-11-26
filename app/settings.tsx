@@ -1,8 +1,13 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { SelectionRow } from '@/components/Controls';
+import { Feedback, StatusPill, SupportingText } from '@/components/Feedback';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionTitle } from '@/components/SectionTitle';
-import { spacing, radius, sizing, typeScale, useTheme } from '@/theme';
+import { TextAction } from '@/components/TextAction';
+import { usePublicData } from '@/hooks/usePublicData';
+import { getBackendHealth } from '@/services/api';
+import { spacing } from '@/theme';
 import { useAppTheme } from '@/theme-context';
 
 const options = [
@@ -12,29 +17,32 @@ const options = [
 ] as const;
 
 export default function SettingsScreen() {
-  const { colors } = useTheme();
   const { mode, setMode, storageError } = useAppTheme();
+  const health = usePublicData(getBackendHealth);
 
   return (
     <Screen>
       <ScreenHeader title="Settings" back />
       <View style={styles.section}>
         <SectionTitle title="Appearance" />
-        <View accessibilityRole="radiogroup" style={styles.options}>
-          {options.map(({ id, label }) => (
-            <Pressable key={id} accessibilityRole="radio" accessibilityState={{ checked: mode === id }}
-              onPress={() => setMode(id)}
-              style={[styles.option, { backgroundColor: mode === id ? colors.successTint : colors.card, borderColor: mode === id ? colors.focus : colors.controlBorder }]}>
-              <Text style={{ color: colors.primaryText, ...typeScale.body, fontWeight: mode === id ? '700' : '400' }}>{label}</Text>
-              {mode === id && <Text style={{ color: colors.secondaryText }}>Selected</Text>}
-            </Pressable>
-          ))}
+        <View accessibilityRole="radiogroup" accessibilityLabel="Appearance">
+          {options.map(({ id, label }) => <SelectionRow key={id} label={label} selected={mode === id} onPress={() => setMode(id)} />)}
         </View>
-        {!!storageError && <Text accessibilityLiveRegion="polite" style={{ color: colors.clay }}>{storageError}</Text>}
+        {!!storageError && <SupportingText error>{storageError}</SupportingText>}
       </View>
       <View style={styles.section}>
-        <SectionTitle title="About" />
-        <Text style={{ color: colors.primaryText, ...typeScale.body }}>Forest Guard AI</Text>
+        <SectionTitle title="Service status" />
+        {health.state.kind === 'loading' && <Feedback title="Checking service…" kind="loading" />}
+        {health.state.kind === 'unavailable' && <Feedback title="Service check unavailable" detail={health.state.message} />}
+        {health.state.kind === 'error' && <Feedback title="Service check failed" detail={health.state.message} kind="error" retry={health.reload} />}
+        {health.state.kind === 'ready' && (
+          <>
+            <StatusPill label={health.state.data.status === 'ok' ? 'Service reachable' : 'Service degraded'}
+              tone={health.state.data.status === 'ok' ? 'success' : 'warning'} />
+            {health.state.data.demoMode && <SupportingText>The server reports demonstration mode.</SupportingText>}
+            <View style={{ alignItems: 'flex-start' }}><TextAction label="Check again" onPress={health.reload} /></View>
+          </>
+        )}
       </View>
     </Screen>
   );
@@ -42,6 +50,4 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   section: { gap: spacing.sm, marginBottom: spacing.xl },
-  options: { gap: spacing.xs },
-  option: { minHeight: sizing.touch, padding: spacing.md, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderRadius: radius.input },
 });

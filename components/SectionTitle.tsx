@@ -1,8 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { spacing, typeScale, useTheme } from '../theme';
-import { TextAction } from './TextAction';
+import { TextAction, type TextActionProps } from './TextAction';
 
-type Props = { title: string; action?: { label: string; onPress: () => void } };
+type Props = { title: string; action?: TextActionProps };
 
 export function SectionTitle({ title, action }: Props) {
   const { colors } = useTheme();
