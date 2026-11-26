@@ -97,7 +97,9 @@ def score_detection_record(
     )
 
 
-def recalculate_all(db: Session, settings: RiskSettings | None = None, *, now: datetime | None = None) -> dict:
+def recalculate_all(
+    db: Session, settings: RiskSettings | None = None, *, now: datetime | None = None, commit: bool = True
+) -> dict:
     settings = settings or get_settings()
     now = now or utcnow()
     villages = _village_dicts(db)
@@ -150,7 +152,10 @@ def recalculate_all(db: Session, settings: RiskSettings | None = None, *, now: d
             if distance <= float(settings.data["alert_radius_km"]) + 0.5:
                 best = max(best, det.risk_score)
         village.risk_level = risk_level(best, settings.thresholds)
-    db.commit()
+    if commit:
+        db.commit()
+    else:
+        db.flush()
     return {
         "detections_scored": len(detections),
         "levels": counts,

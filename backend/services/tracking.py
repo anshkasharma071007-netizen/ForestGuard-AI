@@ -119,7 +119,7 @@ def infer_tracks(detections: list[Detection], villages: list[dict]) -> list[dict
     return tracks
 
 
-def rebuild_tracks(db: Session) -> list[Track]:
+def rebuild_tracks(db: Session, *, commit: bool = True) -> list[Track]:
     villages = [_village_dict(v) for v in db.scalars(select(Village)).all()]
     detections = db.scalars(select(Detection).order_by(Detection.detected_at)).all()
     for det in detections:
@@ -147,5 +147,8 @@ def rebuild_tracks(db: Session) -> list[Track]:
         for det in spec["detections"]:
             det.track_id = track.id
         created.append(track)
-    db.commit()
+    if commit:
+        db.commit()
+    else:
+        db.flush()
     return created

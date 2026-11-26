@@ -9,8 +9,8 @@ from __future__ import annotations
 import json
 import os
 import random
-import shutil
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -19,6 +19,7 @@ from geospatial.risk_analysis import utcnow
 
 from backend import config
 from backend.api.deps import hash_password
+from backend.database.session import Base
 from backend.models import (
     Alert,
     AlertEvent,
@@ -96,6 +97,23 @@ def _load_study_area() -> tuple[dict, list[dict]]:
     return study, villages
 
 
+def _copy_asset(source: str, target: str) -> None:
+    data = Path(source).read_bytes()
+    path = Path(target)
+    try:
+        stream = path.open("xb")
+    except FileExistsError:
+        if path.read_bytes() != data:
+            raise ValueError(f"Existing demo media differs from the bundled file: {path}")
+        return
+    try:
+        with stream:
+            stream.write(data)
+    except OSError:
+        path.unlink()
+        raise
+
+
 def _copy_assets(manifest: dict) -> dict[str, list[dict]]:
     os.makedirs(config.UPLOAD_DIR, exist_ok=True)
     demo_dir = os.path.join(config.UPLOAD_DIR, "demo")
@@ -105,14 +123,12 @@ def _copy_assets(manifest: dict) -> dict[str, list[dict]]:
     for item in manifest.get("items", []):
         source = os.path.join(config.DEMO_IMAGE_DIR, item["image"])
         target = os.path.join(demo_dir, item["image"])
-        if os.path.exists(source) and not os.path.exists(target):
-            shutil.copyfile(source, target)
+        _copy_asset(source, target)
         grouped.setdefault(item["key"], []).append(item)
     for key, filename in RAW_IMAGES.items():
         source = os.path.join(config.DEMO_WILDLIFE_DIR, filename)
         target = os.path.join(raw_dir, f"{key}.jpg")
-        if os.path.exists(source) and not os.path.exists(target):
-            shutil.copyfile(source, target)
+        _copy_asset(source, target)
     return grouped
 
 
@@ -124,9 +140,22 @@ def _asset_paths(asset: dict) -> tuple[str, str]:
 
 
 def seed_database(db: Session) -> dict:
-    if db.scalar(select(Detection).limit(1)) is not None:
-        return {"seeded": False, "reason": "Database already contains detections."}
+    """Seed an empty database in one transaction using a fresh session."""
+    with db.begin():
+        connection = db.connection()
+        tables = Base.metadata.sorted_tables
+        if connection.dialect.name == "postgresql":
+            names = ", ".join(table.name for table in tables)
+            connection.exec_driver_sql(f"LOCK TABLE {names} IN SHARE ROW EXCLUSIVE MODE")
+        else:
+            connection.exec_driver_sql("BEGIN IMMEDIATE")
+        for table in tables:
+            if db.execute(select(table.c.id).limit(1)).first() is not None:
+                return {"seeded": False, "reason": f"Database already contains records in {table.name}."}
+        return _seed_empty_database(db)
 
+
+def _seed_empty_database(db: Session) -> dict:
     rng = random.Random(RNG_SEED)
     now = utcnow().replace(microsecond=0)
     study, village_features = _load_study_area()
@@ -454,13 +483,13 @@ def seed_database(db: Session) -> dict:
             anchor -= timedelta(days=1)
         make_detection(species, camera_code, anchor)
 
-    db.commit()
+    db.flush()
 
     # --- tracks, risk, alerts --------------------------------------------
-    rebuild_tracks(db)
+    rebuild_tracks(db, commit=False)
     settings = get_settings(reload=True)
-    risk_summary = recalculate_all(db, settings, now=now)
-    alerts = sync_alerts(db, settings, days=30)
+    risk_summary = recalculate_all(db, settings, now=now, commit=False)
+    alerts = sync_alerts(db, settings, days=30, commit=False)
 
     # Give the alert history a realistic mix of states and responses.
     ordered_alerts = sorted(alerts, key=lambda alert: alert.created_at, reverse=True)
@@ -546,7 +575,7 @@ def seed_database(db: Session) -> dict:
                     created_at=alert.resolved_at,
                 )
             )
-    db.commit()
+    db.flush()
 
     counts = {
         "villages": len(villages),
