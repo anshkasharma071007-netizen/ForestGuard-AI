@@ -157,6 +157,7 @@ def serialize_alert(
     data = {
         "id": alert.id,
         "detection_id": alert.detection_id,
+        "incident_id": alert.incident_id,
         "species": alert.species,
         "species_name": meta["name"],
         "color": meta["color"],
@@ -226,14 +227,20 @@ def serialize_sighting(report: SightingReport, *, public: bool = False) -> dict:
         "description": report.description,
         "village_id": report.village_id,
         "village_name": report.village.name if report.village else None,
-        "reporter_name": report.reporter_name,
-        "image_url": media_url(report.image_path),
         "status": report.status,
         "created_at": iso(report.created_at),
         "is_simulated": report.is_simulated,
     }
     if not public:
-        data.update({"lat": report.lat, "lon": report.lon, "contact": report.contact})
+        data.update({
+            "lat": report.lat, "lon": report.lon, "contact": report.contact,
+            "reporter_name": report.reporter_name,
+            "image_url": f"/api/reports/{report.id}/evidence" if report.image_path else None,
+            "analysis_status": report.analysis_status, "analysis_results": report.analysis_results,
+            "review_history": report.review_history or [],
+            "incident_id": report.incident.id if report.incident else None,
+            "risk": report.incident.report_risk if report.incident else None,
+        })
     return data
 
 

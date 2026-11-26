@@ -7,6 +7,8 @@ import { StatusPill, SupportingText } from './Feedback';
 const statuses = {
   pending: { label: 'Pending', tone: 'warning' },
   forwarded: { label: 'Forwarded', tone: 'success' },
+  verified: { label: 'Verified', tone: 'success' },
+  rejected: { label: 'Rejected', tone: 'neutral' },
   closed: { label: 'Closed', tone: 'neutral' },
 } as const satisfies Record<ReportStatus, { label: string; tone: string }>;
 

@@ -150,7 +150,7 @@ def seed_database(db: Session) -> dict:
         else:
             connection.exec_driver_sql("BEGIN IMMEDIATE")
         for table in tables:
-            if db.execute(select(table.c.id).limit(1)).first() is not None:
+            if db.execute(select(1).select_from(table).limit(1)).first() is not None:
                 return {"seeded": False, "reason": f"Database already contains records in {table.name}."}
         return _seed_empty_database(db)
 

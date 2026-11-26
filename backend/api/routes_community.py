@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+import hashlib
+import io
+import json
 import os
+from pathlib import Path
+from uuid import UUID
 import secrets
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
-from sqlalchemy import func, select
+from PIL import Image, UnidentifiedImageError
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from geospatial.species import SPECIES, SPECIES_ORDER, species_meta
@@ -13,8 +20,8 @@ from geospatial.species import SPECIES, SPECIES_ORDER, species_meta
 from backend import config
 from backend.api.utils import now_iso, public_area_label
 from backend.database.session import get_db
-from backend.models import Alert, Incident, SightingReport, Village, utcnow
-from backend.services.serializers import serialize_sighting, serialize_village, species_info
+from backend.models import Alert, SightingReport, Village, utcnow
+from backend.services.serializers import serialize_village, species_info
 
 router = APIRouter(prefix="/api/community", tags=["community"])
 
@@ -55,17 +62,30 @@ def _public_alert(db: Session, alert: Alert) -> dict:
 def public_alerts(
     days: int = Query(default=21, ge=1, le=90),
     limit: int = Query(default=20, ge=1, le=50),
+    field_only: bool = False,
+    village_code: str | None = None,
     db: Session = Depends(get_db),
 ) -> dict:
-    alerts = db.scalars(
-        select(Alert)
+    query = (select(Alert)
         .where(
             Alert.created_at >= utcnow() - timedelta(days=days),
             Alert.status.in_(["active", "acknowledged", "responding"]),
         )
         .order_by(Alert.created_at.desc())
-        .limit(limit)
-    ).all()
+    )
+    if field_only:
+        query = query.where(Alert.is_simulated.is_(False))
+    if village_code:
+        village_id = db.scalar(select(Village.id).where(Village.code == village_code))
+        if village_id is None:
+            raise HTTPException(400, "Unknown village.")
+        if db.get_bind().dialect.name == "postgresql":
+            from sqlalchemy.dialects.postgresql import JSONB
+            query = query.where(Alert.village_ids.cast(JSONB).contains([village_id]))
+        else:
+            ids = func.json_each(Alert.village_ids).table_valued("value")
+            query = query.where(select(ids.c.value).where(ids.c.value == village_id).exists())
+    alerts = db.scalars(query.limit(limit)).all()
     return {
         "items": [_public_alert(db, alert) for alert in alerts],
         "window_days": days,
@@ -98,104 +118,11 @@ def community_summary(db: Session = Depends(get_db)) -> dict:
             "wildlife_emergency": "Contact the range office listed by your village committee",
             "police": "112",
         },
-        "note": "Demonstration portal. Advisories are generated from synthetic data for this prototype.",
+        "note": "Simulated advisories are labelled separately from field advisories.",
     }
 
 
-def _next_reference(db: Session) -> str:
-    year = utcnow().year
-    for _ in range(20):
-        candidate = f"FG-{year}-{secrets.randbelow(9000) + 1000}"
-        exists = db.scalar(
-            select(func.count(SightingReport.id)).where(
-                SightingReport.reference_code == candidate
-            )
-        )
-        if not exists:
-            return candidate
-    raise HTTPException(status_code=500, detail="Could not allocate a report reference.")
-
-
-@router.post("/reports", status_code=201)
-async def submit_report(
-    category: str = Form(default="sighting"),
-    species: str = Form(default="unidentified"),
-    description: str = Form(...),
-    reporter_name: str = Form(...),
-    contact: str | None = Form(default=None),
-    village_code: str | None = Form(default=None),
-    lat: float | None = Form(default=None),
-    lon: float | None = Form(default=None),
-    image: UploadFile | None = File(default=None),
-    db: Session = Depends(get_db),
-) -> dict:
-    if category not in {"sighting", "conflict"}:
-        raise HTTPException(status_code=400, detail="Category must be 'sighting' or 'conflict'.")
-    if species not in SPECIES:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported species. Choose one of: {', '.join(SPECIES_ORDER + ['unidentified'])}.",
-        )
-    if len(description.strip()) < 12:
-        raise HTTPException(status_code=400, detail="Please describe what was observed (at least 12 characters).")
-    if (lat is None) != (lon is None):
-        raise HTTPException(status_code=400, detail="Provide both latitude and longitude, or neither.")
-    if lat is not None and not (-90 <= lat <= 90 and -180 <= lon <= 180):
-        raise HTTPException(status_code=400, detail="Coordinates are outside the valid range.")
-
-    village = None
-    if village_code:
-        village = db.scalar(select(Village).where(Village.code == village_code))
-
-    image_rel = None
-    if image is not None and image.filename:
-        content_type = (image.content_type or "").lower()
-        if content_type not in config.ALLOWED_IMAGE_TYPES and not content_type.startswith("image/"):
-            raise HTTPException(status_code=400, detail="Attach a JPEG, PNG or WebP photograph.")
-        extension = os.path.splitext(image.filename)[1].lower() or ".jpg"
-        target_dir = os.path.join(config.UPLOAD_DIR, "community")
-        os.makedirs(target_dir, exist_ok=True)
-        stored = f"{secrets.token_hex(8)}{extension}"
-        target_path = os.path.join(target_dir, stored)
-        size = 0
-        try:
-            with open(target_path, "wb") as handle:
-                while chunk := await image.read(1024 * 1024):
-                    size += len(chunk)
-                    if size > config.MAX_UPLOAD_MB * 1024 * 1024:
-                        raise HTTPException(
-                            status_code=413,
-                            detail=f"Photo exceeds the {config.MAX_UPLOAD_MB} MB limit.",
-                        )
-                    handle.write(chunk)
-        except HTTPException:
-            if os.path.exists(target_path):
-                os.remove(target_path)
-            raise
-        finally:
-            await image.close()
-        if size == 0:
-            os.remove(target_path)
-            raise HTTPException(status_code=400, detail="The attached photo was empty.")
-        image_rel = f"community/{stored}"
-
-    report = SightingReport(
-        reference_code=_next_reference(db),
-        category=category,
-        species=species,
-        description=description.strip()[:4000],
-        lat=lat,
-        lon=lon,
-        village_id=village.id if village else None,
-        reporter_name=reporter_name.strip()[:120],
-        contact=(contact or "").strip()[:80] or None,
-        image_path=image_rel,
-        status="pending",
-        is_simulated=False,
-    )
-    db.add(report)
-    db.commit()
-    db.refresh(report)
+def _receipt(report: SightingReport) -> dict:
     return {
         "reference_code": report.reference_code,
         "status": report.status,
@@ -205,6 +132,120 @@ async def submit_report(
         ),
         "contact_note": "Keep the reference code to check the status of this report.",
     }
+
+
+def _reference(db: Session, keyed: bool) -> str:
+    if keyed:
+        return f"FG-{secrets.token_hex(12).upper()}"
+    # Older clients validate FG-YYYY-NNNN; their lookup only exposes the status summary.
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(text("SELECT pg_advisory_xact_lock(71239411)"))
+    for _ in range(40):
+        code = f"FG-{utcnow().year}-{secrets.randbelow(9000) + 1000}"
+        if not db.scalar(select(SightingReport.id).where(SightingReport.reference_code == code)):
+            return code
+    raise HTTPException(503, "Could not allocate a reference. Retry shortly.")
+
+
+def _read_photo(upload: UploadFile) -> tuple[bytes, str]:
+    limit = config.MAX_UPLOAD_MB * 1024 * 1024
+    content = upload.file.read(limit + 1)
+    if len(content) > limit:
+        raise HTTPException(413, f"Photo exceeds the {config.MAX_UPLOAD_MB} MB limit.")
+    try:
+        with Image.open(io.BytesIO(content)) as image:
+            extension = {"JPEG": "jpg", "PNG": "png", "WEBP": "webp"}.get(image.format)
+            if not extension or image.width * image.height > 32_000_000 or getattr(image, "is_animated", False):
+                raise ValueError()
+            if upload.content_type not in {Image.MIME[image.format], "application/octet-stream"}:
+                raise ValueError()
+            image.verify()
+        with Image.open(io.BytesIO(content)) as image:
+            image.load()
+    except (ValueError, SyntaxError, OSError, Image.DecompressionBombError, UnidentifiedImageError):
+        raise HTTPException(400, "Attach a readable JPEG, PNG or WebP photo of up to 32 megapixels.")
+    return content, extension
+
+
+@router.post("/reports", status_code=201)
+def submit_report(
+    category: str = Form(default="sighting"),
+    species: str = Form(default="unidentified"),
+    description: str = Form(..., max_length=4000),
+    reporter_name: str = Form(..., max_length=120),
+    contact: str | None = Form(default=None, max_length=80),
+    village_code: str | None = Form(default=None, max_length=20),
+    lat: float | None = Form(default=None),
+    lon: float | None = Form(default=None),
+    submission_key: UUID | None = Form(default=None),
+    image: UploadFile | None = File(default=None),
+    db: Session = Depends(get_db),
+) -> dict:
+    if category not in {"sighting", "conflict"} or species not in SPECIES:
+        raise HTTPException(400, "Choose a supported category and species.")
+    description, reporter_name = description.strip(), reporter_name.strip()
+    contact = (contact or "").strip() or None
+    if len(description) < 12 or not reporter_name:
+        raise HTTPException(400, "Enter your name and a description of at least 12 characters.")
+    if any("\x00" in value for value in (description, reporter_name, contact or "", village_code or "")):
+        raise HTTPException(400, "Remove invalid characters from the report.")
+    if (lat is None) != (lon is None) or (lat is not None and not (-90 <= lat <= 90 and -180 <= lon <= 180)):
+        raise HTTPException(400, "Provide a valid latitude and longitude.")
+    village = db.scalar(select(Village).where(Village.code == village_code)) if village_code else None
+    if (village_code and not village) or (lat is None and not village):
+        raise HTTPException(400, "Capture GPS coordinates or choose a village from the list.")
+
+    content, extension = _read_photo(image) if image else (None, None)
+    key = str(submission_key) if submission_key else None
+    fields = dict(category=category, species=species, description=description, reporter_name=reporter_name,
+                  contact=contact, lat=lat, lon=lon, village_id=village.id if village else None)
+    digest = hashlib.sha256(json.dumps([fields, hashlib.sha256(content).hexdigest() if content else None],
+                                       sort_keys=True).encode()).hexdigest()
+
+    def replay():
+        existing = db.scalar(select(SightingReport).where(SightingReport.submission_key == key))
+        if existing and existing.submission_digest != digest:
+            raise HTTPException(409, "This submission key was already used for a different report.")
+        return _receipt(existing) if existing else None
+
+    if key and (previous := replay()):
+        return previous
+    relative = f"community/{secrets.token_hex(16)}.{extension}" if content else None
+    path = Path(config.UPLOAD_DIR) / relative if relative else None
+    report = SightingReport(**fields, image_path=relative, status="pending", is_simulated=False,
+                            reference_code=_reference(db, key is not None),
+                            submission_key=key, submission_digest=digest if key else None,
+                            analysis_status="queued" if path else "no_photo")
+    try:
+        db.add(report)
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        if key and (previous := replay()):
+            return previous
+        raise
+
+    if path:
+        path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        try:
+            with os.fdopen(fd, "wb") as handle:
+                handle.write(content)
+        except OSError:
+            path.unlink(missing_ok=True)
+            raise
+    # A connection failure during COMMIT has an ambiguous outcome. Keep the evidence
+    # available for a committed row; the retry key resolves the request on reconnect.
+    db.commit()
+    return _receipt(report)
+
+
+@router.post("/report-receipt")
+def recover_receipt(submission_key: UUID = Form(...), db: Session = Depends(get_db)):
+    report = db.scalar(select(SightingReport).where(SightingReport.submission_key == str(submission_key)))
+    if not report:
+        raise HTTPException(404, "Submission has not been received.")
+    return _receipt(report)
 
 
 @router.get("/reports/{reference_code}")
@@ -218,13 +259,15 @@ def report_status(reference_code: str, db: Session = Depends(get_db)) -> dict:
         "reference_code": report.reference_code,
         "category": report.category,
         "species_name": species_meta(report.species)["name"],
-        "description": report.description,
+        "description": report.description if len(report.reference_code) >= 27 or report.is_simulated else None,
         "village_name": report.village.name if report.village else None,
         "status": report.status,
         "created_at": report.created_at.isoformat() + "Z",
         "status_note": {
             "pending": "Received and queued for range-office review.",
             "forwarded": "Forwarded to a field team for verification.",
+            "verified": "Verified by the range office.",
+            "rejected": "Reviewed and rejected by the range office.",
             "closed": "Reviewed and closed by the range office.",
         }.get(report.status, "Status under review."),
     }

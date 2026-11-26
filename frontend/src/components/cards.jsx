@@ -134,6 +134,7 @@ export function AlertRow({ alert, onClick, actions, dense = false }) {
             <span className="text-[12.5px] font-semibold text-ink">{alert.species_name}</span>
             <Badge tone={alert.severity === 'high' ? 'danger' : 'warning'}>{alert.severity} priority</Badge>
             <StatusBadge status={alert.status} />
+            <Badge>{alert.is_simulated ? 'Simulated' : alert.incident_id ? 'Verified report' : 'Field detection'}</Badge>
           </div>
           <div className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-1">{alert.reason}</div>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-13">

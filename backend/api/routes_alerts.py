@@ -3,7 +3,9 @@ from __future__ import annotations
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import FileResponse
 from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.orm import Session
 
 from geospatial.risk_analysis import utcnow
@@ -21,6 +23,9 @@ from backend.models import (
     SightingReport,
     User,
 )
+from backend.models.entities import ReportRead
+from backend.services.report_analysis import evidence_path
+from backend.services.alerts import sync_alerts
 from backend.schemas.api import (
     AlertActionRequest,
     AlertAssignRequest,
@@ -255,6 +260,8 @@ def update_incident(
     incident = db.get(Incident, incident_id)
     if not incident:
         raise HTTPException(status_code=404, detail="Incident not found.")
+    if incident.report_id and (payload.verified is False or payload.status in {"open", "dismissed"}):
+        raise HTTPException(409, "A verified report incident can be resolved through the incident workflow.")
     if payload.status:
         incident.status = payload.status
         if payload.status == "resolved":
@@ -277,11 +284,11 @@ def list_reports(
     status: list[str] | None = Query(default=None),
     category: list[str] | None = Query(default=None),
     db: Session = Depends(get_db),
-    _: User = Depends(require_guard),
+    user: User = Depends(require_guard),
 ) -> dict:
     from backend.api.utils import query_list
 
-    query = select(SightingReport)
+    query = select(SightingReport).options(selectinload(SightingReport.incident), selectinload(SightingReport.village))
     statuses = query_list(status)
     categories = query_list(category)
     if statuses:
@@ -289,9 +296,13 @@ def list_reports(
     if categories:
         query = query.where(SightingReport.category.in_(categories))
     reports = db.scalars(query.order_by(SightingReport.created_at.desc())).all()
+    read = set(db.scalars(select(ReportRead.report_id).where(ReportRead.user_id == user.id)))
     return {
-        "items": [serialize_sighting(report) for report in reports],
+        "items": [dict(serialize_sighting(report), unread=report.id not in read) for report in reports],
         "summary": {
+            "unread": sum(r.id not in read for r in reports),
+            "verified": sum(r.status == "verified" for r in reports),
+            "rejected": sum(r.status == "rejected" for r in reports),
             "pending": len([r for r in reports if r.status == "pending"]),
             "forwarded": len([r for r in reports if r.status == "forwarded"]),
             "closed": len([r for r in reports if r.status == "closed"]),
@@ -300,17 +311,83 @@ def list_reports(
     }
 
 
+@router.get("/reports/notifications")
+def report_notifications(db: Session = Depends(get_db), user: User = Depends(require_guard)):
+    seen = select(ReportRead.report_id).where(ReportRead.user_id == user.id)
+    unread = db.scalar(select(func.count()).select_from(SightingReport).where(~SightingReport.id.in_(seen)))
+    latest = db.scalar(select(Alert).where(Alert.is_simulated.is_(False)).order_by(Alert.id.desc()).limit(1))
+    return {"unread": unread, "latest_alert": {"id": latest.id, "summary": latest.public_summary} if latest else None}
+
+
+def _locked_report(db: Session, report_id: int) -> SightingReport:
+    report = db.scalar(select(SightingReport).where(SightingReport.id == report_id).with_for_update())
+    if not report:
+        raise HTTPException(404, "Report not found.")
+    return report
+
+
+@router.post("/reports/{report_id}/read")
+def mark_read(report_id: int, db: Session = Depends(get_db), user: User = Depends(require_guard)):
+    _locked_report(db, report_id)
+    if not db.get(ReportRead, (report_id, user.id)):
+        db.add(ReportRead(report_id=report_id, user_id=user.id))
+    db.commit()
+    return {"unread": False}
+
+
+@router.get("/reports/{report_id}/evidence")
+def report_evidence(report_id: int, db: Session = Depends(get_db), _: User = Depends(require_guard)):
+    report = db.get(SightingReport, report_id)
+    if report and report.image_path:
+        try:
+            path = evidence_path(report.image_path)
+            return FileResponse(path, headers={"Cache-Control": "private, no-store",
+                                "Content-Security-Policy": "sandbox", "X-Content-Type-Options": "nosniff"})
+        except FileNotFoundError:
+            pass
+    raise HTTPException(404, "Photo unavailable.")
+
+
+@router.post("/reports/{report_id}/retry")
+def retry_analysis(report_id: int, db: Session = Depends(get_db), _: User = Depends(require_guard)):
+    report = _locked_report(db, report_id)
+    if report.analysis_status == "failed":
+        report.analysis_status = "queued"
+        db.commit()
+    elif report.analysis_status == "no_photo":
+        raise HTTPException(409, "Report has no photo to analyse.")
+    return {"analysis_status": report.analysis_status}
+
+
 @router.patch("/reports/{report_id}")
 def update_report(
-    report_id: int,
-    payload: SightingStatusUpdate,
-    db: Session = Depends(get_db),
-    _: User = Depends(require_guard),
+    report_id: int, payload: SightingStatusUpdate, db: Session = Depends(get_db),
+    user: User = Depends(require_guard),
 ) -> dict:
-    report = db.get(SightingReport, report_id)
-    if not report:
-        raise HTTPException(status_code=404, detail="Report not found.")
-    if payload.status:
-        report.status = payload.status
+    report = _locked_report(db, report_id)
+    if not payload.status or report.status == payload.status:
+        return {"report": serialize_sighting(report), "message": "Status already current."}
+    if report.status in {"verified", "rejected"}:
+        raise HTTPException(409, "This report already has a final review decision.")
+    if payload.status == "verified":
+        lat, lon = report.lat, report.lon
+        if (lat is None or lon is None) and report.village:
+            lat, lon = report.village.lat, report.village.lon
+        if lat is None or lon is None:
+            raise HTTPException(409, "This legacy report has no location. Forward it for field review.")
+        incident = Incident(report_id=report.id, category=report.category, species=report.species,
+                            lat=lat, lon=lon, village_id=report.village_id, description=report.description,
+                            verified=True, status="verified", is_simulated=report.is_simulated,
+                            is_public=False, reported_by="Community report", created_at=report.created_at)
+        db.add(incident)
+        db.flush()
+        settings = get_settings()
+        recalculate_all(db, settings, commit=False)
+        sync_alerts(db, settings, commit=False)
+    report.review_history = [*(report.review_history or []), {
+        "previous_status": report.status, "status": payload.status, "note": (payload.note or "").strip(),
+        "reviewer_id": user.id, "reviewer_name": user.name, "at": utcnow().isoformat() + "Z",
+    }]
+    report.status = payload.status
     db.commit()
-    return {"report": serialize_sighting(report), "message": "Report status updated."}
+    return {"report": serialize_sighting(report), "message": "Report reviewed."}

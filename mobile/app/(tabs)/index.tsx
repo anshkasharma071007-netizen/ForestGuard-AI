@@ -1,7 +1,6 @@
 import { router } from 'expo-router';
 import { BookOpen } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
-import { useState } from 'react';
 import { AdvisoryList } from '@/components/AdvisoryList';
 import { NavigationRow } from '@/components/Controls';
 import { SupportingText } from '@/components/Feedback';
@@ -10,13 +9,11 @@ import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionTitle } from '@/components/SectionTitle';
 import { VillageSelector } from '@/components/VillageSelector';
-import { usePublicData } from '@/hooks/usePublicData';
-import { getPublicAlerts, type Village } from '@/services/api';
+import { useAdvisories } from '@/hooks/useAdvisories';
 import { spacing } from '@/theme';
 
 export default function HomeScreen() {
-  const [area, setArea] = useState<Village | null>(null);
-  const alerts = usePublicData(getPublicAlerts);
+  const { area, setArea, alerts } = useAdvisories();
 
   return (
     <Screen tab>

@@ -144,6 +144,8 @@ class Incident(Base):
     __tablename__ = "incidents"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    report_id: Mapped[int | None] = mapped_column(ForeignKey("sighting_reports.id"), unique=True)
+    report_risk: Mapped[dict | None] = mapped_column(JSON)
     category: Mapped[str] = mapped_column(String(60), index=True)
     description: Mapped[str] = mapped_column(Text)
     lat: Mapped[float] = mapped_column(Float)
@@ -181,13 +183,28 @@ class SightingReport(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
     is_simulated: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    submission_key: Mapped[str | None] = mapped_column(String(36), unique=True)
+    submission_digest: Mapped[str | None] = mapped_column(String(64))
+    analysis_status: Mapped[str] = mapped_column(String(20), default="no_photo", server_default="no_photo", index=True)
+    analysis_started_at: Mapped[datetime | None] = mapped_column(DateTime)
+    analysis_results: Mapped[list | None] = mapped_column(JSON)
+    review_history: Mapped[list | None] = mapped_column(JSON)
+    incident: Mapped[Incident | None] = relationship()
     village: Mapped[Village | None] = relationship()
+
+
+class ReportRead(Base):
+    __tablename__ = "report_reads"
+
+    report_id: Mapped[int] = mapped_column(ForeignKey("sighting_reports.id"), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
 
 
 class Alert(Base):
     __tablename__ = "alerts"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    incident_id: Mapped[int | None] = mapped_column(ForeignKey("incidents.id"), unique=True)
     detection_id: Mapped[int | None] = mapped_column(ForeignKey("detections.id"))
     species: Mapped[str] = mapped_column(String(40))
     severity: Mapped[str] = mapped_column(String(20), index=True)  # moderate | high

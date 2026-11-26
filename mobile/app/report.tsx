@@ -19,8 +19,8 @@ import { TextAction } from '@/components/TextAction';
 import { VillageSelector } from '@/components/VillageSelector';
 import { speciesOptions, unknownSpecies, type CatalogSpecies } from '@/data';
 import type { IdentificationState } from '@/identification';
-import { getCommunityGuidance, isApiConfigured, submitCommunityReport, type ReportSubmissionResponse, type Village } from '@/services/api';
-import { saveStoredReport } from '@/services/report-storage';
+import { ApiError, getCommunityGuidance, isApiConfigured, submitCommunityReport, type ReportSubmissionResponse, type Village } from '@/services/api';
+import { saveStoredReport, submissionKey, finishSubmission } from '@/services/report-storage';
 import { radius, spacing, typography, typeScale, useTheme } from '@/theme';
 
 const categories = [
@@ -34,7 +34,6 @@ const locationMethods = [
 
 type Category = typeof categories[number]['id'];
 type LocationMethod = typeof locationMethods[number]['id'];
-const availableLocationMethods = Platform.OS === 'web' ? locationMethods.filter(({ id }) => id === 'village') : locationMethods;
 type PhotoAsset = ImagePicker.ImagePickerAsset;
 type Attachment = { original: PhotoAsset; analysis: IdentificationState };
 const descriptionLimit = 4000;
@@ -127,7 +126,7 @@ export default function ReportScreen() {
         mediaTypes: ['images'],
         allowsEditing: false,
         quality: 1,
-        preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Current,
+        preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
       };
       const result = source === 'camera' ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
       if (!result.canceled) {
@@ -155,7 +154,7 @@ export default function ReportScreen() {
       setError('The species catalog changed. Choose a species from the current list.');
       return;
     }
-    if (!isApiConfigured) { setError('Reporting is unavailable. Your report was not sent.'); return; }
+    if (!isApiConfigured) { setError('Set EXPO_PUBLIC_API_URL to the Forest Guard API address and reopen the app.'); return; }
     const reportCoordinates = method === 'gps' ? coordinates : null;
     const reportVillage = method === 'village' ? village : null;
     if (!reportCoordinates && !reportVillage) {
@@ -166,6 +165,9 @@ export default function ReportScreen() {
     submissionInProgress.current = true;
     setSubmitting(true);
     try {
+      const draft = JSON.stringify([category, species.species.id, speciesNote, description.trim(), reporterName.trim(),
+        contact.trim(), reportCoordinates, reportVillage?.code, photo?.assetId, photo?.fileName, photo?.fileSize,
+        photo?.file?.lastModified, photo?.assetId || photo?.fileName ? undefined : photo?.uri]);
       const formData = new FormData();
       formData.append('category', category);
       formData.append('species', species.species.id);
@@ -180,7 +182,15 @@ export default function ReportScreen() {
       }
       if (photo) await appendPhoto(formData, photo);
 
-      const response = await submitCommunityReport(formData);
+      const key = await submissionKey(draft);
+      formData.append('submission_key', key);
+      let response: ReportSubmissionResponse;
+      try {
+        response = await submitCommunityReport(formData);
+      } catch (failure) {
+        if (failure instanceof ApiError && failure.kind === 'invalid-input') await finishSubmission(key);
+        throw failure;
+      }
       let saved = true;
       try {
         const now = new Date().toISOString();
@@ -190,6 +200,7 @@ export default function ReportScreen() {
           submittedAt: now,
           statusCheckedAt: now,
         });
+        await finishSubmission(key);
       } catch {
         saved = false;
       }
@@ -248,7 +259,7 @@ export default function ReportScreen() {
         </View>
         <View style={styles.field}>
           <SectionTitle title="Location" />
-          <SegmentedControl label="Location method" options={availableLocationMethods} value={method} onChange={changeMethod}
+          <SegmentedControl label="Location method" options={locationMethods} value={method} onChange={changeMethod}
             disabled={submitting || locating} />
           {method === 'gps' && (
             <>

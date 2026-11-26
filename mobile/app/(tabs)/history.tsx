@@ -11,7 +11,7 @@ import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionTitle } from '@/components/SectionTitle';
 import { getReportStatus } from '@/services/api';
-import { checkedReport, loadStoredReports, saveStoredReports, type StoredReport } from '@/services/report-storage';
+import { checkedReport, recoverSubmissions, loadStoredReports, saveStoredReports, type StoredReport } from '@/services/report-storage';
 import { spacing } from '@/theme';
 
 export default function ReportsScreen() {
@@ -22,34 +22,21 @@ export default function ReportsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [lookup, setLookup] = useState(false);
   const refreshInProgress = useRef(false);
-  const loadVersion = useRef(0);
-
-  const loadReports = useCallback(async () => {
-    const version = ++loadVersion.current;
-    setLoading(true);
-    setLoadError('');
-    try {
-      const records = await loadStoredReports();
-      if (version === loadVersion.current && !refreshInProgress.current) setReports(records);
-    } catch {
-      if (version === loadVersion.current) setLoadError('Saved reports could not be loaded.');
-    } finally {
-      if (version === loadVersion.current) setLoading(false);
-    }
-  }, []);
-
-  useFocusEffect(useCallback(() => {
-    void loadReports();
-  }, [loadReports]));
-
-  async function refresh() {
-    if (refreshInProgress.current || loading || !reports.length) return;
+  const refresh = useCallback(async () => {
+    if (refreshInProgress.current) return;
     refreshInProgress.current = true;
     setRefreshing(true);
     setRefreshError('');
     const updated: StoredReport[] = [];
     const failures: string[] = [];
     try {
+      const saved = await loadStoredReports();
+      setReports(saved);
+      setLoading(false);
+      await recoverSubmissions();
+      const reports = await loadStoredReports();
+      setReports(reports);
+      setLoadError('');
       // Limit requests in flight and retain offline status for each failed reference.
       let cursor = 0;
       async function checkNext() {
@@ -73,11 +60,20 @@ export default function ReportsScreen() {
         if (storageWarning) failures.push(storageWarning);
       }
       setRefreshError([...new Set(failures)].join(' '));
+    } catch {
+      setLoadError('Saved reports could not be loaded.');
     } finally {
+      setLoading(false);
       refreshInProgress.current = false;
       setRefreshing(false);
     }
-  }
+  }, []);
+
+  useFocusEffect(useCallback(() => {
+    void refresh();
+    const timer = setInterval(refresh, 10000);
+    return () => clearInterval(timer);
+  }, [refresh]));
 
   const sorted = [...reports].sort((a, b) => Date.parse(b.createdAt ?? b.submittedAt) - Date.parse(a.createdAt ?? a.submittedAt));
 
@@ -94,7 +90,7 @@ export default function ReportsScreen() {
             onPress: () => void refresh(),
           } : undefined} />
           {loading && <Feedback title="Loading saved reports…" kind="loading" />}
-          {!!loadError && <Feedback title={loadError} kind="error" retry={loadReports} />}
+          {!!loadError && <Feedback title={loadError} kind="error" retry={refresh} />}
           {!!refreshError && <SupportingText error>{refreshError}</SupportingText>}
           {!loading && !loadError && reports.length === 0 &&
             <Feedback title="No saved reports" detail="Reports you submit or find are saved on this device." />}
