@@ -12,35 +12,41 @@
 No GPU is required. Optional: Microsoft Edge (or Chrome) if you want to re-run the screenshot
 and diagram scripts in `frontend/scripts/`.
 
-## 1. Backend
+## 1. Backend and local database
 
-```bash
-python -m venv .venv
-source .venv/bin/activate              # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+Run these commands from a fresh clone. Start your installed PostgreSQL server and use its local provisioning login. The login needs permission to create databases and roles on first setup and must own the database for updates. The initializer creates an empty, migrated database, generates a runtime password and creates a private `.env` when one is absent.
+
+### macOS
+
+Start the server in Postgres.app, or use `brew services start` with your installed Homebrew PostgreSQL formula. Postgres.app and many Homebrew installations create a role named after your macOS login. Substitute your provisioning login if yours differs.
+
+```sh
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements-core.txt
+.venv/bin/python -m tools.init_database --admin-user "$(id -un)"
+.venv/bin/python -m tools.seed_demo  # optional
+.venv/bin/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 
-`requirements.txt` pulls torch, ultralytics and OpenAI CLIP from git. If you only need the
-dashboard and API (no inference), install just the core block marked in the file, then set
-`AI_MODE=demo`.
+### Windows PowerShell
 
-Configure the local database and passfile using [database operations](database.md), then run
+Start your installed PostgreSQL service from **Services**. A typical installer-created provisioning login is `postgres`. Use the password chosen for that login during installation.
 
-```bash
-DATABASE_URL=postgresql+psycopg:///forest_guard_ai .venv/bin/alembic upgrade head
-python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-core.txt
+.\.venv\Scripts\python.exe -m tools.init_database --admin-user postgres
+.\.venv\Scripts\python.exe -m tools.seed_demo  # optional
+.\.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 
-The app creates the upload directories at startup. Schema upgrades run explicitly.
-Demonstration seeding requires `SEED_ON_START=true` and an empty database.
+Enter the local PostgreSQL password at the hidden prompt. Press Enter when your installation already authenticates through libpq defaults. If another project uses either default name, pass both `--database forest_guard_dev` and `--app-user forest_guard_dev_app`. Use `--port` if your server uses a different port.
 
-Check it is alive:
+If `.env` already exists, setup prints the verified `DATABASE_URL` and `PGPASSFILE` entries. Apply them to your own development environment before starting or seeding. Keep the passfile private. On macOS use mode 0600. On Windows keep the checkout or a custom `--passfile` path in a directory accessible only to your account. Setup uses the server's existing TCP authentication rules. If the local connection is refused, check the service, port and authentication with the PostgreSQL administrator.
 
-```bash
-curl http://127.0.0.1:8000/api/health
-```
+Open [API health](http://127.0.0.1:8000/api/health) and check for `"database": "ok"`. See [database operations](database.md) for reruns, advanced flags, and recovery.
 
-Interactive OpenAPI docs: <http://127.0.0.1:8000/docs>.
+The core install uses `AI_MODE=demo` and needs no inference weights. For upload inference install `requirements.txt` and set `AI_MODE=auto`.
 
 ### Model weights
 
@@ -84,8 +90,9 @@ Copy `.env.example` to `.env` and edit as needed. `.env` is git-ignored.
 | `DEMO_MODE` | `true` | Adds demo/synthetic badges and flags to API payloads |
 | `SECRET_KEY` | insecure dev default | Signs auth tokens. **Set a long random value for any shared deployment** |
 | `DATABASE_URL` | `postgresql+psycopg://forest_guard_app@127.0.0.1:5432/forest_guard_ai` | Runtime login. Tests override it |
-| `SEED_ON_START` | `false` | Seed the demo dataset when the DB is empty |
-| `AI_MODE` | `auto` | `auto` = load YOLO-World + CLIP; `demo` = no model loading, uploads 503 |
+| `SEED_ON_START` | `false` | Legacy startup opt-in. Use the explicit seed command for setup |
+| `PGPASSFILE` | Set by the initializer | Path to the private runtime libpq passfile |
+| `AI_MODE` | `demo` in the generated environment | `auto` = load YOLO-World + CLIP; `demo` = no model loading, uploads 503 |
 | `YOLO_WORLD_WEIGHTS` | `yolov8s-worldv2.pt` | Detector weights path (relative to repo root or absolute) |
 | `CLIP_MODEL` | `ViT-B/32` | CLIP backbone |
 | `AI_CONFIDENCE_THRESHOLD` | `0.55` | Reported/stored detection confidence floor used by the engine facade |
@@ -95,16 +102,9 @@ Copy `.env.example` to `.env` and edit as needed. `.env` is git-ignored.
 | `DEMO_GUARD_EMAIL` / `DEMO_GUARD_PASSWORD` | `guard@forestguard.ai` / `guard123` | Seeded guard credentials |
 | `VITE_API_BASE_URL` | unset | Optional absolute API base for a split-origin frontend build |
 
-## 4. Running an independent demo
+## 4. Demonstration data
 
-Use a fresh temporary database and upload directory for a disposable demo.
-
-```bash
-demo_dir=$(mktemp -d)
-export DATABASE_URL="sqlite:///$demo_dir/demo.db" UPLOAD_DIR="$demo_dir/uploads"
-.venv/bin/alembic upgrade head
-SEED_ON_START=true python -m uvicorn backend.main:app --port 8001
-```
+Run `python -m tools.seed_demo` with the backend virtual environment and your local settings. It seeds only when all application tables are empty. Repeating the command on a populated database skips seeding. A seed failure rolls back the database changes. Demo image copies can remain in `backend/uploads/demo` and are reused on retry.
 
 To reset only the risk configuration, use **Risk & Alerts → Configuration → Reset**, or:
 

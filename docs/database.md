@@ -2,26 +2,19 @@
 
 Run these commands from the repository root. The website and mobile app use the same FastAPI URL and media paths. PostgreSQL holds the ten application tables. Uploaded files live under `backend/uploads` unless `UPLOAD_DIR` specifies another directory.
 
-## Start the configured Mac
+## Initialize or upgrade a local database
 
-```sh
-export PATH="/Applications/Postgres.app/Contents/Versions/latest/bin:$PATH"
-pgdata="$HOME/Library/Application Support/Postgres/var-18"
-pg_ctl -D "$pgdata" status || pg_ctl -D "$pgdata" -l "$pgdata/postgresql.log" start
-.venv/bin/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
-```
+Follow the [macOS or Windows setup commands](setup.md#1-backend-and-local-database). Re-run `python -m tools.init_database` with the same options to apply new Alembic revisions and check for model drift. It uses the provisioning login for migrations, then connects through the backend's SQLAlchemy engine factory as the restricted application role and checks all model tables. Re-running against the same target preserves existing application records, passwords, and the local environment file.
 
-The runtime reads `DATABASE_URL` and `PGPASSFILE` from the ignored `.env`. The local passfile lives in `.forest-guard-local/pgpass` with mode 0600. Its libpq entry uses the host, port, database, login and password fields in that order. Keep `SEED_ON_START=false` for the shared database.
+The default loopback server is `127.0.0.1:5432`, maintenance database `postgres`, target database `forest_guard_ai`, and runtime role `forest_guard_app`. Use `--host`, `--port`, `--maintenance-db`, `--database`, or `--app-user` to select a different local target. Use `--use-libpq` to skip the admin password prompt when credentials are already configured. `--no-env` prints the backend settings without creating an environment file. `--passfile` overrides the default ignored passfile path.
 
-## Database ownership and access
+The provisioning account owns the database and applies DDL. FastAPI uses the restricted runtime login with CONNECT, schema USAGE, application-table SELECT/INSERT/UPDATE/DELETE, sequence USAGE/SELECT, and read access to the Alembic revision. The initializer uses the server's current authentication rules and does not edit service configuration. A fresh database requires only repository files and local PostgreSQL credentials.
 
-The local owner connects through the Unix socket using the macOS account. It owns `forest_guard_ai`, applies DDL, and runs the initial import. FastAPI connects over loopback as `forest_guard_app`. This login has CONNECT, schema USAGE, application-table SELECT/INSERT/UPDATE/DELETE and sequence USAGE/SELECT. It can read the migration revision. It has no schema creation, database creation, role management, replication, row-security bypass or superuser privileges.
-
-In this cluster, role-specific entries at the top of `pg_hba.conf` require SCRAM for this login on the target database and reject its connections to other databases. The service listens on localhost. The existing authentication rules for other logins follow these entries. The previous HBA file and pre-cutover environment are stored privately in `.forest-guard-local/`.
+Run `python -m tools.seed_demo` separately for the bundled demo. The command checks all app tables before copying media or inserting data and serializes concurrent attempts. Choose a separate database and `UPLOAD_DIR` if you want an independent demo beside your usual development database.
 
 ## Version the schema
 
-The baseline is revision `0001`. Revisions live under `backend/migrations/versions`. Use the owner URL only for administrative commands. On this Mac the following URL selects the local Unix socket and OS account.
+The baseline is revision `0001`. Revisions live under `backend/migrations/versions`. Use the owner URL only for administrative commands. For routine local upgrades use the initializer. The following owner URL example uses the Unix socket and OS account of the original migration host.
 
 ```sh
 owner_url=postgresql+psycopg:///forest_guard_ai
@@ -30,7 +23,7 @@ DATABASE_URL="$owner_url" .venv/bin/alembic upgrade head
 DATABASE_URL="$owner_url" .venv/bin/alembic check
 ```
 
-For model changes, generate a revision against a development database at the previous head with `alembic revision --autogenerate -m "describe change"`. Review types, constraints, data transformations and downgrade behavior, exercise it on both database engines, then commit the revision. The configured owner's default privileges grant runtime access to new application tables and sequences. If rebuilding the baseline in a fresh database, revoke INSERT, UPDATE and DELETE on `alembic_version` from the runtime role after upgrade.
+For model changes, generate a revision against a development database at the previous head with `alembic revision --autogenerate -m "describe change"`. Review types, constraints, data transformations and downgrade behavior, exercise it on both database engines, then commit the revision. When running Alembic manually, run the initializer afterwards to grant runtime access to new application objects and check effective connectivity.
 
 ## Back up and transfer an existing SQLite database
 

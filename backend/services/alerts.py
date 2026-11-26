@@ -141,7 +141,7 @@ def maybe_create_alert(
     return alert
 
 
-def sync_alerts(db: Session, settings: RiskSettings, *, days: int = 30) -> list[Alert]:
+def sync_alerts(db: Session, settings: RiskSettings, *, days: int = 30, commit: bool = True) -> list[Alert]:
     since = utcnow() - timedelta(days=days)
     detections = db.scalars(
         select(Detection).where(Detection.detected_at >= since).order_by(Detection.detected_at)
@@ -159,7 +159,10 @@ def sync_alerts(db: Session, settings: RiskSettings, *, days: int = 30) -> list[
         alert = maybe_create_alert(db, det, risk, settings)
         if alert:
             created.append(alert)
-    db.commit()
+    if commit:
+        db.commit()
+    else:
+        db.flush()
     return created
 
 

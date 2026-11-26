@@ -70,15 +70,14 @@ No GPU required. First AI run takes a few seconds to load the models.
 # 1. Backend
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-cp -n .env.example .env            # preserve existing local settings
-# Configure the dedicated PostgreSQL login as described in docs/database.md.
-DATABASE_URL=postgresql+psycopg:///forest_guard_ai .venv/bin/alembic upgrade head
+python -m pip install -r requirements-core.txt
+python -m tools.init_database --admin-user "$(id -un)"  # Postgres.app default role
+python -m tools.seed_demo                              # optional demo data
 python -m uvicorn backend.main:app --reload --port 8000
 ```
 
-Alembic manages the schema. The backend starts with demonstration seeding disabled.
-For SQLite development, recovery and data import see [database operations](docs/database.md).
+Start your PostgreSQL service before running the initializer. Windows PowerShell commands and other PostgreSQL account options are in [setup](docs/setup.md). The core install runs with `AI_MODE=demo`. For inference, install `requirements.txt` and set `AI_MODE=auto`.
+
 API docs: <http://127.0.0.1:8000/docs>.
 
 ```bash
