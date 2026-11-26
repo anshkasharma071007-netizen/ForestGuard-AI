@@ -22,8 +22,7 @@ body,
 
 body {
   margin: 0;
-  background: #f4f1e8;
-  color: #17211b;
+  @apply bg-sand text-ink;
   font-family: Inter, 'Segoe UI', system-ui, sans-serif;
   font-feature-settings: 'ss01' on, 'cv11' on;
 }
@@ -53,37 +52,37 @@ body {
 
 @layer components {
   .eyebrow {
-    @apply text-[10px] font-semibold uppercase tracking-[0.22em] text-forest-500;
+    @apply text-[10px] font-semibold uppercase tracking-[0.22em] text-success-5;
   }
   .card {
-    @apply rounded-2xl border border-[#e4dfd1] bg-parchment shadow-card;
+    @apply rounded-2xl border border-line-7 bg-parchment shadow-card;
   }
   .card-dark {
     @apply rounded-2xl border border-white/10 bg-forest-900 text-white shadow-lift;
   }
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-semibold transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-semibold transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-focus-offset disabled:cursor-not-allowed disabled:opacity-disabled;
   }
   .btn-primary {
-    @apply btn bg-forest-900 text-white hover:bg-forest-800 active:scale-[0.99];
+    @apply btn bg-action text-white hover:bg-action-hover active:scale-[0.99];
   }
   .btn-lime {
     @apply btn bg-lime text-forest-950 hover:bg-[#d2f196] active:scale-[0.99];
   }
   .btn-outline {
-    @apply btn border border-[#d8d2c2] bg-white/70 text-ink hover:border-forest-400 hover:bg-white;
+    @apply btn border border-control-line-1 bg-raised/70 text-ink hover:border-focus hover:bg-hover-white;
   }
   .btn-ghost {
-    @apply btn text-forest-700 hover:bg-forest-50;
+    @apply btn text-success-8 hover:bg-ghost-hover;
   }
   .btn-danger {
-    @apply btn bg-clay text-white hover:bg-[#a34f30];
+    @apply btn bg-action-danger text-white hover:bg-action-danger-hover;
   }
   .field {
-    @apply w-full rounded-xl border border-[#d8d2c2] bg-white px-3.5 py-2.5 text-sm text-ink shadow-sm outline-none transition placeholder:text-[#9a978c] focus:border-forest-400 focus:ring-2 focus:ring-forest-200/60;
+    @apply w-full rounded-xl border border-control-line-1 bg-raised px-3.5 py-2.5 text-sm text-ink shadow-sm outline-none transition placeholder:text-muted-20 focus:border-focus focus:ring-2 focus:ring-focus-ring/60;
   }
   .field-label {
-    @apply mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-[#6d746d];
+    @apply mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-secondary-13;
   }
   .chip {
     @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold;
@@ -92,19 +91,19 @@ body {
     @apply w-full text-left text-[13px];
   }
   .data-table thead th {
-    @apply border-b border-[#e8e3d6] pb-2.5 pr-4 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7b817a];
+    @apply border-b border-line-10 pb-2.5 pr-4 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-3;
   }
   .data-table tbody td {
-    @apply border-b border-[#eeeadf] py-3 pr-4 align-middle text-[#374038];
+    @apply border-b border-line-14 py-3 pr-4 align-middle text-secondary-1;
   }
   .data-table tbody tr {
-    @apply transition-colors hover:bg-[#f6f4ec];
+    @apply transition-colors hover:bg-hover-4;
   }
   .data-table tbody tr:last-child td {
     @apply border-b-0;
   }
   .link-quiet {
-    @apply text-forest-600 underline decoration-forest-300 underline-offset-4 hover:text-forest-800;
+    @apply text-success-7 underline decoration-forest-300 underline-offset-4 hover:text-success-9;
   }
 }
 

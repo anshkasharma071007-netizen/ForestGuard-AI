@@ -19,7 +19,6 @@ import { ActivityArea, RiskDonut } from '../components/charts'
 import { AlertRow, CameraStatusCard, DetectionTable } from '../components/cards'
 import {
   Badge,
-  DemoNotice,
   ErrorBox,
   Loading,
   PageHeader,
@@ -45,7 +44,7 @@ export default function Overview() {
       <PageHeader
         eyebrow={`${greeting} · ${formatDate(now)}`}
         title="Range intelligence, at a glance"
-        description="A consolidated picture of wildlife activity, explainable risk and field response across the demonstration landscape."
+        description="A consolidated picture of wildlife activity, explainable risk and field response across the landscape."
         actions={
           <>
             <Link to="/monitoring" className="btn-outline">
@@ -57,8 +56,6 @@ export default function Overview() {
           </>
         }
       />
-
-      <DemoNotice compact />
 
       {error && <ErrorBox message={error} onRetry={reload} />}
       {loading && !data && <Loading label="Assembling range intelligence…" height="h-72" />}
@@ -79,7 +76,7 @@ export default function Overview() {
                   <span className="h-1.5 w-1.5 rounded-full bg-lime" />
                   {greeting}, {user?.name?.split(' ').slice(-1)[0] || 'officer'}
                 </div>
-                <h2 className="mt-3 font-display text-[31px] leading-[1.08] tracking-[-0.02em] text-parchment sm:text-[36px]">
+                <h2 className="mt-3 font-display text-[31px] leading-[1.08] tracking-[-0.02em] text-brand-light sm:text-[36px]">
                   Every signal, mapped before it becomes a conflict.
                 </h2>
                 <p className="mt-3 text-[12.5px] leading-relaxed text-forest-100/65">
@@ -106,7 +103,7 @@ export default function Overview() {
                   ['Villages covered', totals.villages_monitored],
                 ].map(([label, value]) => (
                   <div key={label}>
-                    <div className="font-display text-[25px] leading-none text-parchment">{value}</div>
+                    <div className="font-display text-[25px] leading-none text-brand-light">{value}</div>
                     <div className="mt-1.5 text-[8.5px] uppercase tracking-[0.14em] text-forest-200/60">{label}</div>
                   </div>
                 ))}
@@ -151,12 +148,9 @@ export default function Overview() {
                 title="Detection activity"
                 subtitle="Daily detections over the last 30 days"
                 action={
-                  <div className="flex items-center gap-2">
-                    <Badge tone="forest" dot>
-                      All species
-                    </Badge>
-                    <span className="text-[10px] text-[#92988f]">DEMO</span>
-                  </div>
+                  <Badge tone="forest" dot>
+                    All species
+                  </Badge>
                 }
               />
               <div className="mt-3">
@@ -168,7 +162,7 @@ export default function Overview() {
               <div className="mt-2">
                 <RiskDonut data={data.risk_distribution} height={188} />
               </div>
-              <div className="mt-3 rounded-lg border border-[#ece7da] bg-[#f7f4ea] px-2.5 py-2 text-[9.5px] leading-relaxed text-[#7d867c]">
+              <div className="mt-3 rounded-lg border border-line-13 bg-inset-13 px-2.5 py-2 text-[9.5px] leading-relaxed text-muted-5">
                 Proximity risk is kept distinct from movement-supported risk. A nearby animal is not
                 assumed to be approaching a village.
               </div>
@@ -181,7 +175,7 @@ export default function Overview() {
                 title="Recent detections"
                 subtitle="Latest AI-assisted observations across the landscape"
                 action={
-                  <Link to="/wildlife" className="inline-flex items-center gap-1 text-[11px] font-semibold text-forest-600 hover:underline">
+                  <Link to="/wildlife" className="inline-flex items-center gap-1 text-[11px] font-semibold text-success-7 hover:underline">
                     All detections <ChevronRight className="h-3 w-3" />
                   </Link>
                 }
@@ -199,7 +193,7 @@ export default function Overview() {
                 title="Priority alerts"
                 subtitle="Open advisories ranked by severity"
                 action={
-                  <Link to="/risk" className="text-[11px] font-semibold text-forest-600 hover:underline">
+                  <Link to="/risk" className="text-[11px] font-semibold text-success-7 hover:underline">
                     Manage
                   </Link>
                 }
@@ -210,7 +204,7 @@ export default function Overview() {
                     <AlertRow key={alert.id} alert={alert} dense onClick={() => navigate('/risk')} />
                   ))
                 ) : (
-                  <div className="rounded-xl border border-dashed border-[#ddd7c8] px-4 py-8 text-center text-[12px] text-[#8a9187]">
+                  <div className="rounded-xl border border-dashed border-control-line-5 px-4 py-8 text-center text-[12px] text-muted-8">
                     No active advisories. All alerts have been resolved.
                   </div>
                 )}
@@ -219,7 +213,7 @@ export default function Overview() {
           </section>
 
           <section className="card overflow-hidden">
-            <div className="flex flex-col gap-2 border-b border-[#e8e3d6] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 border-b border-line-10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <div className="eyebrow">Geospatial preview</div>
                 <h2 className="mt-1 font-display text-[19px] text-ink">Wildlife signals and indicative risk zones</h2>
@@ -238,13 +232,13 @@ export default function Overview() {
                 className="rounded-none border-0"
               />
             ) : (
-              <div className="flex h-[360px] items-center justify-center text-[12px] text-[#8a9187]">
+              <div className="flex h-[360px] items-center justify-center text-[12px] text-muted-8">
                 Loading geospatial preview…
               </div>
             )}
-            <div className="flex items-center justify-between border-t border-[#e8e3d6] px-5 py-2.5 text-[9.5px] text-[#949a91]">
+            <div className="flex items-center justify-between border-t border-line-10 px-5 py-2.5 text-[9.5px] text-muted-14">
               <span className="flex items-center gap-1.5">
-                <MapPin className="h-3 w-3" /> Illustrative boundaries · indicative risk grid
+                <MapPin className="h-3 w-3" /> Landscape boundaries · indicative risk grid
               </span>
               <span>{map.data?.risk_zones?.features?.length || 0} risk cells · {map.data?.detections?.length || 0} signals shown</span>
             </div>
@@ -254,9 +248,9 @@ export default function Overview() {
             <div className="card p-5 xl:col-span-7">
               <SectionTitle
                 title="Camera station registry"
-                subtitle="Demonstration positions — no live government feeds"
+                subtitle="Active stations and operational status"
                 action={
-                  <Link to="/monitoring" className="text-[11px] font-semibold text-forest-600 hover:underline">
+                  <Link to="/monitoring" className="text-[11px] font-semibold text-success-7 hover:underline">
                     Monitoring
                   </Link>
                 }
@@ -272,8 +266,8 @@ export default function Overview() {
               <div className="mt-3 space-y-2">
                 {data.incidents.length ? (
                   data.incidents.map((incident) => (
-                    <div key={incident.id} className="flex items-start gap-3 rounded-xl border border-[#e9e4d7] bg-white/60 p-3">
-                      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#f7e8e2] text-clay">
+                    <div key={incident.id} className="flex items-start gap-3 rounded-xl border border-line-11 bg-raised/60 p-3">
+                      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-danger-surface-2 text-danger-5">
                         <TriangleAlert className="h-3.5 w-3.5" />
                       </div>
                       <div className="min-w-0 flex-1">
@@ -281,10 +275,10 @@ export default function Overview() {
                           <span className="text-[11.5px] font-semibold text-ink">{titleCase(incident.category)}</span>
                           <RiskBadge level={incident.severity === 'high' ? 'high' : incident.severity === 'moderate' ? 'moderate' : 'low'} />
                         </div>
-                        <div className="mt-0.5 line-clamp-2 text-[10.5px] leading-relaxed text-[#7d867c]">
+                        <div className="mt-0.5 line-clamp-2 text-[10.5px] leading-relaxed text-muted-5">
                           {incident.description}
                         </div>
-                        <div className="mt-1 flex items-center gap-2 text-[9px] text-[#92988f]">
+                        <div className="mt-1 flex items-center gap-2 text-[9px] text-muted-13">
                           <span>{incident.village_name || 'Buffer area'}</span>
                           <span>·</span>
                           <span>{timeAgo(incident.created_at)}</span>
@@ -294,7 +288,7 @@ export default function Overview() {
                     </div>
                   ))
                 ) : (
-                  <div className="rounded-xl border border-dashed border-[#ddd7c8] px-4 py-8 text-center text-[12px] text-[#8a9187]">
+                  <div className="rounded-xl border border-dashed border-control-line-5 px-4 py-8 text-center text-[12px] text-muted-8">
                     No open incidents.
                   </div>
                 )}
@@ -307,15 +301,15 @@ export default function Overview() {
               <SectionTitle title="Village exposure" subtitle="Recent signal strength near each boundary" />
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 {data.villages.map((village) => (
-                  <div key={village.id} className="rounded-xl border border-[#e9e4d7] bg-white/60 p-3">
+                  <div key={village.id} className="rounded-xl border border-line-11 bg-raised/60 p-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Users className="h-3.5 w-3.5 text-forest-500" />
+                        <Users className="h-3.5 w-3.5 text-success-5" />
                         <span className="text-[12px] font-semibold text-ink">{village.name}</span>
                       </div>
                       <RiskBadge level={village.risk_level} />
                     </div>
-                    <div className="mt-1.5 text-[10px] text-[#8b9188]">
+                    <div className="mt-1.5 text-[10px] text-muted-9">
                       {village.population?.toLocaleString('en-IN')} residents · {village.households} households
                     </div>
                   </div>
@@ -330,7 +324,7 @@ export default function Overview() {
                   <div className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.2em] text-lime/80">
                     <Sparkles className="h-3 w-3" /> How the workflow runs
                   </div>
-                  <h3 className="mt-2 font-display text-[21px] leading-snug text-parchment">
+                  <h3 className="mt-2 font-display text-[21px] leading-snug text-brand-light">
                     Detection → risk → advisory → response
                   </h3>
                   <div className="mt-4 space-y-2">
@@ -349,7 +343,7 @@ export default function Overview() {
                     ))}
                   </div>
                 </div>
-                <div className="mt-5 flex items-center gap-2 text-[9px] uppercase tracking-[0.14em] text-forest-200/45">
+                <div className="mt-5 flex items-center gap-2 text-[9px] uppercase tracking-[0.14em] text-muted-21/45">
                   <Camera className="h-3 w-3" /> Camera observations · not GPS tracking
                 </div>
               </div>

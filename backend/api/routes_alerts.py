@@ -63,7 +63,7 @@ def list_alerts(
     if species_list:
         query = query.where(Alert.species.in_(species_list))
     alerts = db.scalars(
-        query.order_by(Alert.priority_rank, Alert.created_at.desc()).limit(limit)
+        query.order_by(Alert.priority_rank, Alert.created_at.desc(), Alert.id).limit(limit)
     ).all()
 
     all_in_window = db.scalars(

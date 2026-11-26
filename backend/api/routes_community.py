@@ -81,6 +81,7 @@ def public_alerts(
 def community_summary(db: Session = Depends(get_db)) -> dict:
     active = db.scalars(
         select(Alert).where(Alert.status.in_(["active", "acknowledged", "responding"]))
+        .order_by(Alert.status, Alert.id)
     ).all()
     villages = db.scalars(select(Village).order_by(Village.name)).all()
     reports = db.scalar(select(func.count(SightingReport.id))) or 0

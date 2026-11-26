@@ -159,7 +159,7 @@ export default function MapView({
             fillOpacity: 0.06,
             interactive: false,
           })
-            .bindTooltip('Core habitat (illustrative)', { sticky: true })
+            .bindTooltip('Core forest habitat', { sticky: true })
             .addTo(overlay)
         }
       })
@@ -363,39 +363,39 @@ export default function MapView({
     : []
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl border border-[#dcd6c7] bg-[#e3e9df] ${className}`} style={{ height }}>
+    <div className={`relative overflow-hidden rounded-2xl border border-control-line-3 bg-inset-3 ${className}`} style={{ height }}>
       <div ref={containerRef} className="h-full w-full" />
       {!ready && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#e7ece4]">
-          <div className="flex items-center gap-2 text-[12px] font-medium text-forest-700">
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-inset-5">
+          <div className="flex items-center gap-2 text-[12px] font-medium text-success-8">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading geospatial layers…
           </div>
         </div>
       )}
       {showLegend && (
-        <div className="pointer-events-none absolute bottom-4 left-4 z-[500] hidden max-w-[230px] rounded-xl border border-[#ded8c8] bg-parchment/95 p-3 shadow-card backdrop-blur sm:block">
-          <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[#8d9187]">Risk overlay</div>
+        <div className="pointer-events-none absolute bottom-4 left-4 z-[500] hidden max-w-[230px] rounded-xl border border-control-line-7 bg-parchment/95 p-3 shadow-card backdrop-blur sm:block">
+          <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-10">Risk overlay</div>
           <div className="mt-1.5 flex items-center gap-3">
             {[
               ['High', RISK_COLOR.high],
               ['Moderate', RISK_COLOR.moderate],
               ['Low', RISK_COLOR.low],
             ].map(([label, color]) => (
-              <span key={label} className="flex items-center gap-1 text-[9.5px] text-[#667063]">
+              <span key={label} className="flex items-center gap-1 text-[9.5px] text-secondary-10">
                 <span className="h-2 w-2 rounded-sm" style={{ background: color }} />
                 {label}
               </span>
             ))}
           </div>
-          <div className="mt-2 flex flex-wrap gap-x-2.5 gap-y-1 border-t border-[#e8e3d6] pt-2">
+          <div className="mt-2 flex flex-wrap gap-x-2.5 gap-y-1 border-t border-line-10 pt-2">
             {speciesLegend.map((species) => (
-              <span key={species} className="flex items-center gap-1 text-[9px] text-[#667063]">
+              <span key={species} className="flex items-center gap-1 text-[9px] text-secondary-10">
                 <span className="h-2 w-2 rounded-full" style={{ background: SPECIES_COLOR[species] }} />
                 {species.replaceAll('_', ' ')}
               </span>
             ))}
           </div>
-          <div className="mt-1.5 text-[8.5px] leading-tight text-[#9a998e]">
+          <div className="mt-1.5 text-[8.5px] leading-tight text-muted-16">
             C camera · G guard · ! incident. Zones are indicative.
           </div>
         </div>

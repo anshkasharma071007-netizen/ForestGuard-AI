@@ -26,8 +26,9 @@ os.environ["DEMO_MODE"] = "true"
 os.environ["SECRET_KEY"] = "test-secret-key-not-for-production"
 ```
 
-The `client` fixture enters the FastAPI lifespan once per session (creating tables and seeding),
-and session-scoped `admin_headers` / `guard_headers` fixtures log in once. Tests that save the
+The `client` fixture migrates the isolated database to head, then enters the FastAPI lifespan to seed it.
+The optional PostgreSQL run uses a fresh schema with its own search path and temporary uploads,
+as described in [database operations](database.md). Session-scoped `admin_headers` / `guard_headers` fixtures log in once. Tests that save the
 risk configuration monkeypatch `backend.config.RISK_CONFIG_PATH` to `tmp_path`, so the real
 `demo_data/risk_config.json` is never modified.
 

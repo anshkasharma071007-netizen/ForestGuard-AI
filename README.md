@@ -53,7 +53,7 @@ genuine community report submission), not generated as artwork.
 
 Single-node deployment: a React SPA talks to a FastAPI JSON API. The API owns authentication,
 domain services (risk scoring, alert synchronisation, camera-sequence tracking, seeding) and
-serves media. The AI engine loads YOLO-World v2 and CLIP on CPU on first upload. SQLite is the
+serves media. The AI engine loads YOLO-World v2 and CLIP on CPU on first upload. Local PostgreSQL is the
 database of record; the study area and village boundaries are GeoJSON. OpenStreetMap supplies
 basemap tiles only — no user or wildlife data leaves the machine.
 
@@ -71,12 +71,14 @@ No GPU required. First AI run takes a few seconds to load the models.
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env               # optional; defaults work as-is
+cp -n .env.example .env            # preserve existing local settings
+# Configure the dedicated PostgreSQL login as described in docs/database.md.
+DATABASE_URL=postgresql+psycopg:///forest_guard_ai .venv/bin/alembic upgrade head
 python -m uvicorn backend.main:app --reload --port 8000
 ```
 
-The first start creates `backend/database/forest_guard.db` and seeds the synthetic dataset
-(5 villages, 12 cameras, 6 guards, 230 detections, 18 tracks, 13 alerts, 6 incidents).
+Alembic manages the schema. The backend starts with demonstration seeding disabled.
+For SQLite development, recovery and data import see [database operations](docs/database.md).
 API docs: <http://127.0.0.1:8000/docs>.
 
 ```bash
@@ -193,8 +195,7 @@ demo database, never downloads weights and never needs a GPU. See [testing](docs
 
 ## Known limitations
 
-- Single-node SQLite; no concurrent-write clustering or PostGIS. The GeoJSON fallback is
-  intentional so the project runs without a database server.
+- Spatial calculations run in Python over GeoJSON. The local PostgreSQL installation uses standard data types.
 - Species classification is zero-shot CLIP over six labels; it is not fine-tuned and will
   confuse visually similar species, especially at night or in low resolution.
 - Alerts are simulated (no SMS/email dispatch). Guard assignment is nearest-available, not

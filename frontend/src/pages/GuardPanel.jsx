@@ -25,7 +25,6 @@ import MapView from '../components/MapView'
 import { AlertRow, DetectionTable } from '../components/cards'
 import {
   Badge,
-  DemoNotice,
   EmptyState,
   ErrorBox,
   Loading,
@@ -130,8 +129,8 @@ export default function GuardPanel() {
         title={isDispatch ? 'Dispatch field response' : 'Your task board'}
         description={
           isDispatch
-            ? 'Review every open alert across the demonstration landscape and dispatch the nearest available guard. All actions are audited on the alert record.'
-            : 'Acknowledge alerts, record your response and close verified tasks. Tasks are generated from proximity-based risk alerts in your assigned zone.'
+              ? 'Review every open alert across the landscape and dispatch the nearest available guard. All actions are audited on the alert record.'
+              : 'Acknowledge alerts, record your response and close verified tasks. Tasks are generated from proximity-based risk alerts in your assigned zone.'
         }
         actions={
           <>
@@ -143,16 +142,11 @@ export default function GuardPanel() {
         }
       />
 
-      <DemoNotice compact>
-        <strong className="font-semibold">Demonstration task board.</strong> Alerts are synthesised from near-boundary
-        detections. Acknowledging or resolving a task updates the demo audit trail only — no real dispatch is sent.
-      </DemoNotice>
-
       {isAdmin && (
         <div className="card flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#9a998e]">Dispatch view</div>
-            <div className="mt-0.5 text-[12px] text-[#5f695f]">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-16">Dispatch view</div>
+            <div className="mt-0.5 text-[12px] text-secondary-8">
               Inspect any guard&apos;s board or the landscape-wide dispatch queue.
             </div>
           </div>
@@ -260,8 +254,8 @@ export default function GuardPanel() {
                       title="No open tasks"
                       description={
                         isDispatch
-                          ? 'Every alert in the demonstration dataset has been resolved.'
-                          : 'There are no open alerts assigned to you. New proximity alerts appear here automatically.'
+                            ? 'Every alert across the landscape has been resolved.'
+                            : 'There are no open alerts assigned to you. New proximity alerts appear here automatically.'
                       }
                       action={
                         <Link to="/risk" className="btn-outline !py-2">
@@ -283,34 +277,34 @@ export default function GuardPanel() {
                     </div>
                     {guard ? (
                       <>
-                        <div className="mt-2 font-display text-[22px] leading-tight text-parchment">{guard.name}</div>
+                        <div className="mt-2 font-display text-[22px] leading-tight text-brand-light">{guard.name}</div>
                         <div className="mt-1 text-[10.5px] text-forest-100/60">
                           {guard.badge_id} · {guard.zone}
                         </div>
                         <div className="mt-4 grid grid-cols-2 gap-3">
                           <div>
-                            <div className="text-[8px] uppercase tracking-[0.14em] text-forest-200/50">Status</div>
-                            <div className="mt-0.5 text-[11.5px] font-semibold text-parchment">{titleCase(guard.status)}</div>
+                            <div className="text-[8px] uppercase tracking-[0.14em] text-muted-21/50">Status</div>
+                            <div className="mt-0.5 text-[11.5px] font-semibold text-brand-light">{titleCase(guard.status)}</div>
                           </div>
                           <div>
-                            <div className="text-[8px] uppercase tracking-[0.14em] text-forest-200/50">Contact</div>
-                            <div className="mt-0.5 text-[11.5px] font-semibold text-parchment">{guard.phone}</div>
+                            <div className="text-[8px] uppercase tracking-[0.14em] text-muted-21/50">Contact</div>
+                            <div className="mt-0.5 text-[11.5px] font-semibold text-brand-light">{guard.phone}</div>
                           </div>
                           <div>
-                            <div className="text-[8px] uppercase tracking-[0.14em] text-forest-200/50">Role</div>
-                            <div className="mt-0.5 text-[11.5px] font-semibold text-parchment">
+                            <div className="text-[8px] uppercase tracking-[0.14em] text-muted-21/50">Role</div>
+                            <div className="mt-0.5 text-[11.5px] font-semibold text-brand-light">
                               {guard.role === 'admin' ? 'Range officer' : 'Forest guard'}
                             </div>
                           </div>
                           <div>
-                            <div className="text-[8px] uppercase tracking-[0.14em] text-forest-200/50">Email</div>
-                            <div className="mt-0.5 truncate text-[11.5px] font-semibold text-parchment">{guard.email || user?.email}</div>
+                            <div className="text-[8px] uppercase tracking-[0.14em] text-muted-21/50">Email</div>
+                            <div className="mt-0.5 truncate text-[11.5px] font-semibold text-brand-light">{guard.email || user?.email}</div>
                           </div>
                         </div>
                       </>
                     ) : (
                       <>
-                        <div className="mt-2 font-display text-[22px] leading-tight text-parchment">
+                        <div className="mt-2 font-display text-[22px] leading-tight text-brand-light">
                           Range dispatch overview
                         </div>
                         <p className="mt-1.5 text-[11px] leading-relaxed text-forest-100/60">
@@ -319,7 +313,7 @@ export default function GuardPanel() {
                         </p>
                       </>
                     )}
-                    <div className="mt-4 flex items-center gap-2 border-t border-white/10 pt-3 text-[9px] uppercase tracking-[0.14em] text-forest-200/45">
+                    <div className="mt-4 flex items-center gap-2 border-t border-white/10 pt-3 text-[9px] uppercase tracking-[0.14em] text-muted-21/45">
                       <Phone className="h-3 w-3" /> Synthetic contact record
                     </div>
                   </div>
@@ -332,11 +326,11 @@ export default function GuardPanel() {
                   />
                   <div className="mt-3 space-y-2">
                     {(data.recent_detections || []).slice(0, 4).map((detection) => (
-                      <div key={detection.id} className="flex items-center gap-2.5 rounded-lg border border-[#ece7da] bg-white/60 px-2.5 py-2">
+                      <div key={detection.id} className="flex items-center gap-2.5 rounded-lg border border-line-13 bg-raised/60 px-2.5 py-2">
                         <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: detection.color }} />
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-[11px] font-semibold text-ink">{detection.species_name}</div>
-                          <div className="text-[9px] text-[#8b9188]">
+                          <div className="text-[9px] text-muted-9">
                             {detection.camera_code || 'Upload'} · {timeAgo(detection.detected_at)}
                           </div>
                         </div>
@@ -344,11 +338,11 @@ export default function GuardPanel() {
                       </div>
                     ))}
                     {!data.recent_detections?.length && (
-                      <div className="text-[11px] text-[#8b9188]">No recent signals recorded for this zone.</div>
+                      <div className="text-[11px] text-muted-9">No recent signals recorded for this zone.</div>
                     )}
                   </div>
                   {(data.zone_alerts || []).length > 0 && !isDispatch && (
-                    <div className="mt-3 rounded-lg bg-[#f4f0e6] px-2.5 py-2 text-[9.5px] leading-relaxed text-[#7d867c]">
+                    <div className="mt-3 rounded-lg bg-inset-2 px-2.5 py-2 text-[9.5px] leading-relaxed text-muted-5">
                       {(data.zone_alerts || []).length} open alerts are active within 12 km of your position; the queue is
                       prioritised by score. Unassigned high-priority alerts appear in dispatch.
                     </div>
@@ -358,7 +352,7 @@ export default function GuardPanel() {
             </section>
 
             <section className="card overflow-hidden">
-              <div className="flex flex-col gap-2 border-b border-[#e8e3d6] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-2 border-b border-line-10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="eyebrow">Operational geography</div>
                   <h2 className="mt-1 font-display text-[19px] text-ink">High-risk areas and alert coverage</h2>
@@ -384,15 +378,15 @@ export default function GuardPanel() {
                   }}
                   height="380px"
                   focus={focus}
-                  onSelectDetection={() => {}}
+                  onSelectDetection={() => { }}
                   className="rounded-none border-0"
                 />
               ) : (
-                <div className="flex h-[380px] items-center justify-center text-[12px] text-[#8a9187]">
+                <div className="flex h-[380px] items-center justify-center text-[12px] text-muted-8">
                   Loading zone geography…
                 </div>
               )}
-              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#e8e3d6] px-4 py-2.5 text-[9.5px] text-[#92988f]">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line-10 px-4 py-2.5 text-[9.5px] text-muted-13">
                 <span className="flex items-center gap-1.5">
                   <Crosshair className="h-3 w-3" /> Dashed rings show the configurable village alert radius.
                 </span>
@@ -408,7 +402,7 @@ export default function GuardPanel() {
                   title="Recent detections"
                   subtitle={guard?.zone ? `Latest camera records in ${guard.zone}` : 'Latest landscape records'}
                   action={
-                    <Link to="/wildlife" className="text-[11px] font-semibold text-forest-600 hover:underline">
+                    <Link to="/wildlife" className="text-[11px] font-semibold text-success-7 hover:underline">
                       Wildlife history
                     </Link>
                   }
@@ -426,10 +420,10 @@ export default function GuardPanel() {
                 />
                 <div className="mt-3 space-y-2">
                   {(data.open_incidents || []).slice(0, 5).map((incident) => (
-                    <div key={incident.id} className="rounded-xl border border-[#e9e4d7] bg-white/60 p-3">
+                    <div key={incident.id} className="rounded-xl border border-line-11 bg-raised/60 p-3">
                       <div className="flex flex-wrap items-center justify-between gap-1.5">
                         <div className="flex items-center gap-2">
-                          <TriangleAlert className="h-3.5 w-3.5 text-clay" />
+                          <TriangleAlert className="h-3.5 w-3.5 text-danger-5" />
                           <span className="text-[11.5px] font-semibold text-ink">{titleCase(incident.category)}</span>
                           <StatusBadge status={incident.status} />
                         </div>
@@ -443,10 +437,10 @@ export default function GuardPanel() {
                           }
                         />
                       </div>
-                      <div className="mt-1 line-clamp-2 text-[10.5px] leading-relaxed text-[#7d867c]">
+                      <div className="mt-1 line-clamp-2 text-[10.5px] leading-relaxed text-muted-5">
                         {incident.description}
                       </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[9px] text-[#92988f]">
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[9px] text-muted-13">
                         <span>{incident.village_name || 'Buffer area'}</span>
                         <span>·</span>
                         <span>{timeAgo(incident.created_at)}</span>
@@ -456,7 +450,7 @@ export default function GuardPanel() {
                     </div>
                   ))}
                   {!data.open_incidents?.length && (
-                    <div className="rounded-xl border border-dashed border-[#ddd7c8] px-4 py-8 text-center text-[12px] text-[#8a9187]">
+                    <div className="rounded-xl border border-dashed border-control-line-5 px-4 py-8 text-center text-[12px] text-muted-8">
                       No open incidents.
                     </div>
                   )}
@@ -474,23 +468,23 @@ export default function GuardPanel() {
                   {(data.response_history || []).map((alert) => {
                     const hours = hoursBetween(alert.created_at, alert.resolved_at)
                     return (
-                      <div key={alert.id} className="rounded-xl border border-[#e9e4d7] bg-white/60 p-3">
+                      <div key={alert.id} className="rounded-xl border border-line-11 bg-raised/60 p-3">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="text-[11.5px] font-semibold text-ink">{alert.species_name}</span>
                           <Badge tone="forest">
                             <CheckCircle2 className="h-2.5 w-2.5" /> resolved
                           </Badge>
-                          <span className="ml-auto font-mono text-[9px] text-[#92988f]">
+                          <span className="ml-auto font-mono text-[9px] text-muted-13">
                             {hours != null ? `${hours.toFixed(1)} h to close` : 'closure time unavailable'}
                           </span>
                         </div>
-                        <div className="mt-1 text-[10px] leading-relaxed text-[#7d867c]">{alert.reason}</div>
+                        <div className="mt-1 text-[10px] leading-relaxed text-muted-5">{alert.reason}</div>
                         <div className="mt-2 space-y-1">
                           {(alert.events || []).slice(-2).map((event) => (
-                            <div key={event.id} className="flex items-start gap-1.5 text-[9px] text-[#8b9188]">
+                            <div key={event.id} className="flex items-start gap-1.5 text-[9px] text-muted-9">
                               <Clock3 className="mt-0.5 h-2.5 w-2.5 shrink-0" />
                               <span>
-                                <span className="font-semibold text-[#5f695f]">{titleCase(event.kind)}</span> ·{' '}
+                                <span className="font-semibold text-secondary-8">{titleCase(event.kind)}</span> ·{' '}
                                 {event.note} · {event.actor}
                               </span>
                             </div>
@@ -500,7 +494,7 @@ export default function GuardPanel() {
                     )
                   })}
                   {!data.response_history?.length && (
-                    <div className="rounded-xl border border-dashed border-[#ddd7c8] px-4 py-10 text-center text-[12px] text-[#8a9187]">
+                    <div className="rounded-xl border border-dashed border-control-line-5 px-4 py-10 text-center text-[12px] text-muted-8">
                       No resolved tasks in the last seven days. Close a task to build the response record.
                     </div>
                   )}
@@ -511,7 +505,7 @@ export default function GuardPanel() {
                 <SectionTitle
                   title="Access & responsibilities"
                   subtitle="Role-based controls applied to this board"
-                  action={<ShieldCheck className="h-4 w-4 text-[#9a998e]" />}
+                  action={<ShieldCheck className="h-4 w-4 text-muted-16" />}
                 />
                 <div className="mt-3 space-y-2">
                   {[
@@ -519,9 +513,9 @@ export default function GuardPanel() {
                     ['Range officer (admin)', 'Reassign tasks, edit the risk configuration and review every zone.'],
                     ['Community', 'Receives coarse public advisories only — never coordinates or patrol positions.'],
                   ].map(([role, detail]) => (
-                    <div key={role} className="rounded-lg border border-[#ece7da] bg-[#f8f5ec] px-3 py-2">
+                    <div key={role} className="rounded-lg border border-line-13 bg-inset-14 px-3 py-2">
                       <div className="text-[10.5px] font-semibold text-ink">{role}</div>
-                      <div className="mt-0.5 text-[9.5px] leading-relaxed text-[#7d867c]">{detail}</div>
+                      <div className="mt-0.5 text-[9.5px] leading-relaxed text-muted-5">{detail}</div>
                     </div>
                   ))}
                 </div>
@@ -583,7 +577,7 @@ export default function GuardPanel() {
                   {name}
                 </Badge>
               ))}
-              <span className="ml-auto font-mono text-[11px] font-semibold text-[#435046]">
+              <span className="ml-auto font-mono text-[11px] font-semibold text-secondary-3">
                 score {current.score}/100
               </span>
             </div>
@@ -593,7 +587,7 @@ export default function GuardPanel() {
                 <img
                   src={mediaUrl(record.detection.annotated_url)}
                   alt="Alert evidence"
-                  className="h-40 w-full rounded-xl border border-[#ded8c8] object-cover"
+                  className="h-40 w-full rounded-xl border border-control-line-7 object-cover"
                 />
                 <div className="grid grid-cols-2 gap-2">
                   {[
@@ -605,24 +599,23 @@ export default function GuardPanel() {
                       record.detection.distance_km != null ? `${record.detection.distance_km} km` : '—',
                     ],
                   ].map(([label, value]) => (
-                    <div key={label} className="rounded-lg bg-[#f4f0e6] px-2.5 py-2">
-                      <div className="text-[8px] uppercase tracking-[0.12em] text-[#9a998e]">{label}</div>
-                      <div className="mt-0.5 text-[10.5px] font-semibold text-[#435046]">{value}</div>
+                    <div key={label} className="rounded-lg bg-inset-2 px-2.5 py-2">
+                      <div className="text-[8px] uppercase tracking-[0.12em] text-muted-16">{label}</div>
+                      <div className="mt-0.5 text-[10.5px] font-semibold text-secondary-3">{value}</div>
                     </div>
                   ))}
                 </div>
               </div>
             ) : (
-              <div className="rounded-lg bg-[#f4f0e6] px-3 py-2 text-[10px] text-[#7d867c]">
-                Evidence image metadata is available from the alert record. Demonstration alerts use placeholder
-                imagery and do not represent real camera captures.
+              <div className="rounded-lg bg-inset-2 px-3 py-2 text-[10px] text-muted-5">
+                Evidence image metadata is logged on the alert record.
               </div>
             )}
 
-            <div className="rounded-xl border border-[#e8e3d6] bg-[#f8f5ec] p-3">
-              <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[#9a998e]">Why this task</div>
-              <div className="mt-1 text-[11px] leading-relaxed text-[#5f695f]">{current.reason}</div>
-              <div className="mt-2 text-[9px] text-[#92988f]">
+            <div className="rounded-xl border border-line-10 bg-inset-14 p-3">
+              <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-16">Why this task</div>
+              <div className="mt-1 text-[11px] leading-relaxed text-secondary-8">{current.reason}</div>
+              <div className="mt-2 text-[9px] text-muted-13">
                 Villages within {current.radius_km} km ·{' '}
                 {current.assigned_guard ? `assigned to ${current.assigned_guard.name}` : 'not yet assigned'}
               </div>
@@ -661,7 +654,7 @@ export default function GuardPanel() {
 
             {isAdmin && (
               <div>
-                <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[#9a998e]">Assign or reassign</div>
+                <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-16">Assign or reassign</div>
                 <div className="mt-1.5 flex gap-2">
                   <select className="field !py-2" value={assignId} onChange={(event) => setAssignId(event.target.value)}>
                     <option value="">Select a guard…</option>
@@ -679,13 +672,13 @@ export default function GuardPanel() {
             )}
 
             {actionError && (
-              <div className="rounded-lg border border-[#e6b9ac] bg-[#fbf0ec] px-3 py-2 text-[10.5px] text-[#8b3524]">
+              <div className="rounded-lg border border-danger-line-1 bg-danger-surface-3 px-3 py-2 text-[10.5px] text-danger-2">
                 {actionError}
               </div>
             )}
 
             <div>
-              <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#9a998e]">
+              <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-16">
                 <Clock3 className="h-3 w-3" /> Audit trail
               </div>
               {detail.loading && !record ? (
@@ -694,20 +687,20 @@ export default function GuardPanel() {
                 <div className="mt-2">
                   {(record?.events || []).map((event, index, list) => (
                     <div key={event.id} className="relative flex gap-3 pb-2.5">
-                      {index < list.length - 1 && <span className="absolute left-[6px] top-4 h-full w-px bg-[#e0dacb]" />}
+                      {index < list.length - 1 && <span className="absolute left-[6px] top-4 h-full w-px bg-line-1" />}
                       <span className="relative mt-1 h-3 w-3 shrink-0 rounded-full border-2 border-parchment bg-forest-500" />
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-[10.5px] font-semibold text-ink">{titleCase(event.kind)}</span>
-                          <span className="text-[9px] text-[#92988f]">{formatDateTime(event.created_at)}</span>
-                          <span className="text-[9px] text-[#92988f]">· {event.actor}</span>
+                          <span className="text-[9px] text-muted-13">{formatDateTime(event.created_at)}</span>
+                          <span className="text-[9px] text-muted-13">· {event.actor}</span>
                         </div>
-                        <div className="mt-0.5 text-[10.5px] leading-relaxed text-[#6f786e]">{event.note}</div>
+                        <div className="mt-0.5 text-[10.5px] leading-relaxed text-secondary-15">{event.note}</div>
                       </div>
                     </div>
                   ))}
                   {!record?.events?.length && (
-                    <div className="text-[10.5px] text-[#8b9188]">No audit events recorded for this task yet.</div>
+                    <div className="text-[10.5px] text-muted-9">No audit events recorded for this task yet.</div>
                   )}
                 </div>
               )}

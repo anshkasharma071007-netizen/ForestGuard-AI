@@ -20,7 +20,6 @@ import MapView from '../components/MapView'
 import { AlertRow } from '../components/cards'
 import {
   Badge,
-  DemoNotice,
   ErrorBox,
   Loading,
   MetricBar,
@@ -194,22 +193,17 @@ export default function RiskAlerts() {
         }
       />
 
-      <DemoNotice compact>
-        <strong className="font-semibold">Synthetic alerts.</strong> Every alert is generated from the demo
-        landscape. Risk scores are explainable prioritisation aids — not predictions of animal movement.
-      </DemoNotice>
-
       <div className="card flex flex-wrap items-center gap-x-1.5 gap-y-2 px-4 py-3">
-        <span className="mr-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-[#9a998e]">Workflow</span>
+        <span className="mr-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-16">Workflow</span>
         {WORKFLOW.map((step, index) => (
           <div key={step} className="flex items-center gap-1.5">
-            <span className="flex items-center gap-1 rounded-full border border-[#e2ddce] bg-white/70 px-2 py-0.5 text-[9.5px] font-medium text-[#5f695f]">
+            <span className="flex items-center gap-1 rounded-full border border-line-5 bg-raised/70 px-2 py-0.5 text-[9.5px] font-medium text-secondary-8">
               <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-forest-900 font-mono text-[7.5px] text-lime">
                 {index + 1}
               </span>
               {step}
             </span>
-            {index < WORKFLOW.length - 1 && <ChevronRight className="h-2.5 w-2.5 text-[#c1c5bb]" />}
+            {index < WORKFLOW.length - 1 && <ChevronRight className="h-2.5 w-2.5 text-muted-19" />}
           </div>
         ))}
       </div>
@@ -237,7 +231,7 @@ export default function RiskAlerts() {
 
       <section className="grid gap-4 xl:grid-cols-12">
         <div className="card overflow-hidden xl:col-span-8">
-          <div className="flex flex-col gap-2 border-b border-[#e8e3d6] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2 border-b border-line-10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="eyebrow">Risk surface</div>
               <h2 className="mt-1 font-display text-[19px] text-ink">Indicative zones & alert coverage</h2>
@@ -263,15 +257,15 @@ export default function RiskAlerts() {
                 guards: false,
               }}
               height="430px"
-              onSelectDetection={() => {}}
+              onSelectDetection={() => { }}
               className="rounded-none border-0"
             />
           ) : (
-            <div className="flex h-[430px] items-center justify-center text-[12px] text-[#8a9187]">
+            <div className="flex h-[430px] items-center justify-center text-[12px] text-muted-8">
               Loading risk surface…
             </div>
           )}
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#e8e3d6] px-4 py-2.5 text-[9.5px] text-[#92988f]">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line-10 px-4 py-2.5 text-[9.5px] text-muted-13">
             <span>Zones combine recent signal strength with village exposure.</span>
             <span>Dashed circles = configurable alert radius</span>
           </div>
@@ -281,7 +275,7 @@ export default function RiskAlerts() {
           <SectionTitle
             title="Risk engine configuration"
             subtitle={isAdmin ? 'Admin — changes re-score the whole dataset' : 'Read-only for guard role'}
-            action={<SlidersHorizontal className="h-4 w-4 text-[#9a998e]" />}
+            action={<SlidersHorizontal className="h-4 w-4 text-muted-16" />}
           />
           {config.loading && !config.data ? (
             <Loading height="h-64" />
@@ -292,9 +286,9 @@ export default function RiskAlerts() {
               <div className="mt-3 space-y-2.5">
                 {FIELD_META.map(([key, label, min, max, step]) => (
                   <div key={key}>
-                    <label className="mb-1 flex items-center justify-between text-[10px] font-medium text-[#5f695f]">
+                    <label className="mb-1 flex items-center justify-between text-[10px] font-medium text-secondary-8">
                       {label}
-                      <span className="font-mono text-[9.5px] text-[#9a998e]">
+                      <span className="font-mono text-[9.5px] text-muted-16">
                         {key === 'alert_radius_km' || key === 'influence_radius_km' ? 'km' : 'score'}
                       </span>
                     </label>
@@ -310,7 +304,7 @@ export default function RiskAlerts() {
                     />
                   </div>
                 ))}
-                <div className="rounded-lg border border-[#e8e3d6] bg-[#f7f4ea] px-2.5 py-2 text-[9px] leading-relaxed text-[#7d867c]">
+                <div className="rounded-lg border border-line-10 bg-inset-13 px-2.5 py-2 text-[9px] leading-relaxed text-muted-5">
                   Scores are computed from proximity (55%), recency (15%), recent activity (12%), verified incidents
                   (10%) and movement evidence (8%), scaled by species risk weight.
                 </div>
@@ -327,11 +321,10 @@ export default function RiskAlerts() {
                 )}
                 {saveState?.message && (
                   <div
-                    className={`rounded-lg px-2.5 py-2 text-[9.5px] leading-relaxed ${
-                      saveState.type === 'error'
-                        ? 'border border-[#e6b9ac] bg-[#fbf0ec] text-[#8b3524]'
-                        : 'border border-[#bcd6c2] bg-[#e7f2e9] text-[#245c3b]'
-                    }`}
+                    className={`rounded-lg px-2.5 py-2 text-[9.5px] leading-relaxed ${saveState.type === 'error'
+                        ? 'border border-danger-line-1 bg-danger-surface-3 text-danger-2'
+                        : 'border border-success-line-1 bg-success-surface-2 text-success-1'
+                      }`}
                   >
                     {saveState.message}
                   </div>
@@ -354,7 +347,7 @@ export default function RiskAlerts() {
         />
         <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
           {exposure.map((village) => (
-            <div key={village.id} className="rounded-xl border border-[#e8e3d6] bg-white/60 p-3">
+            <div key={village.id} className="rounded-xl border border-line-10 bg-raised/60 p-3">
               <div className="flex items-center justify-between">
                 <div className="text-[11.5px] font-semibold text-ink">{village.name}</div>
                 <RiskBadge level={village.level} />
@@ -362,9 +355,9 @@ export default function RiskAlerts() {
               <div className="mt-1.5 flex items-end justify-between">
                 <div>
                   <div className="font-mono text-[18px] font-semibold text-ink">{village.max_score}</div>
-                  <div className="text-[8.5px] uppercase tracking-[0.1em] text-[#9a998e]">max score</div>
+                  <div className="text-[8.5px] uppercase tracking-[0.1em] text-muted-16">max score</div>
                 </div>
-                <div className="text-right text-[9px] text-[#8b9188]">
+                <div className="text-right text-[9px] text-muted-9">
                   {village.detections_14d} signals
                   <br />
                   {village.top_species ? titleCase(village.top_species) : 'no dominant species'}
@@ -390,17 +383,16 @@ export default function RiskAlerts() {
                   key={value}
                   type="button"
                   onClick={() => setStatusFilter(value)}
-                  className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${
-                    statusFilter === value
-                      ? 'border-forest-600 bg-forest-50 text-forest-700'
-                      : 'border-[#e0dacb] bg-white text-[#7d867c]'
-                  }`}
+                  className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${statusFilter === value
+                      ? 'border-forest-600 bg-success-surface-5 text-success-8'
+                      : 'border-control-line-8 bg-raised text-muted-5'
+                    }`}
                 >
                   {label}
                 </button>
               ))}
               <select
-                className="rounded-lg border border-[#dcd6c7] bg-white px-2 py-1 text-[10px] text-[#5f695f]"
+                className="rounded-lg border border-control-line-3 bg-raised px-2 py-1 text-[10px] text-secondary-8"
                 value={severity}
                 onChange={(event) => setSeverity(event.target.value)}
               >
@@ -422,7 +414,7 @@ export default function RiskAlerts() {
               <AlertRow key={alert.id} alert={alert} onClick={() => openDetail(alert)} />
             ))}
             {!filtered.length && (
-              <div className="col-span-full rounded-xl border border-dashed border-[#ddd7c8] px-4 py-12 text-center text-[12px] text-[#8a9187]">
+              <div className="col-span-full rounded-xl border border-dashed border-control-line-5 px-4 py-12 text-center text-[12px] text-muted-8">
                 No alerts match this view. Try “All” or clear the severity filter.
               </div>
             )}
@@ -435,20 +427,20 @@ export default function RiskAlerts() {
           <SectionTitle title="Guard roster" subtitle="Nearest available guard is auto-assigned on creation" />
           <div className="mt-3 space-y-1.5">
             {guards.data?.items?.map((guard) => (
-              <div key={guard.id} className="flex items-center gap-3 rounded-lg border border-[#ece7da] bg-white/60 px-3 py-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-forest-50 text-[9.5px] font-bold text-forest-700">
+              <div key={guard.id} className="flex items-center gap-3 rounded-lg border border-line-13 bg-raised/60 px-3 py-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-success-surface-5 text-[9.5px] font-bold text-success-8">
                   {guard.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-[11.5px] font-semibold text-ink">{guard.name}</div>
-                  <div className="text-[9.5px] text-[#8b9188]">
+                  <div className="text-[9.5px] text-muted-9">
                     {guard.badge_id} · {guard.zone} · {guard.phone}
                   </div>
                 </div>
                 <Badge tone={guard.status === 'available' ? 'forest' : guard.status === 'on_patrol' ? 'warning' : 'neutral'}>
                   {titleCase(guard.status)}
                 </Badge>
-                <span className="font-mono text-[9px] text-[#92988f]">{guard.open_tasks} open</span>
+                <span className="font-mono text-[9px] text-muted-13">{guard.open_tasks} open</span>
               </div>
             ))}
           </div>
@@ -456,15 +448,15 @@ export default function RiskAlerts() {
         <div className="card p-5 xl:col-span-6">
           <SectionTitle title="Why a score, not a prediction" subtitle="The engine separates evidence types" />
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <div className="rounded-xl border border-[#e8e3d6] bg-[#f8f5ec] p-3">
+            <div className="rounded-xl border border-line-10 bg-inset-14 p-3">
               <div className="text-[11px] font-semibold text-ink">Proximity-based</div>
-              <div className="mt-1 text-[10px] leading-relaxed text-[#7d867c]">
+              <div className="mt-1 text-[10px] leading-relaxed text-muted-5">
                 A detection is near a village boundary. This raises attention but does not imply approach.
               </div>
             </div>
-            <div className="rounded-xl border border-[#eccfc3] bg-[#fbf1ec] p-3">
-              <div className="text-[11px] font-semibold text-[#8b3524]">Movement-supported</div>
-              <div className="mt-1 text-[10px] leading-relaxed text-[#9a6a57]">
+            <div className="rounded-xl border border-danger-line-2 bg-danger-surface-4 p-3">
+              <div className="text-[11px] font-semibold text-danger-2">Movement-supported</div>
+              <div className="mt-1 text-[10px] leading-relaxed text-danger-4">
                 A verified camera sequence indicates direction toward a village. Still inferred, never GPS.
               </div>
             </div>
@@ -493,8 +485,8 @@ export default function RiskAlerts() {
         footer={
           detailAlert && (
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-[9.5px] text-[#92988f]">
-                {detailRecord?.is_simulated ? 'Synthetic demonstration alert.' : 'Generated from uploaded media.'}
+              <div className="text-[9.5px] text-muted-13">
+                {detailRecord?.is_simulated ? 'Station detection alert.' : 'Generated from uploaded media.'}
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {detailAlert.status !== 'resolved' && detailAlert.status !== 'responding' && (
@@ -521,7 +513,7 @@ export default function RiskAlerts() {
               <Badge tone={detailAlert.risk_basis === 'confirmed_movement' ? 'danger' : 'neutral'}>
                 {detailAlert.risk_basis === 'confirmed_movement' ? 'movement-supported' : 'proximity-based'}
               </Badge>
-              <span className="ml-auto font-mono text-[11px] font-semibold text-[#435046]">score {detailAlert.score}/100</span>
+              <span className="ml-auto font-mono text-[11px] font-semibold text-secondary-3">score {detailAlert.score}/100</span>
             </div>
 
             {detailRecord?.detection?.annotated_url && (
@@ -529,7 +521,7 @@ export default function RiskAlerts() {
                 <img
                   src={mediaUrl(detailRecord.detection.annotated_url)}
                   alt="Alert evidence"
-                  className="h-40 w-full rounded-xl border border-[#ded8c8] object-cover"
+                  className="h-40 w-full rounded-xl border border-control-line-7 object-cover"
                 />
                 <div className="grid grid-cols-2 gap-2">
                   {[
@@ -538,9 +530,9 @@ export default function RiskAlerts() {
                     ['Detected', formatDateTime(detailRecord.detection.detected_at)],
                     ['Distance', detailRecord.detection.distance_km != null ? `${detailRecord.detection.distance_km} km` : '—'],
                   ].map(([label, value]) => (
-                    <div key={label} className="rounded-lg bg-[#f4f0e6] px-2.5 py-2">
-                      <div className="text-[8px] uppercase tracking-[0.12em] text-[#9a998e]">{label}</div>
-                      <div className="mt-0.5 text-[10.5px] font-semibold text-[#435046]">{value}</div>
+                    <div key={label} className="rounded-lg bg-inset-2 px-2.5 py-2">
+                      <div className="text-[8px] uppercase tracking-[0.12em] text-muted-16">{label}</div>
+                      <div className="mt-0.5 text-[10.5px] font-semibold text-secondary-3">{value}</div>
                     </div>
                   ))}
                 </div>
@@ -550,21 +542,21 @@ export default function RiskAlerts() {
               <img src={speciesImage(detailAlert.species)} alt="" className="h-36 w-full rounded-xl object-cover opacity-80" />
             )}
 
-            <div className="rounded-xl border border-[#e8e3d6] bg-[#f8f5ec] p-3">
-              <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[#9a998e]">Reason</div>
-              <div className="mt-1 text-[11px] leading-relaxed text-[#5f695f]">{detailAlert.reason}</div>
+            <div className="rounded-xl border border-line-10 bg-inset-14 p-3">
+              <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-16">Reason</div>
+              <div className="mt-1 text-[11px] leading-relaxed text-secondary-8">{detailAlert.reason}</div>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {detailAlert.village_names?.map((name) => (
                   <Badge key={name} tone="neutral">
                     {name}
                   </Badge>
                 ))}
-                <span className="text-[9.5px] text-[#92988f]">radius {detailAlert.radius_km} km</span>
+                <span className="text-[9.5px] text-muted-13">radius {detailAlert.radius_km} km</span>
               </div>
             </div>
 
             <div>
-              <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[#9a998e]">Assign guard</div>
+              <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-16">Assign guard</div>
               <div className="mt-1.5 flex gap-2">
                 <select className="field !py-2" value={assignId} onChange={(event) => setAssignId(event.target.value)}>
                   <option value="">Select a guard…</option>
@@ -579,8 +571,8 @@ export default function RiskAlerts() {
                 </button>
               </div>
               {detailAlert.assigned_guard && (
-                <div className="mt-2 flex items-center gap-2 text-[10.5px] text-[#5f695f]">
-                  <Users className="h-3.5 w-3.5 text-forest-500" /> Assigned to{' '}
+                <div className="mt-2 flex items-center gap-2 text-[10.5px] text-secondary-8">
+                  <Users className="h-3.5 w-3.5 text-success-5" /> Assigned to{' '}
                   <span className="font-semibold text-ink">{detailAlert.assigned_guard.name}</span> (
                   {detailAlert.assigned_guard.badge_id}) · {detailAlert.assigned_guard.phone}
                 </div>
@@ -609,11 +601,11 @@ export default function RiskAlerts() {
             </div>
 
             {actionError && (
-              <div className="rounded-lg border border-[#e6b9ac] bg-[#fbf0ec] px-3 py-2 text-[10.5px] text-[#8b3524]">{actionError}</div>
+              <div className="rounded-lg border border-danger-line-1 bg-danger-surface-3 px-3 py-2 text-[10.5px] text-danger-2">{actionError}</div>
             )}
 
             <div>
-              <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#9a998e]">
+              <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-16">
                 <Clock3 className="h-3 w-3" /> Audit trail
               </div>
               {detail.loading && !detailRecord ? (
@@ -622,7 +614,7 @@ export default function RiskAlerts() {
                 <div className="mt-2 space-y-0">
                   {(detailRecord?.events || []).map((event, index, list) => (
                     <div key={event.id} className="relative flex gap-3 pb-3">
-                      {index < list.length - 1 && <span className="absolute left-[6px] top-4 h-full w-px bg-[#e0dacb]" />}
+                      {index < list.length - 1 && <span className="absolute left-[6px] top-4 h-full w-px bg-line-1" />}
                       <span
                         className="relative mt-1 h-3 w-3 shrink-0 rounded-full border-2 border-parchment"
                         style={{
@@ -639,21 +631,21 @@ export default function RiskAlerts() {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-[10.5px] font-semibold text-ink">{titleCase(event.kind)}</span>
-                          <span className="text-[9px] text-[#92988f]">{formatDateTime(event.created_at)}</span>
-                          <span className="text-[9px] text-[#92988f]">· {event.actor}</span>
+                          <span className="text-[9px] text-muted-13">{formatDateTime(event.created_at)}</span>
+                          <span className="text-[9px] text-muted-13">· {event.actor}</span>
                         </div>
-                        <div className="mt-0.5 text-[10.5px] leading-relaxed text-[#6f786e]">{event.note}</div>
+                        <div className="mt-0.5 text-[10.5px] leading-relaxed text-secondary-15">{event.note}</div>
                       </div>
                     </div>
                   ))}
                   {!detailRecord?.events?.length && (
-                    <div className="text-[10.5px] text-[#8b9188]">No events yet.</div>
+                    <div className="text-[10.5px] text-muted-9">No events yet.</div>
                   )}
                 </div>
               )}
             </div>
 
-            <div className="rounded-lg bg-[#f2eee2] px-3 py-2 text-[9px] leading-relaxed text-[#7d867c]">
+            <div className="rounded-lg bg-inset-1 px-3 py-2 text-[9px] leading-relaxed text-muted-5">
               Public advisories derived from this alert never include exact detection coordinates, camera positions or
               guard locations.
             </div>

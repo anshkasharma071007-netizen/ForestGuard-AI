@@ -93,7 +93,7 @@ def test_tracks_are_inferred_not_gps(client, admin_headers):
     assert "GPS" in tracks["disclaimer"]
     for track in tracks["items"]:
         assert len(track["points"]) >= 3
-        assert track["direction"] in {"toward_village", "away_from_village", "parallel", "unknown"}
+        assert track["direction"] in {"toward_village", "away_from_village", "parallel_or_unclear", "unknown"}
 
 
 def test_ai_status_and_demo_upload_is_refused(client, admin_headers):

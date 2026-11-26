@@ -1,0 +1,101 @@
+/* Prevent surface and text transitions from showing mismatched palettes during a theme switch. */
+[data-theme-switching] *,
+[data-theme-switching] *::before,
+[data-theme-switching] *::after {
+  transition: none !important;
+}
+
+/* Dark values for the shared Tailwind, chart, and map tokens. */
+:root[data-theme='dark'] {
+  --theme-surface: #1f2a24;
+  --theme-ink: #e1e8df;
+  --theme-raised: #27342d;
+  --theme-raised-opaque: var(--theme-raised);
+  --theme-inset: #26312b;
+  --theme-hover: #303f36;
+  --theme-line: #3b4b41;
+  --theme-control-line: #63766a;
+  --theme-secondary: #c2cdc2;
+  --theme-muted: #aab8ad;
+  --theme-muted-opaque: var(--theme-muted);
+  --theme-success: #adcca9;
+  --theme-success-surface: #293e31;
+  --theme-success-line: #53765d;
+  --theme-warning: #dfc28a;
+  --theme-warning-surface: #3c3526;
+  --theme-warning-line: #78643e;
+  --theme-danger: #edb29e;
+  --theme-danger-surface: #41302d;
+  --theme-danger-line: #85594d;
+  --theme-action: #3b5848;
+  --theme-action-hover: #466853;
+  --theme-action-danger: #963f2d;
+  --theme-action-danger-hover: #a34f30;
+  --theme-focus: var(--theme-success);
+  --theme-focus-offset: var(--theme-canvas);
+  --theme-disabled-opacity: 0.75;
+  --chart-label: var(--theme-muted);
+  --chart-grid: var(--theme-line);
+  --chart-cursor: var(--theme-control-line);
+  --chart-green: #8cb390;
+  --chart-clay: #de9077;
+  --chart-species-tiger: #df8a61;
+  --chart-species-leopard: #d0a06c;
+  --chart-species-elephant: #94a7bc;
+  --chart-species-deer: #79b792;
+  --chart-species-wild_boar: #bd8c80;
+  --chart-species-sloth_bear: #aaa0b7;
+  --chart-species-unidentified: #8e9daf;
+  --chart-area-fill: #304739;
+}
+
+[data-theme='dark'] input:autofill {
+  -webkit-text-fill-color: var(--theme-ink);
+  box-shadow: 0 0 0 100px var(--theme-raised) inset;
+  caret-color: var(--theme-ink);
+}
+
+[data-theme='dark'] .bg-topo,
+[data-theme='dark'] .bg-gradient-to-br {
+  background-image: none;
+}
+
+[data-theme='dark'] .shimmer {
+  background: var(--theme-raised);
+  animation: none;
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-thumb {
+  background: var(--theme-control-line);
+  border-color: var(--theme-canvas);
+}
+
+[data-theme='dark'] .leaflet-container {
+  background: var(--theme-inset);
+}
+
+[data-theme='dark'] .leaflet-container a {
+  color: var(--theme-success);
+}
+
+[data-theme='dark'] .leaflet-bar a,
+[data-theme='dark'] .leaflet-control-attribution,
+[data-theme='dark'] .village-label {
+  background: var(--theme-raised) !important;
+  color: var(--theme-secondary) !important;
+  border-color: var(--theme-control-line) !important;
+}
+
+[data-theme='dark'] .leaflet-bar a:hover {
+  background: var(--theme-hover) !important;
+}
+
+[data-theme='dark'] .leaflet-popup-content-wrapper,
+[data-theme='dark'] .leaflet-popup-tip {
+  background: var(--theme-surface);
+  color: var(--theme-ink);
+}
+
+[data-theme='dark'] .recharts-default-tooltip {
+  border-color: var(--theme-line) !important;
+}
