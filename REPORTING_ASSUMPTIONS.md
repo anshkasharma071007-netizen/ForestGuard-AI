@@ -1,7 +1,8 @@
-# Reporting assumptions
+# Mobile reporting and public data
 
-- Demonstration villages are Turia (`PEN-TUR`), Khamarpani (`PEN-KHA`), and Sillari (`PEN-SIL`). These values are placeholders until the FastAPI service provides the official village list.
-- Demonstration species are Tiger, Leopard, Elephant, Sloth bear, Wild boar, and Unknown. The selected label is sent as the `species` value.
-- The report service returns JSON with `reference_code`, `status`, and `message`. Supported statuses are `pending`, `forwarded`, and `closed`.
-- Latitude and longitude are included only when both are captured from the device. The selected village code is always included.
-- Local history stores only reference code, status, and submission date. Personal details and report descriptions are not persisted locally.
+- The report POST accepts either `village_code` or the pair `lat` and `lon`. They are all optional server-side, but the mobile form requires one method. The client never submits both, and switching methods clears the previous value. The server does not verify that GPS is the incident location or derive a village from it. Unknown village codes are not rejected by the server, so the app uses the configured service's village list and does not substitute demo codes.
+- Village choices come from the existing `GET /api/community/summary` response. Only each village's code and name are used. Confirm the deployment serves the intended village catalog before release. Home's area choice is session-local and does not prefill an incident location.
+- The report POST expects species IDs rather than display labels. It returns `reference_code`, `status`, and `message`. The status GET returns `reference_code`, `status`, and `created_at` without `message`. The server does not return a status-update timestamp. The app labels the last successful check separately from the server's creation time. Supported statuses remain `pending`, `forwarded`, and `closed`.
+- Local history stores the reference, status and timestamps. It does not retain personal details, descriptions, coordinates or photos. A successful server response remains visible when the local write fails.
+- Configure `EXPO_PUBLIC_API_URL` for reporting, lookup and village selection. The app deliberately shows risk, map and alerts as unavailable until a verified public data integration is ready. The existing summary and alerts endpoints can contain simulated data. Future integration must exclude it from normal public displays.
+- The safety guidelines require authoritative review before public deployment.

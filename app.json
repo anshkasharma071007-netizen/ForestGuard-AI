@@ -24,12 +24,18 @@
     "plugins": [
       "expo-router",
       "expo-font",
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F4F1E8",
+          "dark": { "backgroundColor": "#171F1B" }
+        }
+      ],
       "expo-status-bar",
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Forest Guard AI to use your location to attach the nearest coordinates to a wildlife report."
+          "locationAlwaysAndWhenInUsePermission": "Allow Forest Guard AI to use your location to attach coordinates to a wildlife report."
         }
       ],
       [

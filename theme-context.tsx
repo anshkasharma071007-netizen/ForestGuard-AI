@@ -1,14 +1,36 @@
-import { createContext, PropsWithChildren, useContext, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createContext, PropsWithChildren, useContext, useEffect, useRef, useState } from 'react';
 
 type ThemeMode = 'light' | 'dark' | 'system';
-type ThemeContextValue = { mode: ThemeMode; setMode: (mode: ThemeMode) => void };
-
-const ThemeContext = createContext<ThemeContextValue>({ mode: 'system', setMode: () => undefined });
+const key = 'forest-guard-ai.appearance';
+const ThemeContext = createContext({
+  mode: 'system' as ThemeMode,
+  ready: false,
+  storageError: '',
+  setMode: (_mode: ThemeMode) => {},
+});
 
 export function ThemeProvider({ children }: PropsWithChildren) {
-  const [mode, setMode] = useState<ThemeMode>('system');
-  const value = useMemo(() => ({ mode, setMode }), [mode]);
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  const [mode, updateMode] = useState<ThemeMode>('system');
+  const [ready, setReady] = useState(false);
+  const [storageError, setStorageError] = useState('');
+
+  useEffect(() => {
+    AsyncStorage.getItem(key).then((saved) => {
+      if (saved === 'light' || saved === 'dark' || saved === 'system') updateMode(saved);
+    }).catch(() => setStorageError('Saved appearance could not be loaded.')).finally(() => setReady(true));
+  }, []);
+
+  const writes = useRef<Promise<void>>(Promise.resolve());
+
+  function setMode(next: ThemeMode) {
+    updateMode(next);
+    setStorageError('');
+    writes.current = writes.current.then(() => AsyncStorage.setItem(key, next))
+      .catch(() => setStorageError('Appearance could not be saved.'));
+  }
+
+  return <ThemeContext.Provider value={{ mode, ready, storageError, setMode }}>{children}</ThemeContext.Provider>;
 }
 
 export function useAppTheme() {

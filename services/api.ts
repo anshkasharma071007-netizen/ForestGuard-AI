@@ -1,40 +1,49 @@
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? '';
+const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? '').trim().replace(/\/+$/, '');
 const REQUEST_TIMEOUT_MS = 30000;
 
 export const isApiConfigured = API_URL.length > 0;
 
-export type ReportSubmissionResponse = {
-  reference_code: string;
-  status: 'pending' | 'forwarded' | 'closed';
-  message: string;
-};
-
-export type ReportStatusResponse = ReportSubmissionResponse;
+export type ReportStatus = 'pending' | 'forwarded' | 'closed';
+type ReportIdentity = { reference_code: string; status: ReportStatus };
+export type ReportSubmissionResponse = ReportIdentity & { message: string };
+export type ReportStatusResponse = ReportIdentity & { created_at?: string };
+export type Village = { code: string; name: string };
 
 export async function submitCommunityReport(formData: FormData): Promise<ReportSubmissionResponse> {
-  if (!isApiConfigured) {
-    throw new Error('Live reporting is not connected in demonstration mode. Your report was not sent.');
-  }
+  if (!isApiConfigured) throw new Error('Reporting is unavailable. Your report was not sent.');
 
   const response = await fetchWithTimeout(`${API_URL}/api/community/reports`, { method: 'POST', body: formData });
-  if (!response.ok) {
-    throw new Error('The report could not be submitted. Please try again.');
-  }
+  if (!response.ok) throw new Error('The report could not be submitted. Please try again.');
 
-  return parseReportResponse(await response.json());
+  const record = await readRecord(response);
+  if (typeof record.message !== 'string') throw invalidResponse();
+  return { ...parseIdentity(record), message: record.message };
 }
 
 export async function getReportStatus(referenceCode: string): Promise<ReportStatusResponse> {
-  if (!isApiConfigured) {
-    throw new Error('Status lookup is unavailable in demonstration mode.');
-  }
+  if (!isApiConfigured) throw new Error('Report status lookup is unavailable.');
 
   const response = await fetchWithTimeout(`${API_URL}/api/community/reports/${encodeURIComponent(referenceCode)}`);
-  if (!response.ok) {
-    throw new Error('That report could not be found.');
-  }
+  if (response.status === 404) throw new Error('That report could not be found.');
+  if (!response.ok) throw new Error('The report status could not be loaded. Please try again.');
 
-  return parseReportResponse(await response.json());
+  const record = await readRecord(response);
+  return { ...parseIdentity(record), created_at: typeof record.created_at === 'string' ? record.created_at : undefined };
+}
+
+export async function getCommunityVillages(): Promise<Village[]> {
+  if (!isApiConfigured) throw new Error('The village list is unavailable.');
+  const response = await fetchWithTimeout(`${API_URL}/api/community/summary`);
+  if (!response.ok) throw new Error('The village list could not be loaded.');
+  const { villages } = await readRecord(response);
+  if (!Array.isArray(villages)) throw invalidResponse();
+  return villages.map((value: unknown) => {
+    if (!value || typeof value !== 'object' || !('code' in value) || !('name' in value)
+      || typeof value.code !== 'string' || typeof value.name !== 'string' || !value.code || !value.name) {
+      throw invalidResponse();
+    }
+    return { code: value.code, name: value.name };
+  });
 }
 
 async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -52,15 +61,21 @@ async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): P
   }
 }
 
-function parseReportResponse(value: unknown): ReportSubmissionResponse {
-  if (!value || typeof value !== 'object') throw new Error('The Forest Guard service returned an invalid response.');
-  const record = value as Record<string, unknown>;
-  if (typeof record.reference_code !== 'string' || typeof record.message !== 'string' || !isReportStatus(record.status)) {
-    throw new Error('The Forest Guard service returned an invalid response.');
-  }
-  return { reference_code: record.reference_code, status: record.status, message: record.message };
+async function readRecord(response: Response): Promise<Record<string, unknown>> {
+  const value: unknown = await response.json().catch(() => null);
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw invalidResponse();
+  return value as Record<string, unknown>;
 }
 
-function isReportStatus(value: unknown): value is ReportSubmissionResponse['status'] {
-  return value === 'pending' || value === 'forwarded' || value === 'closed';
+function parseIdentity(record: Record<string, unknown>): ReportIdentity {
+  const { reference_code, status } = record;
+  if (typeof reference_code !== 'string' || !reference_code.trim()
+    || (status !== 'pending' && status !== 'forwarded' && status !== 'closed')) {
+    throw invalidResponse();
+  }
+  return { reference_code, status };
+}
+
+function invalidResponse() {
+  return new Error('The Forest Guard service returned an invalid response.');
 }

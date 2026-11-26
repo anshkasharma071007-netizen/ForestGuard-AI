@@ -1,14 +1,12 @@
-import { Leaf } from 'lucide-react-native';
-import { StyleSheet, Text, View } from 'react-native';
-import { radius, spacing, typography, useTheme } from '../theme';
+import { Text, View } from 'react-native';
+import { spacing, useTheme } from '../theme';
 
-export function EmptyState({ title, detail }: { title: string; detail: string }) {
+export function EmptyState({ title, detail }: { title: string; detail?: string }) {
   const { colors } = useTheme();
-  return <View style={[styles.box, { backgroundColor: colors.card, borderColor: colors.border }]}><Leaf size={24} color={colors.moss} /><Text style={[styles.title, { color: colors.primaryText }]}>{title}</Text><Text style={[styles.detail, { color: colors.mutedText }]}>{detail}</Text></View>;
+  return (
+    <View accessibilityLiveRegion="polite" style={{ gap: spacing.xs, paddingVertical: spacing.sm }}>
+      <Text style={{ color: colors.primaryText, fontSize: 16, fontWeight: '700' }}>{title}</Text>
+      {detail && <Text style={{ color: colors.secondaryText, fontSize: 15, lineHeight: 22 }}>{detail}</Text>}
+    </View>
+  );
 }
-
-const styles = StyleSheet.create({
-  box: { borderWidth: 1, borderRadius: radius.card, padding: spacing.xl, alignItems: 'center', gap: spacing.sm },
-  title: { fontFamily: typography.heading, fontSize: 18, fontWeight: '700', textAlign: 'center' },
-  detail: { fontSize: 14, lineHeight: 21, textAlign: 'center' },
-});
