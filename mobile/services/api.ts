@@ -174,6 +174,7 @@ async function request(path: string, init: RequestInit, context?: { submission?:
     throw new ApiError('request-failed', 'The Forest Guard service could not complete the request. Try again.');
   } catch (error) {
     if (error instanceof ApiError) throw error;
+    if (__DEV__) console.error('[API Error]', path, error);
     if (controller.signal.aborted) {
       throw new ApiError('timeout', context?.submission
         ? 'The request timed out. Retry this report to retrieve its reference.'

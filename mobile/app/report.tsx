@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { Camera, ImageIcon, MapPin, LocateFixed, PawPrint, TriangleAlert } from 'lucide-react-native';
+import { File } from 'expo-file-system';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { InputField, SegmentedControl } from '@/components/Controls';
@@ -302,18 +303,22 @@ async function getCurrentPositionWithTimeout() {
 
 async function appendPhoto(formData: FormData, photo: PhotoAsset) {
   const name = photo.fileName ?? 'wildlife-report.jpg';
-  const type = photo.mimeType ?? 'image/jpeg';
+
   if (Platform.OS === 'web') {
     if (photo.file) {
       formData.append('image', photo.file, name);
       return;
     }
+
     const response = await fetch(photo.uri);
     if (!response.ok) throw new Error('The selected photo could not be prepared for upload.');
+
     formData.append('image', await response.blob(), name);
     return;
   }
-  formData.append('image', { uri: photo.uri, name, type } as unknown as Blob);
+
+  const file = new File(photo.uri);
+  formData.append('image', file, name);
 }
 
 function Confirmation({ response, saved }: { response: ReportSubmissionResponse; saved: boolean }) {
