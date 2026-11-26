@@ -156,6 +156,8 @@ def prepare_schema(args, connection, app_role):
         connection.exec_driver_sql(sql.SQL(
             "GRANT SELECT, INSERT, UPDATE, DELETE ON {} TO {}"
         ).format(qualified, app_role).as_string())
+        if "id" not in table.c:
+            continue  # Composite-key tables such as report_reads have no id sequence.
         sequence = connection.scalar(text("""
             SELECT seq.relname FROM pg_class AS seq
             WHERE seq.oid = pg_get_serial_sequence(:table, 'id')::regclass

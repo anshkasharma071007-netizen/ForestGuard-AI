@@ -1,10 +1,9 @@
 # Running the mobile app
 
-In Terminal 1, from the ForestGuard-AI root, with the project's Python environment already installed:
+Initialize or update PostgreSQL as its owner using [the database setup](../docs/database.md#initialize-or-upgrade-a-local-database). The API connects as the restricted runtime role. In Terminal 1, from the ForestGuard-AI root, with the project's Python environment already installed:
 
 ```sh
 source .venv/bin/activate
-python -m alembic upgrade head
 AI_MODE=auto python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ```
 
