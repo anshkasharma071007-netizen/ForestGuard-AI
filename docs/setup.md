@@ -91,6 +91,8 @@ Copy `.env.example` to `.env` and edit as needed. `.env` is git-ignored.
 | `SECRET_KEY` | insecure dev default | Signs auth tokens. **Set a long random value for any shared deployment** |
 | `DATABASE_URL` | `postgresql+psycopg://forest_guard_app@127.0.0.1:5432/forest_guard_ai` | Runtime login. Tests override it |
 | `SEED_ON_START` | `false` | Legacy startup opt-in. Use the explicit seed command for setup |
+| `APP_ENV` | `production` | Set `development` only for local development sessions |
+| `CITIZEN_DEV_OTP_ENABLED` | `false` | Set `true` together with `APP_ENV=development` to allow the local OTP `1234` |
 | `PGPASSFILE` | Set by the initializer | Path to the private runtime libpq passfile |
 | `AI_MODE` | `demo` in the generated environment | `auto` = load YOLO-World + CLIP; `demo` = no model loading, uploads 503 |
 | `YOLO_WORLD_WEIGHTS` | `yolov8s-worldv2.pt` | Detector weights path (relative to repo root or absolute) |

@@ -1,7 +1,6 @@
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import * as Location from 'expo-location';
-import { Camera, ImageIcon, MapPin, LocateFixed, PawPrint, TriangleAlert } from 'lucide-react-native';
+import { Camera, ImageIcon, PawPrint, TriangleAlert } from 'lucide-react-native';
 import { File } from 'expo-file-system';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -17,32 +16,28 @@ import { PrimaryButton, SecondaryButton } from '@/components/PrimaryButton';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { TextAction } from '@/components/TextAction';
-import { VillageSelector } from '@/components/VillageSelector';
+import { LocationField, locationInput, type LocationChoice } from '@/components/LocationField';
+import { useCitizen } from '@/citizen-context';
 import { speciesOptions, unknownSpecies, type CatalogSpecies } from '@/data';
 import type { IdentificationState } from '@/identification';
-import { ApiError, getCommunityGuidance, isApiConfigured, submitCommunityReport, type ReportSubmissionResponse, type Village } from '@/services/api';
-import { saveStoredReport, submissionKey, finishSubmission } from '@/services/report-storage';
+import { ApiError, getCommunityGuidance, isApiConfigured, submitCitizenReport, type ReportSubmissionResponse } from '@/services/api';
+import { submissionKey, finishSubmission } from '@/services/report-storage';
 import { radius, spacing, typography, typeScale, useTheme } from '@/theme';
 
 const categories = [
   { id: 'sighting', label: 'Sighting', icon: PawPrint },
   { id: 'conflict', label: 'Conflict', icon: TriangleAlert },
 ] as const;
-const locationMethods = [
-  { id: 'gps', label: 'Current location', icon: LocateFixed },
-  { id: 'village', label: 'Choose village', icon: MapPin },
-] as const;
-
 type Category = typeof categories[number]['id'];
-type LocationMethod = typeof locationMethods[number]['id'];
 type PhotoAsset = ImagePicker.ImagePickerAsset;
 type Attachment = { original: PhotoAsset; analysis: IdentificationState };
 const descriptionLimit = 4000;
-type Coordinates = { lat: number; lon: number };
 
 export default function ReportScreen() {
   const { colors } = useTheme();
-  const [category, setCategory] = useState<Category>('sighting');
+  const { access, profile } = useCitizen();
+  const [category, setCategory] = useState<Category | null>(null);
+  const [title, setTitle] = useState('');
   const [species, setSpecies] = useState<SpeciesSelection>({ species: unknownSpecies });
   const [catalog, setCatalog] = useState<readonly CatalogSpecies[]>(speciesOptions);
   const [attachment, setAttachment] = useState<Attachment | null>(null);
@@ -50,17 +45,12 @@ export default function ReportScreen() {
   const [animalId, setAnimalId] = useState<string>();
   const [photoError, setPhotoError] = useState('');
   const [picking, setPicking] = useState(false);
-  const [method, setMethod] = useState<LocationMethod | null>(null);
-  const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
-  const [village, setVillage] = useState<Village | null>(null);
+  const [location, setLocation] = useState<LocationChoice | null>(null);
   const [locating, setLocating] = useState(false);
-  const [locationError, setLocationError] = useState('');
   const [description, setDescription] = useState('');
-  const [reporterName, setReporterName] = useState('');
-  const [contact, setContact] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [confirmation, setConfirmation] = useState<{ response: ReportSubmissionResponse; saved: boolean } | null>(null);
+  const [confirmation, setConfirmation] = useState<ReportSubmissionResponse | null>(null);
   const submissionInProgress = useRef(false);
   const photo = attachment?.original;
   const analysis = attachment?.analysis ?? { kind: 'idle' };
@@ -77,38 +67,6 @@ export default function ReportScreen() {
     }).catch(() => {});
     return () => controller.abort();
   }, []);
-
-  function changeMethod(next: LocationMethod) {
-    if (next === method) return;
-    setCoordinates(null);
-    setVillage(null);
-    setLocationError('');
-    setMethod(next);
-    if (next === 'gps') void captureLocation();
-  }
-
-  async function captureLocation() {
-    setLocating(true);
-    setCoordinates(null);
-    setLocationError('');
-    try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (permission.status !== 'granted') {
-        setLocationError('Location permission was not granted. Choose a village instead.');
-        return;
-      }
-      if (!(await Location.hasServicesEnabledAsync())) {
-        setLocationError('Location services are unavailable. Choose a village instead.');
-        return;
-      }
-      const { coords } = await getCurrentPositionWithTimeout();
-      setCoordinates({ lat: coords.latitude, lon: coords.longitude });
-    } catch {
-      setLocationError('Location could not be captured. Try again or choose a village.');
-    } finally {
-      setLocating(false);
-    }
-  }
 
   async function choosePhoto(source: 'camera' | 'gallery') {
     setPhotoError('');
@@ -145,8 +103,8 @@ export default function ReportScreen() {
   async function submitReport() {
     if (submissionInProgress.current || locating || picking || confirmation) return;
     setError('');
-    if (!reporterName.trim()) { setError('Enter your name before submitting.'); return; }
-    if (description.trim().length < 12) { setError('Description must be at least 12 characters.'); return; }
+    if (!title.trim()) { setError('Enter a report title.'); return; }
+    if (!category) { setError('Choose an incident category.'); return; }
     if (description.trim().length > descriptionBudget) {
       setError(`Shorten the description to ${descriptionBudget.toLocaleString()} characters to fit the species name.`);
       return;
@@ -156,56 +114,37 @@ export default function ReportScreen() {
       return;
     }
     if (!isApiConfigured) { setError('Set EXPO_PUBLIC_API_URL to the Forest Guard API address and reopen the app.'); return; }
-    const reportCoordinates = method === 'gps' ? coordinates : null;
-    const reportVillage = method === 'village' ? village : null;
-    if (!reportCoordinates && !reportVillage) {
+    if (!location || !profile) {
       setError('Capture the incident location or select a village before submitting.');
       return;
     }
+    const incidentLocation = locationInput(location);
 
     submissionInProgress.current = true;
     setSubmitting(true);
     try {
-      const draft = JSON.stringify([category, species.species.id, speciesNote, description.trim(), reporterName.trim(),
-        contact.trim(), reportCoordinates, reportVillage?.code, photo?.assetId, photo?.fileName, photo?.fileSize,
+      const draft = JSON.stringify([title.trim(), category, species.species.id, speciesNote, description.trim(),
+        incidentLocation, photo?.assetId, photo?.fileName, photo?.fileSize,
         photo?.file?.lastModified, photo?.assetId || photo?.fileName ? undefined : photo?.uri]);
       const formData = new FormData();
+      formData.append('title', title.trim());
       formData.append('category', category);
       formData.append('species', species.species.id);
-      formData.append('description', speciesNote ? `${description.trim()}\n\n${speciesNote}` : description.trim());
-      formData.append('reporter_name', reporterName.trim());
-      if (contact.trim()) formData.append('contact', contact.trim());
-      if (reportCoordinates) {
-        formData.append('lat', String(reportCoordinates.lat));
-        formData.append('lon', String(reportCoordinates.lon));
-      } else if (reportVillage) {
-        formData.append('village_code', reportVillage.code);
-      }
+      formData.append('description', [description.trim(), speciesNote].filter(Boolean).join('\n\n'));
+      for (const [key, value] of Object.entries(incidentLocation)) formData.append(key, String(value));
       if (photo) await appendPhoto(formData, photo);
 
-      const key = await submissionKey(draft);
+      const key = await submissionKey(draft, profile.id);
       formData.append('submission_key', key);
       let response: ReportSubmissionResponse;
       try {
-        response = await submitCommunityReport(formData);
+        response = await submitCitizenReport(access, formData);
       } catch (failure) {
-        if (failure instanceof ApiError && failure.kind === 'invalid-input') await finishSubmission(key);
+        if (failure instanceof ApiError && failure.kind === 'invalid-input') await finishSubmission(key, profile.id);
         throw failure;
       }
-      let saved = true;
-      try {
-        const now = new Date().toISOString();
-        await saveStoredReport({
-          referenceCode: response.reference_code,
-          status: response.status,
-          submittedAt: now,
-          statusCheckedAt: now,
-        });
-        await finishSubmission(key);
-      } catch {
-        saved = false;
-      }
-      setConfirmation({ response, saved });
+      setConfirmation(response);
+      await finishSubmission(key, profile.id).catch(() => {});
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'The report could not be submitted. Please try again.');
     } finally {
@@ -214,13 +153,27 @@ export default function ReportScreen() {
     }
   }
 
-  if (confirmation) return <Confirmation {...confirmation} />;
+  if (confirmation) return <Confirmation response={confirmation} />;
 
   return (
     <Screen>
       <ScreenHeader title="New report" back />
       <View style={styles.form}>
-        <SegmentedControl label="Incident type" options={categories} value={category} onChange={setCategory} disabled={submitting} />
+        <InputField label="Title (required)" value={title} onChangeText={setTitle} editable={!submitting} maxLength={120} />
+        <InputField label="Description (optional)" value={description} onChangeText={setDescription} editable={!submitting}
+          multiline maxLength={descriptionBudget} placeholder="Describe what you saw" hint={speciesNote || undefined} />
+        <View style={styles.field}>
+          <SectionTitle title="Incident category (required)" />
+          <SegmentedControl label="Incident category" options={categories} value={category} onChange={setCategory} disabled={submitting} />
+        </View>
+        <View style={styles.field}>
+          <SectionTitle title="Species" />
+          <SpeciesSelector catalog={catalog} selection={species} prediction={activeAnimal} disabled={submitting} onSelect={setSpecies} />
+        </View>
+        <View style={styles.field}>
+          <SectionTitle title="Incident location (required)" />
+          <LocationField label="Incident location" value={location} onChange={setLocation} onLocating={setLocating} disabled={submitting} />
+        </View>
         <View style={styles.field}>
           <SectionTitle title={photo ? 'Photo attached' : 'Add photo'} />
           <SupportingText>Optional. Never approach wildlife for a photo.</SupportingText>
@@ -254,31 +207,6 @@ export default function ReportScreen() {
           {!!photoError && <SupportingText error>{photoError}</SupportingText>}
         </View>
         <IdentificationResult state={analysis} catalog={catalog} activeId={activeAnimal?.id} onSelect={setAnimalId} />
-        <View style={styles.field}>
-          <SectionTitle title="Species" />
-          <SpeciesSelector catalog={catalog} selection={species} prediction={activeAnimal} disabled={submitting} onSelect={setSpecies} />
-        </View>
-        <View style={styles.field}>
-          <SectionTitle title="Location" />
-          <SegmentedControl label="Location method" options={locationMethods} value={method} onChange={changeMethod}
-            disabled={submitting || locating} />
-          {method === 'gps' && (
-            <>
-              {locating ? <Feedback title="Finding location…" kind="loading" />
-                : <TextAction label={coordinates ? 'Capture again' : 'Retry location'} onPress={() => void captureLocation()} disabled={submitting} />}
-              {coordinates && <SupportingText>GPS: {coordinates.lat.toFixed(5)}, {coordinates.lon.toFixed(5)}</SupportingText>}
-              {!!locationError && <SupportingText error>{locationError}</SupportingText>}
-            </>
-          )}
-          {method === 'village' && <VillageSelector label="Incident village" startOpen selected={village} onSelect={setVillage} disabled={submitting} />}
-        </View>
-        <InputField label="Description" value={description} onChangeText={setDescription} editable={!submitting}
-          multiline maxLength={descriptionBudget} placeholder="Describe what you saw" hint={speciesNote
-            ? `Minimum 12 characters. Added to your submitted description: ${speciesNote}` : 'Minimum 12 characters.'} />
-        <InputField label="Reporter name" value={reporterName} onChangeText={setReporterName} editable={!submitting}
-          maxLength={120} autoCapitalize="words" />
-        <InputField label="Contact (optional)" value={contact} onChangeText={setContact} editable={!submitting}
-          maxLength={80} autoCapitalize="none" placeholder="Phone or email" />
         {!isApiConfigured && <SupportingText>Reporting is unavailable on this device.</SupportingText>}
         {!!error && <SupportingText error>{error}</SupportingText>}
         <PrimaryButton label={submitting ? 'Submitting report…' : 'Submit report'} onPress={() => void submitReport()}
@@ -287,18 +215,6 @@ export default function ReportScreen() {
       {photo && viewerOpen && <PhotoViewer photo={photo} onClose={() => setViewerOpen(false)} />}
     </Screen>
   );
-}
-
-async function getCurrentPositionWithTimeout() {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error('Location timed out.')), 12000);
-  });
-  try {
-    return await Promise.race([Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }), timeout]);
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
 }
 
 async function appendPhoto(formData: FormData, photo: PhotoAsset) {
@@ -321,7 +237,7 @@ async function appendPhoto(formData: FormData, photo: PhotoAsset) {
   formData.append('image', file, name);
 }
 
-function Confirmation({ response, saved }: { response: ReportSubmissionResponse; saved: boolean }) {
+function Confirmation({ response }: { response: ReportSubmissionResponse }) {
   const { colors } = useTheme();
   return (
     <Screen>
@@ -335,8 +251,9 @@ function Confirmation({ response, saved }: { response: ReportSubmissionResponse;
           <Text selectable style={{ color: colors.primaryText, fontFamily: typography.mono, fontSize: 21 }}>{response.reference_code}</Text>
           <ReportStatusPill status={response.status} />
         </View>
-        {!saved && <SupportingText error>The report was received, but its reference could not be saved on this device. Keep the reference code to check its status.</SupportingText>}
-        <PrimaryButton label="View report history" onPress={() => router.dismissTo('/history')} />
+        <PrimaryButton label="View report" onPress={() => router.replace({
+          pathname: '/report-detail', params: { code: response.reference_code },
+        })} />
         <TextAction label="Return to Home" onPress={() => router.dismissTo('/')} />
       </View>
     </Screen>

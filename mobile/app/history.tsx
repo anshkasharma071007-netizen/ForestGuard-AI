@@ -1,11 +1,10 @@
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { Search } from 'lucide-react-native';
 import { useCallback, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { NavigationRow } from '@/components/Controls';
 import { Feedback, SupportingText } from '@/components/Feedback';
 import { FindReport } from '@/components/FindReport';
-import { PrimaryButton } from '@/components/PrimaryButton';
 import { ReportRow } from '@/components/ReportRow';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
@@ -78,12 +77,11 @@ export default function ReportsScreen() {
   const sorted = [...reports].sort((a, b) => Date.parse(b.createdAt ?? b.submittedAt) - Date.parse(a.createdAt ?? a.submittedAt));
 
   return (
-    <Screen tab>
-      <ScreenHeader title="Reports" />
+    <Screen>
+      <ScreenHeader title="Older report references" back />
       <View style={styles.content}>
-        <PrimaryButton label="New report" icon="plus" disabled={refreshing} onPress={() => router.push('/report')} />
         <View>
-          <SectionTitle title="My reports" action={reports.length ? {
+          <SectionTitle title="Saved references" action={reports.length ? {
             label: refreshing ? 'Refreshing…' : 'Refresh',
             loading: refreshing,
             disabled: loading,

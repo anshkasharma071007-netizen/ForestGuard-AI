@@ -6,10 +6,10 @@ import { StatusPill, SupportingText } from './Feedback';
 
 const statuses = {
   pending: { label: 'Pending', tone: 'warning' },
-  forwarded: { label: 'Forwarded', tone: 'success' },
-  verified: { label: 'Verified', tone: 'success' },
+  forwarded: { label: 'Pending', tone: 'warning' },
+  verified: { label: 'Under work', tone: 'success' },
   rejected: { label: 'Rejected', tone: 'neutral' },
-  closed: { label: 'Closed', tone: 'neutral' },
+  closed: { label: 'Resolved', tone: 'neutral' },
 } as const satisfies Record<ReportStatus, { label: string; tone: string }>;
 
 export function ReportStatusPill({ status }: { status: ReportStatus }) {

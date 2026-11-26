@@ -9,11 +9,11 @@ Continue from the existing repository. The incident-reporting branch merged into
 - From the root, create `.venv` if needed and install `.venv/bin/python -m pip install -r requirements.txt`. `requirements-core.txt` is sufficient for `AI_MODE=demo`, which disables inference. `AI_MODE=auto` uses the installed Python inference stack, `yolov8s-worldv2.pt` and cached CLIP weights. `DEMO_MODE` controls demo labeling independently of `AI_MODE`.
 - Start local PostgreSQL and run `.venv/bin/python -m tools.init_database --admin-user <owner>`. The owner applies migrations and the API uses a restricted runtime role and private passfile. Keep existing settings and data. If the checkout already has a `.env` for a different database, use the initializer's connection settings in a separate ignored environment file and pass it to Uvicorn with `--env-file`. Keep `SEED_ON_START=false`. Use `.venv/bin/python -m tools.seed_demo` explicitly only if needed.
 - Start FastAPI with `.venv/bin/python -m uvicorn backend.main:app --reload --port 8000`. For a phone on a trusted development LAN, use `--host 0.0.0.0`. Install both clients with `npm ci` inside their directories, then run `npm run dev` in each (Vite on 5173, Expo on 8081).
-- Check Alembic head (`0002` at handover), `/api/health` (`database: ok`), `.venv/bin/python -m pytest -q`, `npm run build` in `frontend/`, and `npm run typecheck` in `mobile/`. See [setup](docs/setup.md), [database operations](docs/database.md), and [mobile development](mobile/MOBILE_DEVELOPMENT.md).
+- Check Alembic head (`0003`), `/api/health` (`database: ok`), `.venv/bin/python -m pytest -q`, `npm run build` in `frontend/`, and `npm run typecheck` in `mobile/`. See [setup](docs/setup.md), [database operations](docs/database.md), and [mobile development](mobile/MOBILE_DEVELOPMENT.md).
 
 ## Current progress
 
-The incident foundation persists reports and their references, prevents duplicate submissions, queues optional photo analysis, supports official review, and publishes verified alerts under the current rules. Native Android photo upload uses `expo-file-system`. Authenticated report ownership, final alert publication and resolution rules, and cross-device verification remain pending.
+Citizen onboarding and profile persistence are implemented, including development-only OTP, GPS or village setup, SecureStore sessions on native and HttpOnly cookie sessions on web. The mobile tabs are Home, Map, and Profile. Home lists owned reports and verified public alerts. Citizen reports require a title, category, and explicit incident location. They retain optional photo analysis, deduplication, receipt recovery, and official review. Existing reports remain unowned. Native photo upload uses `expo-file-system`. The authority website still uses its existing workflow and alert eligibility rules.
 
 ## Final functional specification
 
@@ -36,8 +36,6 @@ The incident foundation persists reports and their references, prevents duplicat
 
 ## Remaining development order
 
-1. Profile and first-time onboarding.
-2. Simplified mobile navigation, Home, and report form.
-3. Simplified authority website and final incident lifecycle, including alert publication and resolution synchronization.
-4. Shared interactive maps.
-5. Complete cross-device integration testing.
+1. Simplified authority website and final incident lifecycle, including alert publication and resolution synchronization.
+2. Shared interactive maps.
+3. Complete cross-device integration testing, including native session storage, GPS, camera, and gallery.

@@ -234,6 +234,7 @@ def serialize_sighting(report: SightingReport, *, public: bool = False) -> dict:
     if not public:
         data.update({
             "lat": report.lat, "lon": report.lon, "contact": report.contact,
+            "title": report.title,
             "reporter_name": report.reporter_name,
             "image_url": f"/api/reports/{report.id}/evidence" if report.image_path else None,
             "analysis_status": report.analysis_status, "analysis_results": report.analysis_results,

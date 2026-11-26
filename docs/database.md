@@ -1,6 +1,6 @@
 # Local database operations
 
-Run these commands from the repository root. The website and mobile app use the same FastAPI URL and media paths. PostgreSQL holds the ten application tables. Uploaded files live under `backend/uploads` unless `UPLOAD_DIR` specifies another directory.
+Run these commands from the repository root. The website and mobile app use the same FastAPI URL and media paths. PostgreSQL stores the application records and citizen sessions. Uploaded files live under `backend/uploads` unless `UPLOAD_DIR` specifies another directory.
 
 ## Initialize or upgrade a local database
 
@@ -14,7 +14,7 @@ Run `python -m tools.seed_demo` separately for the bundled demo. The command che
 
 ## Version the schema
 
-The baseline is revision `0001`. Revisions live under `backend/migrations/versions`. Use the owner URL only for administrative commands. For routine local upgrades use the initializer. The following owner URL example uses the Unix socket and OS account of the original migration host.
+The baseline is revision `0001`. Revision `0003` adds citizen accounts, hashed sessions, and nullable ownership and title fields for reports. Legacy rows retain their existing references with no owner assigned. Revisions live under `backend/migrations/versions`. Use the owner URL only for administrative commands. For routine local upgrades use the initializer. The following owner URL example uses the Unix socket and OS account of the original migration host.
 
 ```sh
 owner_url=postgresql+psycopg:///forest_guard_ai

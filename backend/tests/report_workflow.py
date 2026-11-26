@@ -141,6 +141,7 @@ def run():
         os.environ.update(DATABASE_URL=url.render_as_string(hide_password=False), PGOPTIONS=f"-c search_path={schema}",
                           UPLOAD_DIR=str(temp / "uploads"), SECRET_KEY=secrets.token_hex(32),
                           SEED_ON_START="false", AI_MODE="auto", MPLCONFIGDIR=str(temp / "mpl"),
+                          APP_ENV="development", CITIZEN_DEV_OTP_ENABLED="true",
                           YOLO_CONFIG_DIR=str(temp / "yolo"), YOLO_AUTOINSTALL="false", CORS_ORIGINS="http://127.0.0.1:18766")
         origin = "http://127.0.0.1:18765"
         website = temp / "officials"
@@ -190,7 +191,7 @@ def run():
         async def connection_loss(scope, receive, send):
             async def intercept(message):
                 nonlocal drop_once
-                if (drop_once and scope.get("method") == "POST" and scope["path"] == "/api/community/reports"
+                if (drop_once and scope.get("method") == "POST" and scope["path"] == "/api/citizen/reports"
                         and message["type"] == "http.response.body"):
                     drop_once = False
                     await send({**message, "body": message["body"][:1], "more_body": True})
@@ -217,6 +218,9 @@ def run():
                        env={**os.environ, "WORKFLOW_PASSWORD": secret})
         field = client.get("/api/community/alerts?field_only=true&village_code=TEST").json()["items"]
         assert len(field) == 1 and not field[0]["is_simulated"]
+        verified = client.get("/api/community/alerts?field_only=true&verified_only=true").json()["items"]
+        assert len(verified) == 1 and verified[0]["approximate_locations"] == [{"lat": 21.76, "lon": 79.3}]
+        assert not {"reporter_name", "contact", "lat", "lon", "image_url"}.intersection(verified[0])
         assert not client.get("/api/community/alerts?field_only=true&village_code=FAR").json()["items"]
         reports = client.get("/api/reports", headers=auth).json()["items"]
         browser_reports = [r for r in reports if r["reporter_name"] == "Browser observer"]

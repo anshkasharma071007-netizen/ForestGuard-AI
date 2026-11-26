@@ -4,8 +4,11 @@ Initialize or update PostgreSQL as its owner using [the database setup](../docs/
 
 ```sh
 source .venv/bin/activate
-AI_MODE=auto python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
+APP_ENV=development CITIZEN_DEV_OTP_ENABLED=true AI_MODE=auto \
+  python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ```
+
+Both backend flags are required for local OTP `1234`. Development citizen sessions require those flags while in use.
 
 Use the same Wi-Fi network for the computer and phone. Find the computer’s Wi-Fi IP on macOS with `ipconfig getifaddr en0`, or read the active interface’s IP in Network settings. From the phone, open `http://<computer-ip>:8000/api/health`. A response confirms the connection before you start Expo. If it fails, check the host firewall, IP and Wi-Fi client isolation. Use AI_MODE=demo to exercise the failed-analysis and retry states. Restart with AI_MODE=auto to run the installed model.
 
@@ -22,24 +25,24 @@ If Wi-Fi uses another interface or you are on another OS, substitute the IP from
 
 Scan the Expo QR code with an Expo Go version compatible with the project's installed SDK, or open it in your development build. Allow local network access if the OS prompts. If the native runtime disallows HTTP, use a trusted HTTPS backend origin. The production app should also use HTTPS. Expo’s Metro tunnel only transports the bundle. The phone still needs separate reachability to FastAPI.
 
-For browser development on the computer, the browser additionally needs permission from the backend’s existing `CORS_ORIGINS` environment setting. For example, start the backend with `CORS_ORIGINS=http://localhost:8081,http://127.0.0.1:8081` if Metro serves from port 8081. Use the exact scheme, host and port shown in your browser. Native requests do not use browser CORS.
+For browser development, the API defaults to Metro's hostname on port 8000. Visit `http://localhost:8081` or use the same hostname for both services. A web export can set `EXPO_PUBLIC_WEB_API_URL` when the API runs on another same-site origin. If the origins differ, include the exact web origin in `CORS_ORIGINS`. Web sessions use a same-site HttpOnly cookie. Native sessions use Expo SecureStore. A native development build must include the SecureStore module.
 
-## Public API compatibility
+The manual location picker reads the database village list. If the local database has no villages, use GPS. Seed data is optional and intended for an empty demo database.
+
+## Citizen API
 
 | Endpoint | Mobile use |
 | --- | --- |
-| `GET /api/health` | Settings checks actual service reachability and distinguishes a degraded response. It does not expose database diagnostics. |
-| `GET /api/community/villages` | Home and incident village selection use server codes and labels. The client uses code, name and district only. |
-| `GET /api/community/alerts?limit=50&field_only=true` | Alerts and Home show only entries explicitly marked as non-simulated. Home requests the selected village by code before the server limits the feed. The preview is limited to two matching items. |
-| `GET /api/community/guidelines` | Supplies the species catalog and source-qualified general guidance. The app retains bundled fallback content. The backend describes its guidance as a summary for a demonstration region. The offline wording also makes no claim of official review. |
-| `POST /api/community/reports` | Existing multipart submission, using canonical category and species IDs with optional image and either coordinates or village code. |
-| `GET /api/community/reports/{reference_code}` | Reference lookup and saved-list refresh use the backend timestamps and canonical statuses. Only reference, status and timestamps persist. |
+| `POST /api/citizen/verify` | Verify the development OTP, create or retrieve an account, and start a session. |
+| `GET /api/citizen/profile`, `PUT /api/citizen/profile` | Restore or edit the current profile and location. |
+| `POST /api/citizen/sign-out` | Revoke the current session. |
+| `GET /api/citizen/reports`, `POST /api/citizen/reports` | List owned reports and submit a report with an optional image. |
+| `GET /api/citizen/reports/{reference}` and `…/{reference}/evidence` | Read an owned report and its private photo. |
+| `POST /api/citizen/report-receipt` | Recover an owned receipt after an interrupted submission. |
+| `GET /api/community/alerts?field_only=true&verified_only=true` | Read active, verified field alerts using rounded affected-village coordinates where available. |
+| `GET /api/community/villages` and `/api/community/guidelines` | Load supported villages, species, and safety guidance. |
 
-The public summary mixes field and simulated counts. Its village risk labels are derived from detections without a simulation filter or per-village provenance. The app therefore presents a truthful risk-unavailable state and uses the advisory feed independently. The existing public API does not supply a verified public map zone product. The app uses no official GIS endpoints, camera locations, patrol positions or precise wildlife locations.
-
-The backend has no public list-by-user endpoint, and report POST does not return a submission timestamp. A reference is marked saved until status lookup supplies `created_at`. The Other species flow continues to use the supported Unknown ID and explicitly includes the custom name in the existing description field. The app saves a retry key before submission. Retrying the same draft retrieves its original reference. The Reports tab can recover the receipt after an interrupted response.
-
-The type system and network client distinguish missing configuration or unsupported functionality, unreachable service, timeout, invalid input, not-found responses, server failure and invalid responses. Successful empty lists render as empty states.
+See [reporting and public data](REPORTING_ASSUMPTIONS.md) for status mapping and alert sorting.
 
 ## Font assets
 

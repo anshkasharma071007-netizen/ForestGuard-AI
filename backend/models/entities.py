@@ -52,6 +52,30 @@ class Village(Base):
     last_alert_at: Mapped[datetime | None] = mapped_column(DateTime)
 
 
+class Citizen(Base):
+    __tablename__ = "citizens"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    phone: Mapped[str] = mapped_column(String(16), unique=True)
+    name: Mapped[str] = mapped_column(String(120))
+    email: Mapped[str | None] = mapped_column(String(254))
+    village_id: Mapped[int | None] = mapped_column(ForeignKey("villages.id"))
+    lat: Mapped[float | None] = mapped_column(Float)
+    lon: Mapped[float | None] = mapped_column(Float)
+
+    village: Mapped[Village | None] = relationship()
+
+
+class CitizenSession(Base):
+    __tablename__ = "citizen_sessions"
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    citizen_id: Mapped[int] = mapped_column(ForeignKey("citizens.id", ondelete="CASCADE"), index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+
+    citizen: Mapped[Citizen] = relationship()
+
+
 class Camera(Base):
     __tablename__ = "cameras"
 
@@ -170,6 +194,8 @@ class SightingReport(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     reference_code: Mapped[str] = mapped_column(String(30), unique=True, index=True)
+    citizen_id: Mapped[int | None] = mapped_column(ForeignKey("citizens.id"), index=True)
+    title: Mapped[str | None] = mapped_column(String(120))
     category: Mapped[str] = mapped_column(String(30), default="sighting")  # sighting | conflict
     species: Mapped[str] = mapped_column(String(40))
     description: Mapped[str] = mapped_column(Text)

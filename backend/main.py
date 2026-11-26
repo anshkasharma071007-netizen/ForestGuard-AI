@@ -14,6 +14,7 @@ from backend import config
 from backend.api import (
     routes_alerts,
     routes_auth,
+    routes_citizen,
     routes_community,
     routes_core,
     routes_guard,
@@ -69,13 +70,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-origins = os.getenv(
-    "CORS_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:3000,http://localhost:8081,http://127.0.0.1:8081",
-).split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[origin.strip() for origin in origins if origin.strip()],
+    allow_origins=config.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -87,6 +84,8 @@ app.include_router(routes_risk.router)
 app.include_router(routes_alerts.router)
 app.include_router(routes_guard.router)
 app.include_router(routes_community.router)
+app.include_router(routes_citizen.router)
+app.include_router(routes_community.citizen_router)
 
 class PublicMedia(StaticFiles):
     def lookup_path(self, path):

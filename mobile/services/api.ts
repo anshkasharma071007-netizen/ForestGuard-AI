@@ -13,12 +13,15 @@ function defaultOrigin() {
   const androidLoopback = Platform.OS === 'android' && (host === 'localhost' || host === '127.0.0.1');
   return `http://${androidLoopback ? '10.0.2.2' : host}:8000`;
 }
-const API_URL = (process.env.EXPO_PUBLIC_API_URL?.trim() || defaultOrigin()).replace(/\/+$/, '');
+// Browser development uses the same host as Metro so its HttpOnly cookie stays same-site.
+const configuredOrigin = Platform.OS === 'web' ? process.env.EXPO_PUBLIC_WEB_API_URL?.trim() : undefined;
+const nativeOrigin = __DEV__ && Platform.OS === 'web' ? undefined : process.env.EXPO_PUBLIC_API_URL?.trim();
+const API_URL = (configuredOrigin || nativeOrigin || defaultOrigin()).replace(/\/+$/, '');
 const REQUEST_TIMEOUT_MS = 30000;
 
 export const isApiConfigured = /^https?:\/\/[^/\s]+(?::\d+)?(?:\/[^\s]*)?$/i.test(API_URL);
 
-export type ApiErrorKind = 'unavailable' | 'unreachable' | 'timeout' | 'invalid-input' | 'not-found' | 'request-failed' | 'invalid-response';
+export type ApiErrorKind = 'unavailable' | 'unreachable' | 'timeout' | 'invalid-input' | 'not-found' | 'unauthorized' | 'request-failed' | 'invalid-response';
 
 export class ApiError extends Error {
   constructor(readonly kind: ApiErrorKind, message: string) {
@@ -41,6 +44,12 @@ export type ReportStatusResponse = ReportIdentity & {
   status_note?: string;
 };
 export type Village = { code: string; name: string; district?: string };
+export type Coordinates = { lat: number; lon: number };
+export type SavedLocation = ({ type: 'gps' } | { type: 'village'; village: Village }) & Coordinates;
+export type LocationInput = Coordinates | { village_code: string };
+export type CitizenProfile = { id: number; name: string; email: string | null; phone: string; location: SavedLocation | null };
+export type CitizenAccess = { token?: string; expire: () => void };
+export type CitizenReport = ReportIdentity & { title: string; createdAt: string };
 export type Advisory = {
   id: number;
   severity: string;
@@ -50,6 +59,8 @@ export type Advisory = {
   summary?: string;
   advice?: string;
   publishedAt: string;
+  approximateLocations: Coordinates[];
+  distanceKm?: number;
 };
 export type PublicAdvisories = { items: Advisory[]; windowDays: number };
 export type CommunityGuidance = {
@@ -76,7 +87,7 @@ export async function getCommunityVillages(signal?: AbortSignal): Promise<Villag
 }
 
 export async function getPublicAlerts(signal?: AbortSignal, villageCode?: string): Promise<PublicAdvisories> {
-  const { items, window_days } = await request(`/api/community/alerts?limit=50&field_only=true${villageCode ? '&village_code=' + encodeURIComponent(villageCode) : ''}`, { signal });
+  const { items, window_days } = await request(`/api/community/alerts?limit=50&field_only=true&verified_only=true${villageCode ? '&village_code=' + encodeURIComponent(villageCode) : ''}`, { signal });
   if (typeof window_days !== 'number' || !Number.isInteger(window_days) || window_days < 1) throw invalidResponse();
   const results = list(items);
   if (results.some((item) => typeof item.is_simulated !== 'boolean')) throw invalidResponse();
@@ -96,6 +107,8 @@ export async function getPublicAlerts(signal?: AbortSignal, villageCode?: string
         summary: optionalText(summary),
         advice: optionalText(advice),
         publishedAt,
+        approximateLocations: Array.isArray(item.approximate_locations)
+          ? list(item.approximate_locations).flatMap((location) => coordinates(location) ?? []) : [],
       };
     }),
   };
@@ -115,8 +128,8 @@ export async function getCommunityGuidance(signal?: AbortSignal): Promise<Commun
   };
 }
 
-export async function submitCommunityReport(formData: FormData): Promise<ReportSubmissionResponse> {
-  const record = await request('/api/community/reports', { method: 'POST', body: formData }, { submission: true });
+export async function submitCitizenReport(access: CitizenAccess, formData: FormData): Promise<ReportSubmissionResponse> {
+  const record = await citizenRequest(access, '/reports', { method: 'POST', body: formData }, { submission: true });
   if (typeof record.message !== 'string') throw invalidResponse();
   return { ...parseIdentity(record), message: record.message };
 }
@@ -127,6 +140,67 @@ export async function recoverReceipt(key: string) {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
   }, { notFound: 'Submission has not been received.' });
   return parseIdentity(response);
+}
+
+export async function recoverCitizenReceipt(access: CitizenAccess, key: string, signal?: AbortSignal) {
+  const body = new FormData();
+  body.append('submission_key', key);
+  return parseIdentity(await citizenRequest(access, '/report-receipt', { method: 'POST', body, signal },
+    { notFound: 'Submission has not been received.' }));
+}
+
+export async function verifyCitizen(input: { phone: string; code: string; name?: string; email?: string }) {
+  const web = Platform.OS === 'web';
+  const record = await request('/api/citizen/verify', {
+    method: 'POST', credentials: web ? 'include' : 'omit', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...input, transport: web ? 'cookie' : 'bearer' }),
+  });
+  return { profile: parseProfile(object(record.profile)), token: web ? undefined : requiredText(record.token) };
+}
+
+export async function getCitizenProfile(access: CitizenAccess, signal?: AbortSignal) {
+  return parseProfile(await citizenRequest(access, '/profile', { signal }));
+}
+
+export async function updateCitizenProfile(access: CitizenAccess, input: { name: string; email: string | null; location: LocationInput }) {
+  return parseProfile(await citizenRequest(access, '/profile', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input),
+  }));
+}
+
+export async function endCitizenSession(access: CitizenAccess) {
+  await citizenRequest(access, '/sign-out', { method: 'POST' });
+}
+
+export async function getCitizenReports(access: CitizenAccess, signal?: AbortSignal) {
+  const { items } = await citizenRequest(access, '/reports', { signal });
+  return list(items).map(parseCitizenReport);
+}
+
+export async function getCitizenReport(access: CitizenAccess, code: string, signal?: AbortSignal) {
+  const record = await citizenRequest(access, `/reports/${encodeURIComponent(code)}`, { signal }, { notFound: 'Report unavailable.' });
+  return { ...parseCitizenReport(record), category: requiredText(record.category), description: optionalText(record.description),
+    species: requiredText(record.species_name), village: optionalText(record.village_name), coordinates: coordinates(record),
+    hasPhoto: record.has_photo === true, analysis: requiredText(record.analysis_status), suggestions: textList(record.suggested_species) };
+}
+
+export function citizenEvidence(access: CitizenAccess, code: string) {
+  return { uri: `${API_URL}/api/citizen/reports/${encodeURIComponent(code)}/evidence`,
+    headers: access.token ? { Authorization: `Bearer ${access.token}` } : undefined };
+}
+
+type RequestContext = { submission?: boolean; notFound?: string };
+
+async function citizenRequest(access: CitizenAccess, path: string, init: RequestInit, context?: RequestContext) {
+  try {
+    return await request(`/api/citizen${path}`, {
+      ...init, credentials: Platform.OS === 'web' ? 'include' : 'omit',
+      headers: { ...init.headers, ...(access.token ? { Authorization: `Bearer ${access.token}` } : {}) },
+    }, context);
+  } catch (error) {
+    if (error instanceof ApiError && error.kind === 'unauthorized') access.expire();
+    throw error;
+  }
 }
 
 export async function getReportStatus(referenceCode: string, signal?: AbortSignal): Promise<ReportStatusResponse> {
@@ -143,7 +217,7 @@ export async function getReportStatus(referenceCode: string, signal?: AbortSigna
   };
 }
 
-async function request(path: string, init: RequestInit, context?: { submission?: boolean; notFound?: string }) {
+async function request(path: string, init: RequestInit, context?: RequestContext) {
   if (!isApiConfigured) throw new ApiError('unavailable', 'The Forest Guard service is not configured on this device.');
 
   const controller = new AbortController();
@@ -163,11 +237,12 @@ async function request(path: string, init: RequestInit, context?: { submission?:
     try { value = JSON.parse(payload); } catch { value = null; }
 
     if (response.ok) return object(value);
+    if (response.status === 401) throw new ApiError('unauthorized', validationMessage(value) ?? 'Sign in again.');
     if (response.status === 404 && context?.notFound) throw new ApiError('not-found', context.notFound);
     if (response.status === 404 || response.status === 501 || response.status === 405) {
       throw new ApiError('unavailable', 'This feature is unavailable on the configured service.');
     }
-    if ([400, 409, 413, 415, 422].includes(response.status)) {
+    if ([400, 403, 409, 413, 415, 422].includes(response.status)) {
       throw new ApiError('invalid-input', validationMessage(value) ?? 'Check the information you entered and try again.');
     }
     if (response.status === 429) throw new ApiError('request-failed', 'Too many requests. Try again shortly.');
@@ -203,6 +278,33 @@ function parseIdentity(record: Record<string, unknown>): ReportIdentity {
   const { status } = record;
   if (!isReportStatus(status)) throw invalidResponse();
   return { reference_code: requiredText(record.reference_code), status };
+}
+
+function coordinates({ lat, lon }: Record<string, unknown>): Coordinates | undefined {
+  if (typeof lat === 'number' && typeof lon === 'number' && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) return { lat, lon };
+}
+
+function parseProfile(record: Record<string, unknown>): CitizenProfile {
+  const { id, name, email, phone, location } = record;
+  if (typeof id !== 'number' || !Number.isInteger(id)) throw invalidResponse();
+  let saved: SavedLocation | null = null;
+  if (location !== null) {
+    const data = object(location);
+    const point = coordinates(data);
+    if (!point) throw invalidResponse();
+    if (data.type === 'gps') saved = { type: 'gps', ...point };
+    else if (data.type === 'village') {
+      const village = object(data.village);
+      saved = { type: 'village', ...point, village: { code: requiredText(village.code), name: requiredText(village.name), district: optionalText(village.district) } };
+    } else throw invalidResponse();
+  }
+  return { id, name: requiredText(name), phone: requiredText(phone), email: optionalText(email) ?? null, location: saved };
+}
+
+function parseCitizenReport(record: Record<string, unknown>): CitizenReport {
+  const createdAt = optionalDate(record.created_at);
+  if (!createdAt) throw invalidResponse();
+  return { ...parseIdentity(record), title: requiredText(record.title), createdAt };
 }
 
 function object(value: unknown): Record<string, unknown> {

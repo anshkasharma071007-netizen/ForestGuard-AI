@@ -80,7 +80,7 @@ export default function IncidentReports() {
         </button>)}
       </div>
     </section>
-    {report && <Modal open title={report.species_name + ' · ' + titleCase(report.category)} subtitle={report.reference_code}
+    {report && <Modal open title={report.title || (report.species_name + ' · ' + titleCase(report.category))} subtitle={report.reference_code}
       onClose={() => { if (!busy) setSelected(null) }}>
       <div className="space-y-4 text-sm text-ink">
         <div className="flex gap-2"><StatusBadge status={report.status} /><Badge>{report.is_simulated ? 'Simulated' : 'Field report'}</Badge></div>

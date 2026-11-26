@@ -8,6 +8,13 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 load_dotenv(os.path.join(ROOT, ".env"))
 
 DEMO_MODE = os.getenv("DEMO_MODE", "true").strip().lower() in {"1", "true", "yes", "on"}
+APP_ENV = os.getenv("APP_ENV", "production").strip().lower()
+CITIZEN_DEV_OTP_ENABLED = os.getenv("CITIZEN_DEV_OTP_ENABLED", "false").strip().lower() == "true"
+CORS_ORIGINS = [origin.strip() for origin in os.getenv(
+    "CORS_ORIGINS",
+    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,"
+    "http://localhost:3000,http://localhost:8081,http://127.0.0.1:8081",
+).split(",") if origin.strip()]
 SECRET_KEY = os.getenv("SECRET_KEY", "forest-guard-ai-demo-secret-change-me")
 
 DATABASE_URL = os.getenv(
