@@ -8,7 +8,9 @@ venv/
 
 # Environment / secrets
 .env
-.env.local
+.env.*
+!.env.example
+!.env.cloud.example
 *.pem
 
 # Databases
@@ -48,4 +50,8 @@ deliverables/_*_preview*
 
 # Private migration snapshots and local PostgreSQL settings
 /backups/
+/.forest-guard-local/
+
+# Private cloud configuration
+/.env.cloud
 /.forest-guard-local/

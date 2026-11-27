@@ -1,3 +1,4 @@
+import EvidenceImage from '../components/EvidenceImage'
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
@@ -11,7 +12,7 @@ import {
   Siren,
   Users,
 } from 'lucide-react'
-import api, { errorMessage, mediaUrl } from '../api/client'
+import api, { errorMessage } from '../api/client'
 import { useApi } from '../hooks/useApi'
 import MapView from '../components/MapView'
 import { AlertRow } from '../components/cards'
@@ -381,8 +382,8 @@ export default function RiskAlerts() {
 
             {detailRecord?.detection?.annotated_url && (
               <div className="grid gap-3 sm:grid-cols-2">
-                <img
-                  src={mediaUrl(detailRecord.detection.annotated_url)}
+                <EvidenceImage
+                  path={detailRecord.detection.annotated_url}
                   alt="Alert evidence"
                   className="h-40 w-full rounded-xl border border-control-line-7 object-cover"
                 />

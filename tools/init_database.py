@@ -127,6 +127,13 @@ def migrate(args, admin):
         database.dispose()
 
 
+def postgis_schema(connection):
+    return connection.scalar(text("""
+        SELECT n.nspname FROM pg_extension e JOIN pg_namespace n ON n.oid = e.extnamespace
+        WHERE e.extname = 'postgis'
+    """))
+
+
 def check_database_layout(connection):
     schemas = set(connection.exec_driver_sql("""
         SELECT nspname FROM pg_namespace
@@ -135,12 +142,22 @@ def check_database_layout(connection):
     tables = set(connection.exec_driver_sql(
         "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
     ).scalars())
+    spatial = postgis_schema(connection)
+    if spatial == "public":
+        tables.discard("spatial_ref_sys")
+    allowed_schemas = {"public", spatial} if spatial else {"public"}
     allowed_tables = Base.metadata.tables.keys() | {"alembic_version"}
-    if schemas != {"public"} or tables - allowed_tables or (tables and "alembic_version" not in tables):
+    if schemas != allowed_schemas or tables - allowed_tables or (tables and "alembic_version" not in tables):
         raise ValueError("Choose an empty database or an existing dedicated Forest Guard Alembic database.")
 
 
 def prepare_schema(args, connection, app_role):
+    spatial = postgis_schema(connection)
+    if spatial is None:
+        if not connection.scalar(text("SELECT 1 FROM pg_available_extensions WHERE name = 'postgis'")):
+            raise ValueError("Install the PostGIS extension for the local PostgreSQL server before migrating.")
+        connection.exec_driver_sql("CREATE EXTENSION postgis WITH SCHEMA public")
+        spatial = "public"
     alembic = Config(str(ROOT / "alembic.ini"))
     alembic.attributes["connection"] = connection
     command.upgrade(alembic, "head")
@@ -151,6 +168,10 @@ def prepare_schema(args, connection, app_role):
     connection.exec_driver_sql(sql.SQL("GRANT CONNECT ON DATABASE {} TO {}").format(name, app_role).as_string())
     connection.exec_driver_sql("REVOKE ALL ON SCHEMA public FROM PUBLIC")
     connection.exec_driver_sql(sql.SQL("GRANT USAGE ON SCHEMA public TO {}").format(app_role).as_string())
+    if spatial != "public":
+        connection.exec_driver_sql(sql.SQL("GRANT USAGE ON SCHEMA {} TO {}").format(
+            sql.Identifier(spatial), app_role,
+        ).as_string())
     for table in Base.metadata.sorted_tables:
         qualified = sql.Identifier("public", table.name)
         connection.exec_driver_sql(sql.SQL(

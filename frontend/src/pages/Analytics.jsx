@@ -40,7 +40,7 @@ export default function Analytics() {
   const [days, setDays] = useState(30)
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState(null)
-  const { data, loading, error, reload } = useApi(`/api/analytics?days=${days}`)
+  const { data, loading, error, reload } = useApi(`/api/analytics?days=${days}&operational=true`)
 
   const totals = data?.totals
   const response = data?.response
@@ -63,7 +63,7 @@ export default function Analytics() {
     setExporting(true)
     setExportError(null)
     try {
-      const result = await api.get(`/api/analytics/export?days=${days}`, { responseType: 'blob' })
+      const result = await api.get(`/api/analytics/export?days=${days}&operational=true`, { responseType: 'blob' })
       downloadBlob(result.data, csvFilename(result, `forest_guard_detections_${days}d.csv`))
     } catch (err) {
       setExportError(errorMessage(err))

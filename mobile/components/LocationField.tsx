@@ -1,10 +1,10 @@
-import * as Location from 'expo-location';
 import { Circle, CircleCheck, LocateFixed, MapPin } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SupportingText } from '@/components/Feedback';
 import { TextAction } from '@/components/TextAction';
 import { VillageSelector } from '@/components/VillageSelector';
+import { getCurrentCoordinates, LocationPermissionError } from '@/services/device-location';
 import type { LocationInput, Village } from '@/services/api';
 import { radius, sizing, spacing, typeScale, useTheme } from '@/theme';
 
@@ -34,29 +34,17 @@ export function LocationField({ label, value, onChange, disabled, onLocating }: 
   async function capture() {
     const request = ++generation.current;
     const current = () => request === generation.current;
-    let timer: ReturnType<typeof setTimeout> | undefined;
     onChange(null);
     setError('');
     setBusy(true);
     onLocating(true);
     try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (!current()) return;
-      if (!permission.granted) {
-        setError('Location permission was denied. You can choose a village.');
-        return;
-      }
-      if (!(await Location.hasServicesEnabledAsync())) throw new Error('Location services disabled.');
-      if (!current()) return;
-      const { coords } = await Promise.race([
-        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
-        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('Location timed out.')), 12000); }),
-      ]);
-      if (current()) onChange({ type: 'gps', lat: coords.latitude, lon: coords.longitude });
-    } catch {
-      if (current()) setError('Location could not be captured. Try again or choose a village.');
+      const point = await getCurrentCoordinates();
+      if (current()) onChange({ type: 'gps', ...point });
+    } catch (error) {
+      if (current()) setError(error instanceof LocationPermissionError ? 'Location permission was denied. You can choose a village.'
+        : 'Location could not be captured. Try again or choose a village.');
     } finally {
-      clearTimeout(timer);
       if (current()) {
         setBusy(false);
         onLocating(false);

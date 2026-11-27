@@ -96,5 +96,6 @@ def require_roles(*roles: str) -> Callable:
     return _dependency
 
 
-require_guard = require_roles("guard", "admin")
+require_guard = require_roles("guard", "range_officer", "admin")
+require_reviewer = require_roles("range_officer", "admin")
 require_admin = require_roles("admin")

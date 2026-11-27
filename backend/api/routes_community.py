@@ -3,29 +3,29 @@ from __future__ import annotations
 import hashlib
 import io
 import json
-import os
-from pathlib import Path
 from uuid import UUID
 import secrets
 from datetime import timedelta
+from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from PIL import Image, UnidentifiedImageError
-from fastapi.responses import FileResponse
+from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import func, or_, select, text, update
+from sqlalchemy import func, literal_column, or_, select, text, update
 from sqlalchemy.orm import Session, selectinload
 
 from geospatial.mapping import valid_coordinates
-from geospatial.species import REPORT_ANIMALS, SPECIES_ORDER, species_meta
+from geospatial.species import REPORT_ANIMALS, SPECIES_ORDER, normalize_report_animal, species_meta
 
 from backend import config
-from backend.api.routes_citizen import onboarded_citizen
+from backend.api.routes_citizen import AlertRadius, onboarded_citizen, saved_alert_location
 from backend.api.utils import now_iso, public_area_label
 from backend.database.session import get_db
 from backend.models import Alert, Incident, SightingReport, Village, utcnow
 from backend.models.entities import Citizen, CitizenNotification
-from backend.services.report_analysis import evidence_path
+from backend.services.geography import jurisdiction_at, lock_routing, postgis
+from backend.services.media import evidence_response, save_evidence
 from backend.services.alerts import public_summary
 from backend.services.incident_lifecycle import ACTIVE_ALERTS, lifecycle_status
 from backend.services.serializers import iso, serialize_village, species_info, village_identity
@@ -45,13 +45,10 @@ GENERAL_GUIDELINES = [
 
 
 def _active_public_alerts():
-    owned = select(SightingReport.id).where(SightingReport.id == Incident.report_id,
-                                           SightingReport.citizen_id.is_not(None)).exists()
-    query = (select(Alert).outerjoin(Incident, Alert.incident_id == Incident.id)
-             .where(Alert.status.in_(ACTIVE_ALERTS),
-                    or_(Alert.incident_id.is_(None),
-                        Incident.verified.is_(True) & (Incident.status == "verified"))))
-    return query, owned
+    return (select(Alert).outerjoin(Incident, Alert.incident_id == Incident.id)
+            .where(Alert.status.in_(ACTIVE_ALERTS),
+                   or_(Alert.incident_id.is_(None),
+                       Incident.verified.is_(True) & (Incident.status == "verified"))))
 
 
 def _public_alert(db: Session, alert: Alert, *, approximate: bool = False) -> dict:
@@ -114,8 +111,9 @@ def public_alerts(
     village_id: int | None = Query(default=None, gt=0),
     db: Session = Depends(get_db),
 ) -> dict:
-    query, owned = _active_public_alerts()
-    query = query.where(or_(owned, Alert.created_at >= utcnow() - timedelta(days=days)))
+    query = _active_public_alerts().where(
+        or_(Incident.id.is_not(None), Alert.created_at >= utcnow() - timedelta(days=days)),
+    )
     query = query.order_by(Alert.created_at.desc(), Alert.id.desc())
     if field_only:
         query = query.where(Alert.is_simulated.is_(False))
@@ -142,9 +140,63 @@ def public_alerts(
     }
 
 
+class NearbyAlertQuery(BaseModel):
+    source: Literal["saved", "gps"] = "saved"
+    lat: float | None = Field(default=None, ge=-90, le=90, allow_inf_nan=False)
+    lon: float | None = Field(default=None, ge=-180, le=180, allow_inf_nan=False)
+    radius_km: AlertRadius | None = None
+    sort: Literal["time", "risk", "distance"] = "time"
+    limit: int = Field(default=20, ge=1, le=50)
+    offset: int = Field(default=0, ge=0)
+
+
+@citizen_router.post("/nearby-alerts")
+def nearby_alerts(
+    payload: NearbyAlertQuery,
+    citizen: Citizen = Depends(onboarded_citizen),
+    db: Session = Depends(get_db),
+):
+    lat, lon = payload.lat, payload.lon
+    if payload.source == "saved":
+        if lat is not None or lon is not None:
+            raise HTTPException(400, "Choose either saved location or current GPS.")
+        location = saved_alert_location(citizen)
+        if location is None:
+            raise HTTPException(400, "Choose current GPS or save a location in your profile.")
+        lat, lon = location["lat"], location["lon"]
+    if not valid_coordinates(lat, lon):
+        raise HTTPException(400, "Provide a valid current GPS location.")
+    radius_km = payload.radius_km if payload.radius_km is not None else citizen.alert_radius_km
+    limit, offset = payload.limit, payload.offset
+    query = _active_public_alerts()
+    if db.get_bind().dialect.name == "postgresql":
+        spatial = postgis(db)
+        origin = spatial.ST_GeogFromText(f"SRID=4326;POINT({lon} {lat})")
+        point = literal_column("alerts.public_point")
+        distance = spatial.ST_Distance(point, origin)
+        nearby = spatial.ST_DWithin(point, origin, radius_km * 1000)
+    else:
+        distance = func.fg_distance_m(Alert.public_lat, Alert.public_lon, lat, lon)
+        nearby = distance <= radius_km * 1000
+    order = {"time": (), "risk": (Alert.priority_rank,), "distance": (distance,)}[payload.sort]
+    matches = db.execute(query.add_columns(distance, Incident.village_id).where(
+        Incident.verified.is_(True), Incident.is_public.is_(True), Alert.is_simulated.is_(config.demo_jurisdictions_allowed()), nearby
+    ).order_by(*order, Alert.created_at.desc(), Alert.id.desc()).offset(offset).limit(limit + 1)).all()
+    return {
+        "items": [
+            {**_public_alert(db, alert), "approximate_locations": [{"lat": alert.public_lat, "lon": alert.public_lon}],
+             "uncertainty_radius_m": 1000 if village_id and alert.village_ids else 8000,
+             "distance_km": round(metres / 1000)}
+            for alert, metres, village_id in matches[:limit]
+        ],
+        "radius_km": radius_km,
+        "next_offset": offset + limit if len(matches) > limit else None,
+    }
+
+
 @router.get("/summary")
 def community_summary(db: Session = Depends(get_db)) -> dict:
-    query, _ = _active_public_alerts()
+    query = _active_public_alerts()
     active = db.scalars(query.order_by(Alert.status, Alert.id)).all()
     villages = db.scalars(select(Village).order_by(Village.name)).all()
     reports = db.scalar(select(func.count(SightingReport.id))) or 0
@@ -267,6 +319,7 @@ def _persist_report(
     village_code: str | None, village_id: int | None, lat: float | None, lon: float | None, submission_key: UUID | None,
     image: UploadFile | None, title: str | None = None, citizen_id: int | None = None,
 ) -> dict:
+    species = normalize_report_animal(species)
     if category not in {"sighting", "conflict"} or species not in REPORT_ANIMALS:
         raise HTTPException(400, "Choose a supported category and animal.")
     if any("\x00" in value for value in (title or "", description, reporter_name, contact or "", village_code or "")):
@@ -299,11 +352,15 @@ def _persist_report(
     if key and (previous := replay()):
         return previous
     relative = f"community/{secrets.token_hex(16)}.{extension}" if content else None
-    path = Path(config.UPLOAD_DIR) / relative if relative else None
-    report = SightingReport(**fields, citizen_id=citizen_id, title=title, image_path=relative, status="pending", is_simulated=False,
+    lock_routing(db, shared=True)
+    incident_lat, incident_lon = (lat, lon) if lat is not None else (village.lat, village.lon)
+    simulated = config.demo_jurisdictions_allowed()
+    jurisdiction_id = db.scalar(select(jurisdiction_at(db, incident_lat, incident_lon, demo=simulated)))
+    report = SightingReport(**fields, citizen_id=citizen_id, jurisdiction_id=jurisdiction_id,
+                            title=title, status="pending", is_simulated=simulated,
                             reference_code=_reference(db, key is not None),
                             submission_key=key, submission_digest=digest if key else None,
-                            analysis_status="queued" if path else "no_photo")
+                            analysis_status="queued" if relative else "no_photo")
     try:
         db.add(report)
         db.flush()
@@ -313,15 +370,8 @@ def _persist_report(
             return previous
         raise
 
-    if path:
-        path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        try:
-            with os.fdopen(fd, "wb") as handle:
-                handle.write(content)
-        except OSError:
-            path.unlink(missing_ok=True)
-            raise
+    if relative:
+        report.image_path = save_evidence(relative, content)
     # A connection failure during COMMIT has an ambiguous outcome. Keep the evidence
     # available for a committed row; the retry key resolves the request on reconnect.
     db.commit()
@@ -434,16 +484,17 @@ def citizen_report(reference_code: str, citizen: Citizen = Depends(onboarded_cit
 @citizen_router.get("/notifications")
 def citizen_notifications(citizen: Citizen = Depends(onboarded_citizen), db: Session = Depends(get_db)):
     rows = db.execute(
-        select(CitizenNotification, SightingReport.title, SightingReport.reference_code)
+        select(CitizenNotification, SightingReport.title, SightingReport.reference_code, Incident.severity)
         .join(SightingReport, SightingReport.id == CitizenNotification.report_id)
+        .outerjoin(Incident, Incident.report_id == SightingReport.id)
         .where(CitizenNotification.citizen_id == citizen.id, SightingReport.citizen_id == citizen.id)
         .order_by(CitizenNotification.created_at.desc(), CitizenNotification.report_id.desc(), CitizenNotification.event)
     ).all()
     return {
         "items": [{"id": f"{item.report_id}:{item.event}", "event": item.event,
                    "report_title": title, "reference_code": reference, "created_at": iso(item.created_at),
-                   "read_at": iso(item.read_at)} for item, title, reference in rows],
-        "unread": sum(item.read_at is None for item, _, _ in rows),
+                   "read_at": iso(item.read_at), "risk_level": severity} for item, title, reference, severity in rows],
+        "unread": sum(item.read_at is None for item, *_ in rows),
     }
 
 
@@ -475,14 +526,7 @@ def read_citizen_notification(notification_id: str, citizen: Citizen = Depends(o
 @citizen_router.get("/reports/{reference_code}/evidence")
 def citizen_report_evidence(reference_code: str, citizen: Citizen = Depends(onboarded_citizen), db: Session = Depends(get_db)):
     report = _owned_report(db, reference_code, citizen)
-    if report.image_path:
-        try:
-            return FileResponse(evidence_path(report.image_path), headers={"Cache-Control": "private, no-store",
-                                "Content-Security-Policy": "sandbox", "X-Content-Type-Options": "nosniff"})
-        except FileNotFoundError:
-            pass
-    raise HTTPException(404, "Photo unavailable.")
-
+    return evidence_response(report.image_path)
 
 @router.get("/guidelines")
 def guidelines(db: Session = Depends(get_db)) -> dict:

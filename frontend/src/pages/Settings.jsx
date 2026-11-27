@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import api, { errorMessage } from '../api/client'
 import { ErrorBox, Loading, SectionTitle } from '../components/ui'
+import JurisdictionSettings from '../components/JurisdictionSettings'
 import { useAuth } from '../context/AuthContext'
 import { useApi } from '../hooks/useApi'
 import { titleCase } from '../utils/format'
@@ -58,7 +59,9 @@ export default function Settings() {
           <dl className="space-y-2 text-sm">
             <div><dt className="text-muted-3">Name</dt><dd>{user?.name}</dd></div>
             <div><dt className="text-muted-3">Email</dt><dd>{user?.email}</dd></div>
-            <div><dt className="text-muted-3">Role</dt><dd>{titleCase(user?.role)}</dd></div>
+            <div><dt className="text-muted-3">Role</dt><dd>{isAdmin ? 'Central administrator' : titleCase(user?.role)}</dd></div>
+            <div><dt className="text-muted-3">Jurisdictions</dt><dd>{isAdmin ? 'All jurisdictions and central review'
+              : user?.jurisdictions?.map(item => item.name).join(', ') || 'No jurisdiction assigned'}</dd></div>
           </dl>
           <button type="button" className="btn-outline" onClick={logout}>Sign out</button>
         </section>
@@ -83,5 +86,6 @@ export default function Settings() {
         {feedback?.message && <p role="status" className="text-sm text-success-7">{feedback.message}</p>}
       </section>
     </div>
+    {isAdmin && <JurisdictionSettings />}
   </>
 }

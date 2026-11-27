@@ -55,7 +55,7 @@ export default function Notifications() {
         <View style={styles.info}>
           <Text style={[typeScale.card, { color: colors.primaryText }]}>{eventLabels[item.event] ?? 'Report updated'}</Text>
           <Text style={[typeScale.body, { color: colors.primaryText }]}>{item.reportTitle ?? item.code}</Text>
-          <SupportingText>{formatTimestamp(item.createdAt)}</SupportingText>
+          <SupportingText>{item.risk ? `${item.risk[0].toUpperCase()}${item.risk.slice(1)} risk · ` : ''}{formatTimestamp(item.createdAt)}</SupportingText>
         </View>
         <ChevronRight size={16} color={colors.mutedText} />
       </Pressable>)}

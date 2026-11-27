@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
-  Bell, ClipboardList, LayoutDashboard, Map, Menu, Settings, UserRound, X,
+  BarChart3, Bell, ClipboardList, LayoutDashboard, Map, Menu, PawPrint, Radio, Settings, Shield, UserRound, X,
 } from 'lucide-react'
 import api, { errorMessage } from '../api/client'
 import { useAuth } from '../context/AuthContext'
@@ -13,11 +13,21 @@ import { Logo } from './ui'
 import './operations.css'
 
 const SECTIONS = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/reports', label: 'Reports', icon: ClipboardList },
-  { to: '/map', label: 'Map', icon: Map },
-  { to: '/alerts', label: 'Alerts', icon: Bell },
-  { to: '/settings', label: 'Settings', icon: Settings },
+  ['Operations', [
+    { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
+    { to: '/reports', label: 'Reports', icon: ClipboardList },
+    { to: '/map', label: 'Map', icon: Map },
+    { to: '/alerts', label: 'Alerts', icon: Bell },
+  ]],
+  ['Intelligence', [
+    { to: '/monitoring', label: 'Live Monitoring', icon: Radio },
+    { to: '/wildlife', label: 'Wildlife Intelligence', icon: PawPrint },
+    { to: '/analytics', label: 'Analytics & Reports', icon: BarChart3 },
+  ]],
+  ['Administration', [
+    { to: '/guard', label: 'Forest Guard Panel', icon: Shield },
+    { to: '/settings', label: 'Settings', icon: Settings },
+  ]],
 ]
 
 export function refreshAuthorityNotifications() {
@@ -26,9 +36,12 @@ export function refreshAuthorityNotifications() {
 
 function AuthorityNavigation({ close }) {
   return <nav aria-label="Authority navigation" className="operations-nav">
-    {SECTIONS.map(({ to, label, icon: Icon, end }) => (
-      <NavLink key={to} to={to} end={end} onClick={close}><Icon size={17} aria-hidden="true" />{label}</NavLink>
-    ))}
+    {SECTIONS.map(([group, items]) => <div key={group} className="operations-nav-group">
+      <div className="operations-nav-label">{group}</div>
+      {items.map(({ to, label, icon: Icon, end }) => (
+        <NavLink key={to} to={to} end={end} onClick={close}><Icon size={17} aria-hidden="true" />{label}</NavLink>
+      ))}
+    </div>)}
   </nav>
 }
 
@@ -128,6 +141,8 @@ export default function Layout({ children }) {
     return () => window.removeEventListener('fg-notifications-changed', reload)
   }, [reload])
 
+  const coverage = user?.role === 'admin' ? 'Central administration'
+    : user?.jurisdictions?.map(item => item.name).join(', ') || 'No jurisdiction assigned'
   const unread = notifications.data?.unread
   return <div className="min-h-screen bg-sand">
     <header className="operations-header">
@@ -151,7 +166,8 @@ export default function Layout({ children }) {
           <Notifications {...notifications} />
           <span className="hidden xl:inline-flex"><LanguageSwitcher /></span>
           <ThemeToggle />
-          <NavLink to="/settings" title={user?.name || 'Authority account'} aria-label="Authority account" className="operations-control">
+          <NavLink to="/settings" title={[user?.name, coverage].filter(Boolean).join(' · ')} aria-label="Authority account" className="operations-control">
+            <span className="hidden max-w-44 truncate text-xs lg:inline" aria-hidden="true">{user?.name} · {coverage}</span>
             <UserRound size={18} aria-hidden="true" />
           </NavLink>
         </div>
@@ -159,6 +175,7 @@ export default function Layout({ children }) {
     </header>
     <div className="operations-shell operations-body">
       <aside className={mobileOpen ? 'operations-sidebar is-open' : 'operations-sidebar'}>
+        <p className="operations-coverage" title={coverage}><Map size={16} aria-hidden="true" />{coverage}</p>
         <AuthorityNavigation close={() => setMobileOpen(false)} />
       </aside>
       <main className="min-w-0">{children}</main>

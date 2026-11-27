@@ -14,7 +14,8 @@ from pathlib import Path
 from time import monotonic, sleep
 
 from sqlalchemy import create_engine, text
-from sqlalchemy.engine import make_url
+
+from backend.tests.database import local_test_database_url, use_isolated_profile
 
 ROOT = Path(__file__).resolve().parents[2]
 PHOTO = ROOT / "frontend/public/images/elephant.jpg"
@@ -27,7 +28,7 @@ class MobileWebHandler(SimpleHTTPRequestHandler):
         super().do_GET()
 
 
-def api_checks(client, auth):
+def api_checks(client, auth, admin_auth):
     from ai_engine import config as ai_config
     from backend import config
     from backend.services.report_analysis import process_next
@@ -125,16 +126,14 @@ def api_checks(client, auth):
         db.add(simulated)
         db.flush()
         simulated_id = simulated.id
-    decision = client.patch(f"/api/reports/{simulated_id}", headers=auth, json={"status": "verified"})
+    decision = client.patch(f"/api/reports/{simulated_id}", headers=admin_auth, json={"status": "verified"})
     assert decision.status_code == 200
     assert [a["is_simulated"] for a in client.get("/api/community/alerts").json()["items"]] == [True]
     assert not client.get("/api/community/alerts?field_only=true").json()["items"]
 
 
 def run():
-    url = make_url(os.environ["WORKFLOW_TEST_DATABASE_URL"])
-    if url.get_backend_name() != "postgresql" or "test" not in (url.database or ""):
-        raise ValueError("Use a dedicated PostgreSQL test database")
+    url = local_test_database_url(os.environ["WORKFLOW_TEST_DATABASE_URL"])
     schema = "workflow_" + uuid.uuid4().hex
     admin = create_engine(url)
     with ExitStack() as stack:
@@ -146,6 +145,7 @@ def run():
                 conn.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
         stack.callback(cleanup)
         temp = Path(stack.enter_context(tempfile.TemporaryDirectory()))
+        use_isolated_profile(temp)
         os.environ.update(DATABASE_URL=url.render_as_string(hide_password=False), PGOPTIONS=f"-c search_path={schema}",
                           UPLOAD_DIR=str(temp / "uploads"), SECRET_KEY=secrets.token_hex(32),
                           SEED_ON_START="false", AI_MODE="auto", MPLCONFIGDIR=str(temp / "mpl"),
@@ -161,8 +161,10 @@ def run():
         from backend.database.session import engine, SessionLocal
         from backend.models import User, Village
         from backend.api.deps import create_token, hash_password
+        from backend.api.routes_jurisdictions import JurisdictionInput, add_jurisdiction, replace_assignments
         from backend.main import WebsiteFiles, app
         from backend.services.risk_service import get_settings
+        from tools.provision_greater_noida import provision
         app.router.routes[:] = [route for route in app.routes if getattr(route, "name", None) != "frontend"]
         app.mount("/", WebsiteFiles(directory=website, html=True), name="workflow-frontend")
 
@@ -177,23 +179,33 @@ def run():
         command.check(alembic)
         secret = secrets.token_urlsafe(24)
         with SessionLocal.begin() as db:
-            user = User(name="Workflow reviewer", email="reviewer@example.invalid", role="guard", password_hash=hash_password(secret))
+            user = User(name="Workflow reviewer", email="reviewer@example.invalid",
+                        role="range_officer", password_hash=hash_password(secret))
             db.add(user)
-            db.add(User(name="Workflow admin", email="admin@example.invalid", role="admin",
-                        password_hash=hash_password(secret)))
+            central = User(name="Workflow admin", email="admin@example.invalid", role="admin",
+                           password_hash=hash_password(secret))
+            db.add(central)
             db.add(Village(code="TEST", name="Workflow village", lat=21.76, lon=79.30, population=2200,
                 boundary_geojson={"type":"Polygon","coordinates":[[[79.29,21.75],[79.31,21.75],[79.31,21.77],[79.29,21.77],[79.29,21.75]]]}))
             db.add(Village(code="FAR", name="Remote test village", lat=20.0, lon=78.0,
                 boundary_geojson={"type":"Polygon","coordinates":[[[78,20],[78.01,20],[78.01,20.01],[78,20]]]}))
             db.flush()
+            boundary = {"type": "MultiPolygon", "coordinates": [
+                [[[79.27, 21.72], [79.34, 21.72], [79.34, 21.80], [79.27, 21.80], [79.27, 21.72]]],
+                [[[2.49, 1.24], [2.51, 1.24], [2.51, 1.26], [2.49, 1.26], [2.49, 1.24]]],
+            ]}
+            district = add_jurisdiction(db, JurisdictionInput(name="Isolated workflow jurisdiction", boundary=boundary))
+            replace_assignments(db, user, {district.id})
+            provision(db, secret)
             auth = {"Authorization": "Bearer " + create_token(user)}
+            admin_auth = {"Authorization": "Bearer " + create_token(central)}
         client = TestClient(app)
         stack.callback(client.close)
         for path in ("/api/does-not-exist", "/media/does-not-exist.jpg", "/assets/does-not-exist.js"):
             missing = client.get(path)
             assert missing.status_code == 404 and "text/html" not in missing.headers.get("content-type", "")
         assert client.get("/api/community/reports/FG-2020-4000").json()["status"] == "closed"
-        api_checks(client, auth)
+        api_checks(client, auth, admin_auth)
         print("PostgreSQL migration, concurrent retries and reviews, validation, evidence access, real AI retry and GPS checks passed.", flush=True)
 
         mobile = temp / "mobile"

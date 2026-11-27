@@ -14,6 +14,8 @@ and diagram scripts in `frontend/scripts/`.
 
 ## 1. Backend and local database
 
+For a Supabase-backed API or to switch profiles on an existing checkout, follow [local and Supabase profiles](database.md#local-and-supabase-profiles).
+
 Run these commands from a fresh clone. Start your installed PostgreSQL server and use its local provisioning login. The login needs permission to create databases and roles on first setup and must own the database for updates. The initializer creates an empty, migrated database, generates a runtime password and creates a private `.env` when one is absent.
 
 ### macOS
@@ -30,7 +32,7 @@ python3 -m venv .venv
 
 #### Existing macOS checkout and physical-phone testing
 
-Start in the repository root. Use the same database owner and passfile as the original provisioning. The initializer applies migrations through revision `0007`, verifies the schema and checks that the runtime role can read the new objects.
+Start in the repository root. Use the same database owner and passfile as the original provisioning. The initializer applies migrations through revision `0008`, verifies the schema and checks runtime access. Install PostGIS for your local PostgreSQL version before running it. If the provisioning login cannot create extensions, have the PostgreSQL administrator enable PostGIS in the target database first.
 
 ```sh
 brew services start postgresql@17  # only if PostgreSQL is stopped

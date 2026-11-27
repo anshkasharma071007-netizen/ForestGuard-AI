@@ -47,7 +47,8 @@ const SPECIES_FILTERS = [
 ]
 
 export default function Wildlife() {
-  const analytics = useApi('/api/analytics?days=30')
+  const analytics = useApi('/api/analytics?days=30&operational=true')
+  const catalog = useApi('/api/meta')
   const tracks = useApi('/api/tracks')
   const map = useApi('/api/map/layers?days=30')
   const [species, setSpecies] = useState('')
@@ -84,6 +85,10 @@ export default function Wildlife() {
 
   const totals = analytics.data?.totals
   const speciesRows = analytics.data?.species || []
+  const roster = (catalog.data?.supported_species || []).map(animal => ({
+    ...animal, count: 0, ...speciesRows.find(row => row.key === animal.key),
+  }))
+  const thresholds = catalog.data?.risk?.thresholds
   const totalSpeciesSignals = speciesRows.reduce((sum, row) => sum + row.count, 0)
   const trackItems = tracks.data?.items || []
 
@@ -161,7 +166,7 @@ export default function Wildlife() {
                 className="mb-3"
               />
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-                {speciesRows.map((row) => {
+                {roster.map((row) => {
                   const active = species === row.key
                   return (
                     <button
@@ -188,17 +193,18 @@ export default function Wildlife() {
                           style={{ background: SPECIES_COLOR[row.key] }}
                         />
                       </div>
-                      <div className="p-2.5">
+                      {row.count ? <div className="p-2.5">
                         <div className="flex items-center justify-between text-[9px] text-muted-11">
                           <span>{row.share}% of records</span>
-                          <RiskBadge level={row.avg_risk >= 65 ? 'high' : row.avg_risk >= 35 ? 'moderate' : 'low'} score={row.avg_risk} />
+                          {thresholds && <RiskBadge level={row.avg_risk >= thresholds.high ? 'high' : row.avg_risk >= thresholds.moderate ? 'moderate' : 'low'} score={row.avg_risk} />}
                         </div>
                         <div className="mt-1 text-[9px] text-muted-16">{row.high_risk} high-risk signals</div>
-                      </div>
+                      </div> : <div className="p-2.5 text-[10px] text-muted-8">No detections in this period.</div>}
                     </button>
                   )
                 })}
-                {!speciesRows.length && <div className="col-span-full text-[12px] text-muted-8">No animal activity in this period.</div>}
+                {catalog.loading && !roster.length && <Loading label="Loading wildlife roster…" height="h-24" />}
+                {catalog.error && <ErrorBox message={catalog.error} onRetry={catalog.reload} />}
               </div>
             </section>
 

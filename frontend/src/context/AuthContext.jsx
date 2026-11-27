@@ -59,7 +59,8 @@ export function AuthProvider({ children }) {
   }, [])
 
   const value = useMemo(
-    () => ({ token, user, bootstrapping, login, logout, isAdmin: user?.role === 'admin' }),
+    () => ({ token, user, bootstrapping, login, logout, isAdmin: user?.role === 'admin',
+      canReview: ['admin', 'range_officer'].includes(user?.role) }),
     [token, user, bootstrapping, login, logout],
   )
 

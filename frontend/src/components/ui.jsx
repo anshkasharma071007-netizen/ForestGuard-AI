@@ -60,9 +60,9 @@ export function RiskBadge({ level, score, className = '' }) {
   return (
     <span className={`chip ${TONES[tone]} ${className}`}>
       <span className="h-1.5 w-1.5 rounded-full" style={{ background: RISK_COLOR[level] || RISK_COLOR.low }} />
-      {titleCase(level)}
+      <span>{titleCase(level)}</span>
       {score !== undefined && score !== null && (
-        <span className="font-mono text-[10px] opacity-75">{Math.round(score)}</span>
+        <span className="font-mono text-[10px] opacity-75">{score}</span>
       )}
     </span>
   )

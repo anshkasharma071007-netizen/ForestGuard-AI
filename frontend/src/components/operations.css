@@ -23,11 +23,13 @@
 }
 
 .operations-body {
-  @apply grid gap-4 py-5 sm:py-6 lg:grid-cols-[176px_minmax(0,1fr)] lg:gap-6;
+  @apply grid gap-4 py-5 sm:py-6 lg:grid-cols-[216px_minmax(0,1fr)] lg:gap-6;
 }
 
 .operations-sidebar {
-  @apply hidden lg:block;
+  @apply hidden self-start rounded-xl border border-line-5 bg-parchment p-3 lg:sticky lg:top-24 lg:block;
+  max-height: calc(100dvh - 7rem);
+  overflow-y: auto;
 }
 
 .operations-sidebar.is-open {
@@ -35,7 +37,24 @@
 }
 
 .operations-nav {
-  @apply grid gap-1 sm:grid-cols-5 lg:sticky lg:top-24 lg:grid-cols-1;
+  @apply grid gap-4 sm:grid-cols-3 lg:grid-cols-1;
+}
+
+.operations-nav-group {
+  @apply min-w-0;
+}
+
+.operations-nav-label {
+  @apply px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-3;
+}
+
+.operations-coverage {
+  @apply mb-4 flex items-start gap-2 rounded-lg bg-success-surface-2 px-3 py-2 text-xs font-semibold text-success-9;
+}
+
+.operations-coverage svg,
+.operations-nav a svg {
+  @apply shrink-0;
 }
 
 .operations-nav a {
@@ -78,8 +97,33 @@
 }
 
 .operations-heading h1 {
-  @apply text-2xl font-semibold leading-tight text-ink;
+  @apply font-display text-3xl font-semibold leading-tight text-ink;
 }
+
+.operations-map-filter {
+  @apply grid gap-1 text-xs font-medium text-secondary-9;
+}
+
+.operations-map-filter select {
+  @apply max-w-full rounded-md border border-line-5 bg-sand px-2 py-1.5 text-sm text-ink;
+}
+
+.operations-map-pin {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 2px solid white;
+  border-radius: 50%;
+  background: var(--risk);
+  color: white;
+  box-shadow: 0 1px 4px #14271d99;
+  font-weight: 800;
+}
+
+.operations-map-pin.pending { border-radius: 6px; }
+.operations-map-pin.resolved { background: #fff; color: var(--risk); border-color: var(--risk); }
+.operations-map-pin.selected { outline: 3px solid #233c65; }
 
 .operations-item {
   @apply flex min-h-14 w-full flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-md px-2 py-2 text-left text-sm text-ink hover:bg-inset-8;

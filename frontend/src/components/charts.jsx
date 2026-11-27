@@ -102,7 +102,7 @@ export function SpeciesBars({ data, height = 230, landscape = false }) {
   )
 }
 
-export function RiskDonut({ data, height = 220 }) {
+export function RiskDonut({ data, height = 220, unit = 'scores' }) {
   const total = (data?.low || 0) + (data?.moderate || 0) + (data?.high || 0)
   const rows = [
     { key: 'high', label: 'High risk', value: data?.high || 0, color: `var(--chart-clay, ${RISK_COLOR.high})` },
@@ -131,7 +131,7 @@ export function RiskDonut({ data, height = 220 }) {
       </ResponsiveContainer>
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
         <div className="font-display text-[26px] leading-none text-ink">{total}</div>
-        <div className="mt-1 text-[9px] uppercase tracking-[0.16em] text-muted-11">scores</div>
+        <div className="mt-1 text-[9px] uppercase tracking-[0.16em] text-muted-11">{unit}</div>
       </div>
       <div className="mt-1 grid grid-cols-3 gap-2">
         {rows.map((row) => (
@@ -191,7 +191,7 @@ export function BasisBars({ data, height = 210 }) {
   )
 }
 
-export function TrendLine({ data, height = 190, dataKey = 'detections', color = 'var(--chart-green, #2F7250)', name = 'Detections' }) {
+export function TrendLine({ data, height = 190, dataKey = 'detections', color = 'var(--chart-green, #2F7250)', name = 'Detections', additionalSeries }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={data} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
@@ -207,6 +207,8 @@ export function TrendLine({ data, height = 190, dataKey = 'detections', color = 
         <YAxis {...AXIS} width={38} allowDecimals={false} />
         <Tooltip content={<ChartTip />} />
         <Line type="monotone" dataKey={dataKey} name={name} stroke={color} strokeWidth={2} dot={false} />
+        {additionalSeries && <Line type="monotone" dataKey={additionalSeries.dataKey} name={additionalSeries.name}
+          stroke={additionalSeries.color} strokeWidth={2} dot={false} />}
       </LineChart>
     </ResponsiveContainer>
   )

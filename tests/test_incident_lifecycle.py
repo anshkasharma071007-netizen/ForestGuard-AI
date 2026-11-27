@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 
 from backend import config
 from backend.database.session import SessionLocal
-from backend.models import Alert, AlertEvent, Incident, SightingReport, utcnow
+from backend.models import Alert, AlertEvent, Incident, SightingReport, Village, utcnow
 from tools.reconcile_citizen_incidents import reconcile
 
 CITIZEN_REPORTS = "/api/citizen/reports"
@@ -226,16 +226,24 @@ def test_approval_rollback_and_historical_dry_run(client, admin_headers, citizen
         assert legacy_incident.resolved_by == "Historical guard"
 
 
-def test_report_risk_preview_manual_and_override(client, admin_headers, guard_headers, citizens):
+def test_report_risk_preview_manual_and_override(client, admin_headers, citizens):
     from geospatial.species import SPECIES_ORDER
 
+    from test_geographical_workflow import jurisdiction, officer
+
     owner, other, village = citizens
+    with SessionLocal() as db:
+        point = db.scalar(select(Village).where(Village.code == village))
+        lat, lon = point.lat, point.lon
+    close = jurisdiction(client, admin_headers, "Risk preview village", lon - .001, lat - .001, lon + .001, lat + .001)
+    far = jurisdiction(client, admin_headers, "Risk preview GPS", 80.09, 22.49, 80.11, 22.51)
+    _, reviewer_headers = officer(client, admin_headers, "risk-reviewer@example.com", [close, far])
     close_id, close_ref, _ = submit(client, owner, village_code=village)
     far_id, _, _ = submit(client, owner, lat=22.5, lon=80.1)
     conflict_id, _, _ = submit(client, owner, category="conflict", lat=22.5, lon=80.1)
 
     def preview(report_id, animal):
-        response = client.post(f"/api/reports/{report_id}/risk-preview", headers=guard_headers,
+        response = client.post(f"/api/reports/{report_id}/risk-preview", headers=reviewer_headers,
                                json={"confirmed_species": animal})
         assert response.status_code == 200, response.text
         return response.json()
@@ -244,8 +252,8 @@ def test_report_risk_preview_manual_and_override(client, admin_headers, guard_he
     assert scores["tiger"]["level"] == "high"
     assert scores["deer"]["level"] == "low"
     assert scores["tiger"]["species_weight"] > scores["wild_boar"]["species_weight"]
-    assert preview(far_id, "tiger")["risk"]["level"] == "moderate"
-    assert preview(conflict_id, "tiger")["risk"]["score"] > preview(far_id, "tiger")["risk"]["score"]
+    assert preview(far_id, "tiger")["risk"]["level"] == "high"
+    assert next(item["points"] for item in preview(conflict_id, "tiger")["risk"]["components"] if item["key"] == "category") == 20
     assert preview(far_id, "other") == {"assessment_method": "manual", "risk": None, "can_override": False}
     assert preview(far_id, "unidentified")["assessment_method"] == "manual"
 
@@ -254,11 +262,11 @@ def test_report_risk_preview_manual_and_override(client, admin_headers, guard_he
             "status": "verified", "confirmed_species": animal, **assessment,
         })
 
-    assert approve_as(far_id, guard_headers, "other").status_code == 400
-    assert approve_as(far_id, guard_headers, "other", risk_level="high", risk_reason=" ").status_code == 400
-    manual = approve_as(far_id, guard_headers, "other", risk_level="high", risk_reason="Direct contact reported.")
+    assert approve_as(far_id, reviewer_headers, "other").status_code == 400
+    assert approve_as(far_id, reviewer_headers, "other", risk_level="high", risk_reason=" ").status_code == 400
+    manual = approve_as(far_id, reviewer_headers, "other", risk_level="high", risk_reason="Direct contact reported.")
     assert manual.json()["report"]["risk"]["assessment_method"] == "manual"
-    assert approve_as(close_id, guard_headers, "tiger", risk_level="moderate", risk_reason="Context").status_code == 403
+    assert approve_as(close_id, reviewer_headers, "tiger", risk_level="moderate", risk_reason="Context").status_code == 403
     assert approve_as(close_id, admin_headers, "tiger", risk_level="moderate").status_code == 400
     approved = approve_as(close_id, admin_headers, "tiger", risk_level="moderate",
                           risk_reason="Access to the site is restricted.", citizen_note="A team is following up.")
@@ -269,7 +277,7 @@ def test_report_risk_preview_manual_and_override(client, admin_headers, guard_he
     assert assessment["assessed_by_id"] and assessment["assessed_at"]
     assert client.post("/api/risk/recalculate", headers=admin_headers).status_code == 200
     incident_id = approved.json()["report"]["incident_id"]
-    payload = client.get(f"/api/incidents/{incident_id}", headers=guard_headers).json()
+    payload = client.get(f"/api/incidents/{incident_id}", headers=reviewer_headers).json()
     assert payload["report"]["risk"] == assessment == payload["incident"]["risk"]
     assert payload["alert"]["severity"] == assessment["level"]
     citizen = client.get(f"{CITIZEN_REPORTS}/{close_ref}", headers=owner).json()
@@ -285,4 +293,4 @@ def test_report_risk_preview_manual_and_override(client, admin_headers, guard_he
     assert client.post(f"/api/alerts/{alert_id}/read", headers=admin_headers).status_code == 200
     assert client.get(notify_path, headers=admin_headers).json()["unread_alerts"] == admin_notifications["unread_alerts"] - 1
     assert any(item["kind"] == "alert" and item["id"] == alert_id
-               for item in client.get(notify_path, headers=guard_headers).json()["items"])
+               for item in client.get(notify_path, headers=reviewer_headers).json()["items"])

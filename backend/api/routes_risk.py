@@ -16,7 +16,8 @@ from backend import config
 from backend.api.deps import require_admin, require_guard
 from backend.api.utils import study_bbox
 from backend.database.session import get_db
-from backend.models import Alert, Camera, Detection, Guard, Incident, Track, User, utcnow
+from backend.models import Alert, Camera, Detection, Guard, Incident, Track, User, Village, utcnow
+from backend.services.geography import authority_scope
 from backend.schemas.api import RiskConfigPatch
 from backend.services.risk_service import (
     get_settings,
@@ -97,14 +98,15 @@ def recalculate_risk(
 def risk_zones(
     days: int = Query(default=21, ge=1, le=120),
     db: Session = Depends(get_db),
-    _: User = Depends(require_guard),
+    user: User = Depends(require_guard),
 ) -> dict:
     settings = get_settings(db)
     since = utcnow() - timedelta(days=days)
     detections = db.scalars(
-        select(Detection).where(Detection.detected_at >= since)
+        select(Detection).where(authority_scope(db, user, Detection)).where(Detection.detected_at >= since)
     ).all()
-    villages = village_risk_inputs(db)
+    visible = set(db.scalars(select(Village.id).where(authority_scope(db, user, Village))))
+    villages = [village for village in village_risk_inputs(db) if village["id"] in visible]
     zones = build_risk_zones(
         [
             {
@@ -156,15 +158,24 @@ def risk_zones(
 @router.get("/analytics")
 def analytics(
     days: int = Query(default=30, ge=7, le=365),
+    operational: bool = False,
     db: Session = Depends(get_db),
-    _: User = Depends(require_guard),
+    user: User = Depends(require_guard),
 ) -> dict:
     now = utcnow()
     since = now - timedelta(days=days)
+    simulated = config.demo_jurisdictions_allowed()
+    detection_query = select(Detection).where(authority_scope(db, user, Detection))
+    incident_query = select(Incident).where(authority_scope(db, user, Incident))
+    alert_query = select(Alert).where(authority_scope(db, user, Alert))
+    if operational:
+        detection_query = detection_query.where(Detection.is_simulated.is_(simulated))
+        incident_query = incident_query.where(Incident.is_simulated.is_(simulated))
+        alert_query = alert_query.where(Alert.is_simulated.is_(simulated))
     detections = db.scalars(
-        select(Detection).where(Detection.detected_at >= since).order_by(Detection.detected_at)
+        detection_query.where(Detection.detected_at >= since).order_by(Detection.detected_at)
     ).all()
-    prior = db.scalars(select(Detection).where(Detection.detected_at < since)).all()
+    prior = db.scalars(detection_query.where(Detection.detected_at < since)).all()
 
     species_counts = Counter(detection.species for detection in detections)
     risk_counts = Counter(detection.risk_level for detection in detections)
@@ -200,12 +211,12 @@ def analytics(
         )
 
     incidents = db.scalars(
-        select(Incident).where(Incident.created_at >= since).order_by(Incident.created_at, Incident.id)
+        incident_query.where(Incident.created_at >= since).order_by(Incident.created_at, Incident.id)
     ).all()
     incident_categories = Counter(incident.category for incident in incidents)
     incident_severity = Counter(incident.severity for incident in incidents)
 
-    alerts = db.scalars(select(Alert).where(Alert.created_at >= since)).all()
+    alerts = db.scalars(alert_query.where(Alert.created_at >= since)).all()
     resolved = [alert for alert in alerts if alert.resolved_at and alert.acknowledged_at]
     ack_minutes = [
         (alert.acknowledged_at - alert.created_at).total_seconds() / 60
@@ -218,8 +229,8 @@ def analytics(
         if alert.resolved_at
     ]
 
-    cameras = db.scalars(select(Camera)).all()
-    guards = db.scalars(select(Guard)).all()
+    cameras = db.scalars(select(Camera).where(authority_scope(db, user, Camera))).all()
+    guards = db.scalars(select(Guard).where(authority_scope(db, user, Guard))).all()
 
     return {
         "window_days": days,
@@ -232,7 +243,7 @@ def analytics(
             "open_alerts": len([a for a in alerts if a.status in ("active", "acknowledged", "responding")]),
             "incidents": len(incidents),
             "tracked_sequences": db.scalar(
-                select(func.count(Track.id)).where(Track.ended_at >= since)
+                select(func.count(Track.id)).where(authority_scope(db, user, Track), Track.ended_at >= since)
             ) or 0,
         },
         "species": species_rows,
@@ -288,22 +299,23 @@ def analytics(
             "off_duty": len([g for g in guards if g.status == "off_duty"]),
         },
         "generated_at": now.isoformat() + "Z",
-        "note": "Demonstration dataset. Response-time figures are artefactual for synthetic records.",
+        "note": ("Jurisdiction-scoped operational records." if operational and not simulated
+                 else "Demonstration dataset. Response-time figures are artefactual for synthetic records."),
     }
 
 
 @router.get("/analytics/export")
 def export_analytics(
     days: int = Query(default=30, ge=1, le=365),
+    operational: bool = False,
     db: Session = Depends(get_db),
-    _: User = Depends(require_guard),
+    user: User = Depends(require_guard),
 ) -> Response:
     since = utcnow() - timedelta(days=days)
-    detections = db.scalars(
-        select(Detection)
-        .where(Detection.detected_at >= since)
-        .order_by(Detection.detected_at.desc())
-    ).all()
+    query = select(Detection).where(authority_scope(db, user, Detection), Detection.detected_at >= since)
+    if operational:
+        query = query.where(Detection.is_simulated.is_(config.demo_jurisdictions_allowed()))
+    detections = db.scalars(query.order_by(Detection.detected_at.desc())).all()
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(

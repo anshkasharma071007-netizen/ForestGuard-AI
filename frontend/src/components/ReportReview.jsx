@@ -189,7 +189,7 @@ function Analysis({ report, photo, detections, speciesName, onOpen, busy, retry 
   const [prediction, ...otherDetections] = detections
   const completed = report.analysis_status === 'completed'
   const processing = ['queued', 'processing'].includes(report.analysis_status)
-  const canRetry = report.image_url && !processing && ['completed', 'failed', 'unavailable'].includes(report.analysis_status)
+  const canRetry = retry && report.image_url && !processing && ['completed', 'failed', 'unavailable'].includes(report.analysis_status)
   const failure = ['failed', 'unavailable'].includes(report.analysis_status)
   return <section className="report-review-panel" aria-labelledby="report-analysis">
     <Heading id="report-analysis" icon={ScanEye}>AI analysis</Heading>
@@ -278,7 +278,7 @@ export function assessmentLabel(risk) {
   }[risk?.assessment_method]
 }
 
-export function ReportReview({ report, title, species, onClose, reload }) {
+export function ReportReview({ report, title, species, onClose, reload, canReview }) {
   const [note, setNote] = useState('')
   const [sharedNote, setSharedNote] = useState('')
   const [rejectionReason, setRejectionReason] = useState('')
@@ -312,7 +312,7 @@ export function ReportReview({ report, title, species, onClose, reload }) {
   const approvalReady = riskPreview?.data && (!useManual || (riskLevel && riskReason.trim()))
 
   useEffect(() => {
-    if (!pending) return undefined
+    if (!canReview || !pending) return undefined
     const controller = new AbortController()
     api.post(`/api/reports/${report.id}/risk-preview`, { confirmed_species: confirmed }, { signal: controller.signal })
       .then(({ data }) => {
@@ -321,7 +321,7 @@ export function ReportReview({ report, title, species, onClose, reload }) {
         if (!controller.signal.aborted) setAssessment({ animal: confirmed, attempt: previewAttempt, error: errorMessage(err) })
       })
     return () => controller.abort()
-  }, [confirmed, pending, previewAttempt, report.id])
+  }, [canReview, confirmed, pending, previewAttempt, report.id])
 
   useEffect(() => {
     if (retryJob && !waitingForRetry) setRetryJob(null)
@@ -390,10 +390,11 @@ export function ReportReview({ report, title, species, onClose, reload }) {
       <CitizenSubmission report={report} photo={photo} onOpen={setPreview} />
       <div className="report-review-stack">
         <Analysis report={analysisReport} photo={photo} detections={detections} speciesName={speciesName}
-          onOpen={setPreview} busy={busy} retry={() => act('retry')} />
+          onOpen={setPreview} busy={busy} retry={canReview ? () => act('retry') : undefined} />
         <section className="report-review-panel" aria-labelledby="report-authority">
           <Heading id="report-authority" icon={ShieldCheck}>Authority review</Heading>
-          {pending ? <>
+          {pending && !canReview && <p className="report-review-section">Awaiting review by a range officer.</p>}
+          {pending && canReview ? <>
             <fieldset className="report-review-section report-review-form" disabled={busy}>
               <label htmlFor="report-confirmed-species">Confirmed animal</label>
               <div className="report-review-select">
@@ -414,7 +415,7 @@ export function ReportReview({ report, title, species, onClose, reload }) {
                 {riskPreview?.error && <ErrorBox message={riskPreview.error} onRetry={() => setPreviewAttempt(value => value + 1)} />}
                 {riskPreview?.data?.risk && <>
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span>Automatic</span><RiskBadge level={riskPreview.data.risk.level} />
+                    <span>Automatic</span><RiskBadge level={riskPreview.data.risk.level} score={riskPreview.data.risk.score} />
                   </div>
                   {riskPreview.data.risk.missing_factors?.includes('village_proximity') &&
                     <p className="report-review-secondary">Village proximity unavailable</p>}
@@ -474,7 +475,7 @@ export function ReportReview({ report, title, species, onClose, reload }) {
               <Field label="Linked incident"><Link className="report-review-link underline"
                 to={`/alerts?incident=${latestReview.incident_id}`}>Incident #{latestReview.incident_id}</Link></Field>
               {latestReview.risk && <>
-                <Field label="Risk"><RiskBadge level={latestReview.risk.level} /></Field>
+                <Field label="Risk"><RiskBadge level={latestReview.risk.level} score={latestReview.risk.score} /></Field>
                 <Field label="Method">{assessmentLabel(latestReview.risk)}</Field>
                 <Field label={latestReview.risk.assessment_method === 'override' ? 'Override reason' : 'Assessment reason'} wide>
                   {latestReview.risk.assessment_reason}

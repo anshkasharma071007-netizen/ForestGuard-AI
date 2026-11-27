@@ -1,9 +1,8 @@
 """Provision only the fictional development villages in the configured local database."""
 
 import argparse
+import os
 from pathlib import Path
-
-from dotenv import load_dotenv
 
 
 def main():
@@ -13,7 +12,7 @@ def main():
     if args.env_file:
         if not args.env_file.is_file():
             parser.error("The specified environment file does not exist.")
-        load_dotenv(args.env_file)
+        os.environ["FOREST_GUARD_ENV_FILE"] = str(args.env_file)
 
     from backend.database.session import SessionLocal
     from backend.services.villages import provision_demo_villages

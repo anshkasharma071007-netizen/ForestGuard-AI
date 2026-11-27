@@ -13,6 +13,7 @@ from backend.api.deps import require_guard
 from backend.api.utils import alert_payload
 from backend.database.session import get_db
 from backend.models import Alert, Detection, Guard, Incident, User
+from backend.services.geography import authority_scope
 from backend.services.serializers import (
     serialize_detection,
     serialize_guard,
@@ -30,9 +31,9 @@ def guard_dashboard(
     db: Session = Depends(get_db),
     user: User = Depends(require_guard),
 ) -> dict:
-    profile = db.scalar(select(Guard).where(Guard.user_id == user.id))
-    if profile is None and user.role == "guard":
-        profile = db.scalar(select(Guard).where(Guard.badge_id == user.badge_id))
+    profile = db.scalar(select(Guard).where(authority_scope(db, user, Guard)).where(Guard.user_id == user.id))
+    if profile is None and user.role == "guard" and user.badge_id:
+        profile = db.scalar(select(Guard).where(authority_scope(db, user, Guard)).where(Guard.badge_id == user.badge_id))
     if guard_id and user.role == "admin":
         profile = db.get(Guard, guard_id)
 
@@ -41,12 +42,12 @@ def guard_dashboard(
 
     if profile:
         assigned = db.scalars(
-            select(Alert)
+            select(Alert).where(authority_scope(db, user, Alert))
             .where(Alert.assigned_guard_id == profile.id)
             .order_by(Alert.priority_rank, Alert.created_at.desc())
         ).all()
         open_alerts = db.scalars(
-            select(Alert)
+            select(Alert).where(authority_scope(db, user, Alert))
             .where(Alert.status.in_(OPEN_STATUSES))
             .order_by(Alert.priority_rank, Alert.created_at.desc())
         ).all()
@@ -64,7 +65,7 @@ def guard_dashboard(
             if alert.status == "resolved" and alert.resolved_at and alert.resolved_at >= week_ago
         ]
         recent_pool = db.scalars(
-            select(Detection).order_by(Detection.detected_at.desc()).limit(120)
+            select(Detection).where(authority_scope(db, user, Detection)).order_by(Detection.detected_at.desc()).limit(120)
         ).all()
         near = [
             detection
@@ -73,7 +74,7 @@ def guard_dashboard(
         ]
         detections = sorted(near or recent_pool, key=lambda item: item.detected_at, reverse=True)[:10]
         nearby_incidents = db.scalars(
-            select(Incident)
+            select(Incident).where(authority_scope(db, user, Incident))
             .where(Incident.status.in_(["open", "verified"]))
             .order_by(Incident.created_at.desc())
             .limit(8)
@@ -116,15 +117,15 @@ def guard_dashboard(
 
     # Admin without a linked guard profile: provide a dispatch overview.
     alerts = db.scalars(
-        select(Alert)
+        select(Alert).where(authority_scope(db, user, Alert))
         .where(Alert.status.in_(OPEN_STATUSES))
         .order_by(Alert.priority_rank, Alert.created_at.desc())
     ).all()
-    guards = db.scalars(select(Guard).order_by(Guard.name)).all()
+    guards = db.scalars(select(Guard).where(authority_scope(db, user, Guard)).order_by(Guard.name)).all()
     assignments = {
         guard_id: count
         for guard_id, count in db.execute(
-            select(Alert.assigned_guard_id, func.count(Alert.id))
+            select(Alert.assigned_guard_id, func.count(Alert.id)).where(authority_scope(db, user, Alert))
             .where(Alert.status.in_(OPEN_STATUSES))
             .group_by(Alert.assigned_guard_id)
         ).all()
@@ -149,13 +150,13 @@ def guard_dashboard(
         "recent_detections": [
             serialize_detection(detection)
             for detection in db.scalars(
-                select(Detection).order_by(Detection.detected_at.desc()).limit(12)
+                select(Detection).where(authority_scope(db, user, Detection)).order_by(Detection.detected_at.desc()).limit(12)
             ).all()
         ],
         "open_incidents": [
             serialize_incident(incident)
             for incident in db.scalars(
-                select(Incident)
+                select(Incident).where(authority_scope(db, user, Incident))
                 .where(Incident.status.in_(["open", "verified"]))
                 .order_by(Incident.created_at.desc())
             ).all()
