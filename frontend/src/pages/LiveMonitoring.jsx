@@ -1,3 +1,4 @@
+import EvidenceImage from '../components/EvidenceImage'
 import { useRef, useState } from 'react'
 import {
   Aperture,
@@ -14,7 +15,7 @@ import {
   Video,
   X,
 } from 'lucide-react'
-import api, { errorMessage, mediaUrl } from '../api/client'
+import api, { errorMessage } from '../api/client'
 import { useApi } from '../hooks/useApi'
 import { DetectionTable, CameraStatusCard } from '../components/cards'
 import {
@@ -369,8 +370,8 @@ export default function LiveMonitoring() {
             <div className="lg:col-span-7">
               <div className="overflow-hidden rounded-xl border border-control-line-7 bg-inset-4">
                 {result.analysis.annotated_url ? (
-                  <img
-                    src={mediaUrl(result.analysis.annotated_url)}
+                  <EvidenceImage
+                    path={result.analysis.annotated_url}
                     alt="Annotated AI analysis result"
                     className="max-h-[460px] w-full object-contain"
                   />

@@ -6,6 +6,7 @@ import { refreshAuthorityNotifications } from '../components/Layout'
 import RefreshButton from '../components/RefreshButton'
 import { ReportReview, analysisLabels } from '../components/ReportReview'
 import { useApi } from '../hooks/useApi'
+import { useAuth } from '../context/AuthContext'
 import { formatDateTime, titleCase } from '../utils/format'
 
 function location(report) {
@@ -19,8 +20,11 @@ function reportTitle(report) {
 }
 
 export default function IncidentReports() {
-  const { data, loading, error, reload } = useApi('/api/reports', { interval: 6000 })
+  const { isAdmin, canReview, user } = useAuth()
   const [params, setParams] = useSearchParams()
+  const unassigned = isAdmin && params.get('queue') === 'unassigned'
+  const { data, loading, error, reload } = useApi(unassigned ? '/api/reports?unassigned_only=true' : '/api/reports',
+    { interval: 6000, deps: [user?.id] })
   const [search, setSearch] = useState('')
   const [readError, setReadError] = useState('')
   const selected = params.get('report')
@@ -73,6 +77,10 @@ export default function IncidentReports() {
           Unread only
         </label>
       </div>
+      {isAdmin && <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={unassigned} onChange={event => updateParams('queue', event.target.checked ? 'unassigned' : null)} />
+        Central review queue · unassigned reports
+      </label>}
       {error && <ErrorBox message={error} onRetry={reload} />}
       {readError && <ErrorBox message={readError} />}
       {!data && loading && <Loading label="Loading reports…" height="h-24" />}
@@ -85,6 +93,7 @@ export default function IncidentReports() {
           <span className="operations-item-title"><strong>{reportTitle(r)}</strong>
             <span className="block text-sm text-muted-3">{titleCase(r.category)} · {r.species_name} · {location(r)}</span>
             <span className="text-xs text-muted-3">{formatDateTime(r.created_at)} · {r.reference_code}</span></span>
+          {isAdmin && r.jurisdiction_id == null && <Badge>Unassigned</Badge>}
           {r.unread && <Badge tone="forest">Unread</Badge>}
           {r.is_simulated && <Badge>Simulated</Badge>}
           {r.image_url && ['queued', 'processing', 'failed', 'unavailable'].includes(r.analysis_status) && <Badge>{analysisLabels[r.analysis_status]}</Badge>}
@@ -94,6 +103,6 @@ export default function IncidentReports() {
     </section>
     {selected && data && !report && <ErrorBox message="Report not found." />}
     {report && <ReportReview key={report.id} report={report} title={reportTitle(report)} species={data.species}
-      onClose={() => updateParams('report', null)} reload={reload} />}
+      canReview={canReview} onClose={() => updateParams('report', null)} reload={reload} />}
   </>
 }

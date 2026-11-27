@@ -58,6 +58,13 @@ class Location(BaseModel):
         return self
 
 
+AlertRadius = Literal[5, 10, 20, 25]
+
+
+class AlertPreferences(BaseModel):
+    radius_km: AlertRadius
+
+
 class ProfileUpdate(BaseModel):
     name: Name
     email: Email | None = None
@@ -75,14 +82,18 @@ def _normalize_phone(value: str) -> str:
     return canonical
 
 
-def _profile(citizen: Citizen) -> dict:
-    location = None
+def saved_location(citizen: Citizen, *, approximate=False) -> dict | None:
     if citizen.village and valid_coordinates(citizen.village.lat, citizen.village.lon):
-        location = {"type": "village", "village": village_identity(citizen.village),
-                    **village_center(citizen.village, public=True)}
-    elif valid_coordinates(citizen.lat, citizen.lon):
-        location = {"type": "gps", "lat": citizen.lat, "lon": citizen.lon}
-    return {"id": citizen.id, "phone": citizen.phone, "name": citizen.name, "email": citizen.email, "location": location}
+        return {"type": "village", "village": village_identity(citizen.village),
+                **village_center(citizen.village, public=approximate)}
+    if valid_coordinates(citizen.lat, citizen.lon):
+        return {"type": "gps", "lat": citizen.lat, "lon": citizen.lon}
+    return None
+
+
+def _profile(citizen: Citizen) -> dict:
+    return {"id": citizen.id, "phone": citizen.phone, "name": citizen.name, "email": citizen.email,
+            "location": saved_location(citizen, approximate=True), "alert_radius_km": citizen.alert_radius_km}
 
 
 def _token_hash(token: str) -> str:
@@ -197,6 +208,14 @@ def update_profile(payload: ProfileUpdate, citizen: Citizen = Depends(get_citize
     citizen.lat, citizen.lon = location.lat, location.lon
     db.commit()
     return _profile(citizen)
+
+
+@router.put("/alert-preferences")
+def update_alert_preferences(payload: AlertPreferences, citizen: Citizen = Depends(get_citizen),
+                             db: Session = Depends(get_db)):
+    citizen.alert_radius_km = payload.radius_km
+    db.commit()
+    return {"radius_km": citizen.alert_radius_km}
 
 
 @router.post("/sign-out")

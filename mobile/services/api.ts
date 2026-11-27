@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import { isAlertRadius, nearbyAlertQuery, type AlertLocation, type AlertRadius, type AlertSort } from './nearby-alerts';
 
 function defaultOrigin() {
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -41,7 +42,7 @@ export type Village = { id: number; code: string; name: string; district?: strin
 export type Coordinates = { lat: number; lon: number };
 export type SavedLocation = ({ type: 'gps' } | { type: 'village'; village: Village }) & Coordinates;
 export type LocationInput = Coordinates | { village_id: number };
-export type CitizenProfile = { id: number; name: string; email: string | null; phone: string; location: SavedLocation | null };
+export type CitizenProfile = { id: number; name: string; email: string | null; phone: string; location: SavedLocation | null; alertRadiusKm: AlertRadius };
 export type CitizenAccess = {
   token?: string;
   citizenId?: number;
@@ -65,8 +66,9 @@ export type Advisory = {
   publishedAt: string;
   approximateLocations: Coordinates[];
   distanceKm?: number;
+  isSimulated: boolean;
 };
-export type PublicAdvisories = { items: Advisory[]; windowDays: number };
+export type PublicAdvisories = { items: Advisory[]; nextOffset: number | null };
 export type CommunityGuidance = {
   species: { id: string; label: string }[];
   general: string[];
@@ -86,14 +88,20 @@ export async function getCommunityVillages(signal?: AbortSignal): Promise<Villag
   return list(items).map(parseVillage);
 }
 
-export async function getPublicAlerts(signal?: AbortSignal, villageId?: number): Promise<PublicAdvisories> {
-  const { items, window_days } = await request(`/api/community/alerts?limit=50&field_only=true&verified_only=true${villageId ? '&village_id=' + encodeURIComponent(villageId) : ''}`, { signal });
-  if (typeof window_days !== 'number' || !Number.isInteger(window_days) || window_days < 1) throw invalidResponse();
+export async function getNearbyAlerts(access: CitizenAccess, location: AlertLocation, radius: AlertRadius,
+  sort: AlertSort, offset: number, signal?: AbortSignal): Promise<PublicAdvisories> {
+  const { items, next_offset } = await citizenRequest(access, '/nearby-alerts', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(nearbyAlertQuery(location, radius, sort, offset)), signal,
+  });
+  if (next_offset !== null && (typeof next_offset !== 'number' || !Number.isInteger(next_offset) || next_offset <= offset)) {
+    throw invalidResponse();
+  }
   const results = list(items);
   if (results.some((item) => typeof item.is_simulated !== 'boolean')) throw invalidResponse();
   return {
-    windowDays: window_days,
-    items: results.filter((item) => item.is_simulated === false).map((item) => {
+    nextOffset: next_offset,
+    items: results.map((item) => {
       const { id, severity, species_name, area_label, village_names, summary, advice, created_at } = item;
       if (typeof id !== 'number' || !Number.isInteger(id)) throw invalidResponse();
       const publishedAt = optionalDate(created_at);
@@ -109,6 +117,8 @@ export async function getPublicAlerts(signal?: AbortSignal, villageId?: number):
         summary: optionalText(summary),
         advice: optionalText(advice),
         publishedAt,
+        isSimulated: item.is_simulated === true,
+        distanceKm: typeof item.distance_km === 'number' ? item.distance_km : undefined,
         approximateLocations: Array.isArray(item.approximate_locations)
           ? list(item.approximate_locations).flatMap((location) => coordinates(location) ?? []) : [],
       };
@@ -167,6 +177,14 @@ export async function updateCitizenProfile(access: CitizenAccess, input: { name:
   return parseProfile(await citizenRequest(access, '/profile', {
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input),
   }));
+}
+
+export async function updateAlertRadius(access: CitizenAccess, radius: AlertRadius) {
+  const result = await citizenRequest(access, '/alert-preferences', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ radius_km: radius }),
+  });
+  if (!isAlertRadius(result.radius_km)) throw invalidResponse();
+  return result.radius_km;
 }
 
 export async function endCitizenSession(access: CitizenAccess) {
@@ -321,7 +339,7 @@ function parseVillage(record: Record<string, unknown>): Village {
 }
 
 function parseProfile(record: Record<string, unknown>): CitizenProfile {
-  const { id, name, email, phone, location } = record;
+  const { id, name, email, phone, location, alert_radius_km } = record;
   if (typeof id !== 'number' || !Number.isInteger(id)) throw invalidResponse();
   let saved: SavedLocation | null = null;
   if (location !== null) {
@@ -334,7 +352,8 @@ function parseProfile(record: Record<string, unknown>): CitizenProfile {
       saved = { type: 'village', ...point, village: { ...parseVillage(village), center: point } };
     } else throw invalidResponse();
   }
-  return { id, name: requiredText(name), phone: requiredText(phone), email: optionalText(email) ?? null, location: saved };
+  return { id, name: requiredText(name), phone: requiredText(phone), email: optionalText(email) ?? null, location: saved,
+    alertRadiusKm: isAlertRadius(alert_radius_km) ? alert_radius_km : 25 };
 }
 
 function parseCitizenReport(record: Record<string, unknown>): CitizenReport {

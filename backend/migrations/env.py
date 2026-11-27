@@ -11,8 +11,24 @@ from backend.database.session import Base, create_database_engine, engine
 from backend.models import entities  # noqa: F401 - register all ten models
 
 
+def include_object(obj, name, kind, reflected, compare_to):
+    # These generated PostGIS columns and GiST indexes have no SQLite counterparts.
+    if not reflected or kind not in {"column", "index"}:
+        return True
+    return (obj.table.name, name) not in {
+        ("jurisdictions", "boundary_geom"), ("jurisdictions", "ix_jurisdictions_boundary_geom"),
+        ("incidents", "incident_point"), ("incidents", "ix_incidents_incident_point"),
+        ("alerts", "public_point"), ("alerts", "ix_alerts_public_point"),
+    }
+
+
+def include_name(name, kind, parents):
+    return kind != "table" or name != "spatial_ref_sys"
+
+
 def run(connection):
-    context.configure(connection=connection, target_metadata=Base.metadata)
+    context.configure(connection=connection, target_metadata=Base.metadata,
+                      include_object=include_object, include_name=include_name)
     with context.begin_transaction():
         context.run_migrations()
 

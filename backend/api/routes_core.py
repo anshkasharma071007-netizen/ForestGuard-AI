@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import os
-import shutil
+from pathlib import Path
+from tempfile import TemporaryDirectory
 import uuid
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
+from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy import func, select
@@ -17,6 +18,8 @@ from geospatial.species import SPECIES_ORDER, species_meta
 
 from backend import config
 from backend.api.deps import get_optional_user, require_guard
+from backend.services.geography import authority_record, authority_scope
+from backend.services.media import discard_uncommitted, evidence_response, save_evidence
 from backend.api.utils import (
     alert_payload,
     load_study_area,
@@ -27,7 +30,6 @@ from backend.api.utils import (
 from backend.database.session import get_db
 from backend.models import (
     Alert,
-    AlertEvent,
     Camera,
     Detection,
     Guard,
@@ -38,15 +40,13 @@ from backend.models import (
     Village,
     utcnow,
 )
+from backend.models.entities import CameraUpload
 from backend.services.risk_service import get_settings, recalculate_all, rescore_detection
 from backend.services.serializers import (
-    media_url,
-    serialize_alert,
     serialize_camera,
     serialize_detection,
     serialize_guard,
     serialize_incident,
-    serialize_sighting,
     serialize_track,
     serialize_village,
     species_info,
@@ -63,6 +63,7 @@ DISCLAIMER = (
 
 def _filtered_detections(
     db: Session,
+    user: User,
     *,
     species: list[str] | None = None,
     risk_levels: list[str] | None = None,
@@ -72,7 +73,7 @@ def _filtered_detections(
     end: datetime | None = None,
     basis: str | None = None,
 ):
-    query = select(Detection)
+    query = select(Detection).where(authority_scope(db, user, Detection))
     if species:
         query = query.where(Detection.species.in_(species))
     if risk_levels:
@@ -140,45 +141,45 @@ def meta(db: Session = Depends(get_db)) -> dict:
 
 
 @router.get("/overview")
-def overview(db: Session = Depends(get_db), _: User = Depends(require_guard)) -> dict:
+def overview(db: Session = Depends(get_db), user: User = Depends(require_guard)) -> dict:
     now = utcnow()
     day_ago = now - timedelta(hours=24)
     month_ago = now - timedelta(days=30)
 
-    total_detections = db.scalar(select(func.count(Detection.id))) or 0
+    total_detections = db.scalar(select(func.count(Detection.id)).where(authority_scope(db, user, Detection))) or 0
     detections_24h = db.scalar(
-        select(func.count(Detection.id)).where(Detection.detected_at >= day_ago)
+        select(func.count(Detection.id)).where(authority_scope(db, user, Detection)).where(Detection.detected_at >= day_ago)
     ) or 0
     species_rows = db.execute(
-        select(Detection.species, func.count(Detection.id))
+        select(Detection.species, func.count(Detection.id)).where(authority_scope(db, user, Detection))
         .where(Detection.detected_at >= month_ago)
         .group_by(Detection.species)
     ).all()
     species_counts = {row[0]: row[1] for row in species_rows}
 
     active_alerts = db.scalars(
-        select(Alert).where(Alert.status.in_(["active", "acknowledged", "responding"]))
+        select(Alert).where(authority_scope(db, user, Alert)).where(Alert.status.in_(["active", "acknowledged", "responding"]))
         .order_by(Alert.status, Alert.id)
     ).all()
     high_risk_24h = db.scalar(
-        select(func.count(Detection.id)).where(
+        select(func.count(Detection.id)).where(authority_scope(db, user, Detection)).where(
             Detection.risk_level == "high", Detection.detected_at >= day_ago
         )
     ) or 0
     recent = db.scalars(
-        select(Detection).order_by(Detection.detected_at.desc()).limit(8)
+        select(Detection).where(authority_scope(db, user, Detection)).order_by(Detection.detected_at.desc()).limit(8)
     ).all()
     open_incidents = db.scalars(
-        select(Incident).where(Incident.status.in_(["open", "verified"]))
+        select(Incident).where(authority_scope(db, user, Incident)).where(Incident.status.in_(["open", "verified"]))
         .order_by(Incident.created_at.desc())
         .limit(5)
     ).all()
-    cameras = db.scalars(select(Camera)).all()
-    village_risks = db.scalars(select(Village).order_by(Village.name)).all()
+    cameras = db.scalars(select(Camera).where(authority_scope(db, user, Camera))).all()
+    village_risks = db.scalars(select(Village).where(authority_scope(db, user, Village)).order_by(Village.name)).all()
 
     settings = get_settings(db)
     detections_month = db.scalars(
-        select(Detection).where(Detection.detected_at >= month_ago)
+        select(Detection).where(authority_scope(db, user, Detection)).where(Detection.detected_at >= month_ago)
     ).all()
     risk_counts = Counter(detection.risk_level for detection in detections_month)
 
@@ -226,7 +227,7 @@ def overview(db: Session = Depends(get_db), _: User = Depends(require_guard)) ->
             "active_alerts": len(active_alerts),
             "high_risk_24h": high_risk_24h,
             "open_incidents": db.scalar(
-                select(func.count(Incident.id)).where(Incident.status.in_(["open", "verified"]))
+                select(func.count(Incident.id)).where(authority_scope(db, user, Incident)).where(Incident.status.in_(["open", "verified"]))
             ) or 0,
             "villages_monitored": len(village_risks),
             "cameras_online": len([camera for camera in cameras if camera.status == "online"]),
@@ -261,12 +262,12 @@ def overview(db: Session = Depends(get_db), _: User = Depends(require_guard)) ->
 
 
 @router.get("/cameras")
-def list_cameras(db: Session = Depends(get_db), _: User = Depends(require_guard)) -> dict:
-    cameras = db.scalars(select(Camera).order_by(Camera.code)).all()
+def list_cameras(db: Session = Depends(get_db), user: User = Depends(require_guard)) -> dict:
+    cameras = db.scalars(select(Camera).where(authority_scope(db, user, Camera)).order_by(Camera.code)).all()
     last = {
         code: last_seen
         for code, last_seen in db.execute(
-            select(Detection.camera_code, func.max(Detection.detected_at)).group_by(
+            select(Detection.camera_code, func.max(Detection.detected_at)).where(authority_scope(db, user, Detection)).group_by(
                 Detection.camera_code
             )
         ).all()
@@ -293,12 +294,12 @@ def list_cameras(db: Session = Depends(get_db), _: User = Depends(require_guard)
 
 
 @router.get("/villages")
-def list_villages(db: Session = Depends(get_db), _: User = Depends(require_guard)) -> dict:
-    villages = db.scalars(select(Village).order_by(Village.name)).all()
+def list_villages(db: Session = Depends(get_db), user: User = Depends(require_guard)) -> dict:
+    villages = db.scalars(select(Village).where(authority_scope(db, user, Village)).order_by(Village.name)).all()
     exposure_counts = {
         village_id: count
         for village_id, count in db.execute(
-            select(Detection.nearest_village_id, func.count(Detection.id)).group_by(
+            select(Detection.nearest_village_id, func.count(Detection.id)).where(authority_scope(db, user, Detection)).group_by(
                 Detection.nearest_village_id
             )
         ).all()
@@ -317,12 +318,12 @@ def list_villages(db: Session = Depends(get_db), _: User = Depends(require_guard
 
 
 @router.get("/guards")
-def list_guards(db: Session = Depends(get_db), _: User = Depends(require_guard)) -> dict:
-    guards = db.scalars(select(Guard).order_by(Guard.name)).all()
+def list_guards(db: Session = Depends(get_db), user: User = Depends(require_guard)) -> dict:
+    guards = db.scalars(select(Guard).where(authority_scope(db, user, Guard)).order_by(Guard.name)).all()
     open_tasks = {
         guard_id: count
         for guard_id, count in db.execute(
-            select(Alert.assigned_guard_id, func.count(Alert.id))
+            select(Alert.assigned_guard_id, func.count(Alert.id)).where(authority_scope(db, user, Alert))
             .where(Alert.status.in_(["active", "acknowledged", "responding"]))
             .group_by(Alert.assigned_guard_id)
         ).all()
@@ -358,7 +359,7 @@ def list_detections(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=24, ge=1, le=200),
     db: Session = Depends(get_db),
-    _: User = Depends(require_guard),
+    user: User = Depends(require_guard),
 ) -> dict:
     species_list = query_list(species)
     risk_list = query_list(risk)
@@ -368,7 +369,7 @@ def list_detections(
     end = parse_dt(date_to, end_of_day=True)
 
     query = _filtered_detections(
-        db,
+        db, user,
         species=species_list,
         risk_levels=risk_list,
         zones=zone_list,
@@ -413,28 +414,47 @@ def list_detections(
 def detection_detail(
     detection_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_guard),
+    user: User = Depends(require_guard),
 ) -> dict:
-    detection = db.get(Detection, detection_id)
-    if not detection:
-        raise HTTPException(status_code=404, detail="Detection not found.")
+    detection = authority_record(db, user, Detection, detection_id)
     settings = get_settings(db)
     risk = rescore_detection(db, detection, settings)
     alerts = db.scalars(
-        select(Alert).where(Alert.detection_id == detection.id).order_by(Alert.created_at.desc())
+        select(Alert).where(Alert.detection_id == detection.id, authority_scope(db, user, Alert)).order_by(Alert.created_at.desc())
     ).all()
+    track = db.scalar(select(Track).where(
+        Track.id == detection.track_id, authority_scope(db, user, Track),
+    )) if detection.track_id else None
     return {
         "detection": serialize_detection(detection),
         "species": species_info(detection.species),
         "risk": risk,
-        "track": serialize_track(detection.track) if detection.track else None,
+        "track": serialize_track(track) if track else None,
         "alerts": [alert_payload(db, alert, include_events=True) for alert in alerts],
         "disclaimer": DISCLAIMER,
     }
 
 
+@router.get("/detections/{detection_id}/evidence/{kind}")
+def detection_evidence(detection_id: int, kind: Literal["original", "annotated"],
+                       db: Session = Depends(get_db), user: User = Depends(require_guard)):
+    detection = authority_record(db, user, Detection, detection_id)
+    return evidence_response(detection.image_path if kind == "original" else detection.annotated_path)
+
+
+@router.get("/camera-uploads/{upload_id}/evidence/{kind}")
+def camera_upload_evidence(upload_id: int, kind: Literal["original", "annotated"],
+                           db: Session = Depends(get_db), user: User = Depends(require_guard)):
+    upload = db.scalar(select(CameraUpload).join(Camera).where(
+        CameraUpload.id == upload_id, authority_scope(db, user, Camera),
+    ))
+    if upload is None:
+        raise HTTPException(404, "Evidence unavailable.")
+    return evidence_response(upload.image_path if kind == "original" else upload.annotated_path)
+
+
 @router.post("/detections/upload")
-async def upload_media(
+def upload_media(
     file: UploadFile = File(...),
     camera_code: str | None = Form(default=None),
     notes: str | None = Form(default=None),
@@ -442,71 +462,54 @@ async def upload_media(
     user: User = Depends(require_guard),
 ) -> dict:
     if not file.filename:
-        raise HTTPException(status_code=400, detail="A media file is required.")
+        raise HTTPException(400, "A media file is required.")
     content_type = (file.content_type or "").lower()
-    is_image = content_type in config.ALLOWED_IMAGE_TYPES or content_type.startswith("image/")
-    is_video = content_type in config.ALLOWED_VIDEO_TYPES or content_type.startswith("video/")
+    is_image = content_type in config.ALLOWED_IMAGE_TYPES
+    is_video = content_type in config.ALLOWED_VIDEO_TYPES
     if not (is_image or is_video):
-        raise HTTPException(
-            status_code=400,
-            detail="Unsupported file type. Upload a JPEG/PNG/WebP image or MP4/MOV/WebM video.",
-        )
-
-    extension = os.path.splitext(file.filename)[1].lower() or (".jpg" if is_image else ".mp4")
-    stored_name = f"{uuid.uuid4().hex}{extension}"
-    target_dir = os.path.join(config.UPLOAD_DIR, "uploads")
-    os.makedirs(target_dir, exist_ok=True)
-    target_path = os.path.join(target_dir, stored_name)
-
-    max_bytes = config.MAX_UPLOAD_MB * 1024 * 1024
-    size = 0
-    try:
-        with open(target_path, "wb") as handle:
-            while chunk := await file.read(1024 * 1024):
-                size += len(chunk)
-                if size > max_bytes:
-                    raise HTTPException(
-                        status_code=413,
-                        detail=f"File exceeds the {config.MAX_UPLOAD_MB} MB upload limit.",
-                    )
-                handle.write(chunk)
-    except HTTPException:
-        if os.path.exists(target_path):
-            os.remove(target_path)
-        raise
-    finally:
-        await file.close()
-
-    if not os.path.exists(target_path) or size == 0:
-        raise HTTPException(status_code=400, detail="The uploaded file was empty.")
-
-    camera = None
+        raise HTTPException(400, "Upload a JPEG/PNG/WebP image or MP4/MOV/WebM video.")
+    extensions = {
+        "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp",
+        "video/mp4": ".mp4", "video/quicktime": ".mov", "video/webm": ".webm", "video/x-msvideo": ".avi",
+    }
+    camera_query = select(Camera).where(authority_scope(db, user, Camera))
     if camera_code:
-        camera = db.scalar(select(Camera).where(Camera.code == camera_code))
+        camera_query = camera_query.where(Camera.code == camera_code)
+    camera = db.scalar(camera_query.order_by(Camera.code).limit(1))
+    if camera is None:
+        raise HTTPException(400, "Choose an authorized camera station.")
 
-    try:
-        result = ai_detector.analyze_media(
-            target_path, "video" if is_video else "image", upload_dir=config.UPLOAD_DIR
-        )
-    except ai_detector.AIUnavailableError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    maximum = config.MAX_UPLOAD_MB * 1024 * 1024
+    content = file.file.read(maximum + 1)
+    if len(content) > maximum:
+        raise HTTPException(413, f"File exceeds the {config.MAX_UPLOAD_MB} MB upload limit.")
+    if not content:
+        raise HTTPException(400, "The uploaded file was empty.")
 
+    media_id = uuid.uuid4().hex
+    filename = media_id + extensions[content_type]
+    with TemporaryDirectory(prefix="fg-camera-") as scratch:
+        source = Path(scratch) / filename
+        source.write_bytes(content)
+        try:
+            result = ai_detector.analyze_media(str(source), "video" if is_video else "image", upload_dir=scratch)
+        except ai_detector.AIUnavailableError as exc:
+            raise HTTPException(503, str(exc)) from exc
+        except (ValueError, OSError):
+            raise HTTPException(400, "Could not read the uploaded media.") from None
+        annotation = result.get("annotated_path")
+        annotated_rel = None
+        original_rel = save_evidence(f"uploads/{filename}", content)
+        if annotation and Path(annotation).is_file():
+            try:
+                annotated_rel = save_evidence(f"annotated/{media_id}.jpg", Path(annotation).read_bytes())
+            except (HTTPException, OSError):
+                discard_uncommitted(original_rel)
+                raise HTTPException(503, "Could not save the annotated evidence. Retry shortly.") from None
+
+    upload = CameraUpload(camera_id=camera.id, image_path=original_rel, annotated_path=annotated_rel)
+    db.add(upload)
     detections = result.get("detections", [])
-    if camera is None:
-        camera = db.scalars(select(Camera).order_by(Camera.code)).first()
-    if camera is None:
-        if os.path.exists(target_path):
-            os.remove(target_path)
-        raise HTTPException(status_code=400, detail="No camera stations are configured.")
-
-    annotated_abs = result.get("annotated_path")
-    annotated_rel = None
-    if annotated_abs and os.path.exists(annotated_abs):
-        annotated_rel = os.path.join("annotated", os.path.basename(annotated_abs)).replace("\\", "/")
-
-    original_rel = os.path.join("uploads", stored_name).replace("\\", "/")
     created: list[Detection] = []
     now = utcnow()
     for index, item in enumerate(detections):
@@ -551,8 +554,8 @@ async def upload_media(
             "elapsed_seconds": result.get("elapsed_seconds"),
             "warnings": result.get("warnings", []),
             "frame_samples": result.get("frame_samples"),
-            "annotated_url": media_url(annotated_rel),
-            "original_url": media_url(original_rel),
+            "annotated_url": f"/api/camera-uploads/{upload.id}/evidence/annotated" if annotated_rel else None,
+            "original_url": f"/api/camera-uploads/{upload.id}/evidence/original",
         },
         "stored": [serialize_detection(detection) for detection in created],
         "camera": serialize_camera(camera),
@@ -566,9 +569,9 @@ def list_tracks(
     species: list[str] | None = Query(default=None),
     direction: str | None = None,
     db: Session = Depends(get_db),
-    _: User = Depends(require_guard),
+    user: User = Depends(require_guard),
 ) -> dict:
-    query = select(Track)
+    query = select(Track).where(authority_scope(db, user, Track))
     species_list = query_list(species)
     if species_list:
         query = query.where(Track.species.in_(species_list))
@@ -592,20 +595,20 @@ def map_layers(
     days: int = Query(default=45, ge=1, le=365),
     operational: bool = False,
     db: Session = Depends(get_db),
-    _: User = Depends(require_guard),
+    user: User = Depends(require_guard),
 ) -> dict:
     species_list = query_list(species)
     risk_list = query_list(risk)
     since = utcnow() - timedelta(days=days)
     detections = db.scalars(
         _filtered_detections(
-            db, species=species_list, risk_levels=risk_list, start=since
+            db, user, species=species_list, risk_levels=risk_list, start=since
         ).order_by(Detection.detected_at.desc()).limit(600)
     ).all()
-    villages = db.scalars(select(Village)).all()
-    cameras = db.scalars(select(Camera)).all()
-    guards = db.scalars(select(Guard)).all()
-    incident_query = select(Incident).order_by(Incident.created_at.desc())
+    villages = db.scalars(select(Village).where(authority_scope(db, user, Village))).all()
+    cameras = db.scalars(select(Camera).where(authority_scope(db, user, Camera))).all()
+    guards = db.scalars(select(Guard).where(authority_scope(db, user, Guard))).all()
+    incident_query = select(Incident).where(authority_scope(db, user, Incident)).order_by(Incident.created_at.desc())
     if operational:
         incident_query = incident_query.where(Incident.verified.is_(True), Incident.status == "verified",
                                               Incident.is_simulated.is_(False))
@@ -619,7 +622,7 @@ def map_layers(
     report_ids = [incident.report_id for incident in incidents if incident.report_id is not None]
     titles = dict(db.execute(select(SightingReport.id, SightingReport.title).where(
         SightingReport.id.in_(report_ids))).all()) if report_ids else {}
-    tracks = db.scalars(select(Track).order_by(Track.ended_at.desc()).limit(60)).all()
+    tracks = db.scalars(select(Track).where(authority_scope(db, user, Track)).order_by(Track.ended_at.desc()).limit(60)).all()
 
     settings = get_settings(db)
     zones = build_risk_zones(

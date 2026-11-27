@@ -128,6 +128,8 @@ export default function Layout({ children }) {
     return () => window.removeEventListener('fg-notifications-changed', reload)
   }, [reload])
 
+  const coverage = user?.role === 'admin' ? 'Central administration'
+    : user?.jurisdictions?.map(item => item.name).join(', ') || 'No jurisdiction assigned'
   const unread = notifications.data?.unread
   return <div className="min-h-screen bg-sand">
     <header className="operations-header">
@@ -151,7 +153,8 @@ export default function Layout({ children }) {
           <Notifications {...notifications} />
           <span className="hidden xl:inline-flex"><LanguageSwitcher /></span>
           <ThemeToggle />
-          <NavLink to="/settings" title={user?.name || 'Authority account'} aria-label="Authority account" className="operations-control">
+          <NavLink to="/settings" title={[user?.name, coverage].filter(Boolean).join(' · ')} aria-label="Authority account" className="operations-control">
+            <span className="hidden max-w-44 truncate text-xs lg:inline" aria-hidden="true">{user?.name} · {coverage}</span>
             <UserRound size={18} aria-hidden="true" />
           </NavLink>
         </div>

@@ -3,15 +3,14 @@ from __future__ import annotations
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import FileResponse
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.orm import Session
 
 from geospatial.risk_analysis import utcnow
 from geospatial.species import REPORT_ANIMALS, SPECIES_ORDER
 
-from backend.api.deps import require_guard
+from backend.api.deps import require_guard, require_reviewer
 from backend.api.utils import alert_payload
 from backend.database.session import get_db
 from backend.models import (
@@ -24,7 +23,8 @@ from backend.models import (
     User,
 )
 from backend.models.entities import AlertRead, ReportRead
-from backend.services.report_analysis import evidence_path
+from backend.services.geography import authority_record, authority_scope
+from backend.services.media import evidence_response
 from backend.schemas.api import (
     AlertActionRequest,
     AlertAssignRequest,
@@ -35,7 +35,7 @@ from backend.schemas.api import (
 )
 from backend.services.risk_service import get_settings, recalculate_all, score_report_incident
 from backend.services.incident_lifecycle import (
-    PENDING, close_alert, lock_record, report_incident_for_review, resolve_incident, review_report,
+    PENDING, close_alert, report_incident_for_review, resolve_incident, review_report,
 )
 from backend.services.serializers import (
     iso,
@@ -57,11 +57,13 @@ def list_alerts(
     days: int = Query(default=30, ge=1, le=365),
     limit: int = Query(default=100, ge=1, le=300),
     db: Session = Depends(get_db),
-    _: User = Depends(require_guard),
+    user: User = Depends(require_guard),
 ) -> dict:
     from backend.api.utils import query_list
 
-    query = select(Alert).where(Alert.created_at >= utcnow() - timedelta(days=days))
+    window = or_(Alert.status.in_(OPEN_STATUSES), Alert.created_at >= utcnow() - timedelta(days=days))
+    scoped = select(Alert).where(authority_scope(db, user, Alert), window)
+    query = scoped
     statuses = query_list(status)
     severities = query_list(severity)
     species_list = query_list(species)
@@ -75,9 +77,7 @@ def list_alerts(
         query.order_by(Alert.priority_rank, Alert.created_at.desc(), Alert.id).limit(limit)
     ).all()
 
-    all_in_window = db.scalars(
-        select(Alert).where(Alert.created_at >= utcnow() - timedelta(days=days))
-    ).all()
+    all_in_window = db.scalars(scoped).all()
     counts = {
         "active": len([a for a in all_in_window if a.status == "active"]),
         "acknowledged": len([a for a in all_in_window if a.status == "acknowledged"]),
@@ -106,11 +106,9 @@ def list_alerts(
 def alert_detail(
     alert_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_guard),
+    user: User = Depends(require_guard),
 ) -> dict:
-    alert = db.get(Alert, alert_id)
-    if not alert:
-        raise HTTPException(status_code=404, detail="Alert not found.")
+    alert = authority_record(db, user, Alert, alert_id)
     incident = db.get(Incident, alert.incident_id) if alert.incident_id else None
     report = db.get(SightingReport, incident.report_id) if incident and incident.report_id else None
     return {
@@ -131,7 +129,7 @@ def acknowledge_alert(
     db: Session = Depends(get_db),
     user: User = Depends(require_guard),
 ) -> dict:
-    alert = lock_record(db, Alert, alert_id)
+    alert = authority_record(db, user, Alert, alert_id, lock=True)
     if alert.status == "resolved":
         raise HTTPException(status_code=400, detail="This alert is already resolved.")
     if alert.acknowledged_at is None:
@@ -152,12 +150,16 @@ def assign_alert(
     alert_id: int,
     payload: AlertAssignRequest,
     db: Session = Depends(get_db),
-    user: User = Depends(require_guard),
+    user: User = Depends(require_reviewer),
 ) -> dict:
-    alert = lock_record(db, Alert, alert_id)
-    guard = db.get(Guard, payload.guard_id)
-    if not guard:
-        raise HTTPException(status_code=404, detail="Guard not found.")
+    alert = authority_record(db, user, Alert, alert_id, lock=True)
+    guard = authority_record(db, user, Guard, payload.guard_id)
+    if user.role != "admin":
+        target = db.get(User, guard.user_id) if guard.user_id else None
+        if not target or not db.scalar(select(Alert.id).where(
+            Alert.id == alert.id, authority_scope(db, target, Alert),
+        )):
+            raise HTTPException(409, "The guard must be assigned to this alert's jurisdiction.")
     if alert.status == "resolved":
         raise HTTPException(400, "This alert is already resolved.")
     alert.assigned_guard_id = guard.id
@@ -184,14 +186,12 @@ def resolve_alert(
     db: Session = Depends(get_db),
     user: User = Depends(require_guard),
 ) -> dict:
-    alert = db.get(Alert, alert_id)
-    if not alert:
-        raise HTTPException(status_code=404, detail="Alert not found.")
+    alert = authority_record(db, user, Alert, alert_id)
     if alert.incident_id is not None:
-        incident = lock_record(db, Incident, alert.incident_id)
+        incident = authority_record(db, user, Incident, alert.incident_id, lock=True)
         resolve_incident(db, incident, user, payload.note, payload.citizen_note)
     else:
-        alert = lock_record(db, Alert, alert_id)
+        alert = authority_record(db, user, Alert, alert_id, lock=True)
         note = (payload.note or "").strip() or "Field team closed the alert after verification."
         if "\x00" in note:
             raise HTTPException(400, "Remove invalid characters from the resolution notes.")
@@ -207,7 +207,7 @@ def mark_responding(
     db: Session = Depends(get_db),
     user: User = Depends(require_guard),
 ) -> dict:
-    alert = lock_record(db, Alert, alert_id)
+    alert = authority_record(db, user, Alert, alert_id, lock=True)
     if alert.status == "resolved":
         raise HTTPException(status_code=400, detail="This alert is already resolved.")
     alert.status = "responding"
@@ -228,11 +228,12 @@ def list_incidents(
     category: list[str] | None = Query(default=None),
     days: int = Query(default=90, ge=1, le=365),
     db: Session = Depends(get_db),
-    _: User = Depends(require_guard),
+    user: User = Depends(require_guard),
 ) -> dict:
     from backend.api.utils import query_list
 
-    query = select(Incident).where(Incident.created_at >= utcnow() - timedelta(days=days))
+    query = select(Incident).where(authority_scope(db, user, Incident),
+                                   Incident.created_at >= utcnow() - timedelta(days=days))
     statuses = query_list(status)
     categories = query_list(category)
     if statuses:
@@ -253,10 +254,8 @@ def list_incidents(
 
 
 @router.get("/incidents/{incident_id}")
-def incident_detail(incident_id: int, db: Session = Depends(get_db), _: User = Depends(require_guard)):
-    incident = db.get(Incident, incident_id)
-    if incident is None:
-        raise HTTPException(404, "Incident not found.")
+def incident_detail(incident_id: int, db: Session = Depends(get_db), user: User = Depends(require_guard)):
+    incident = authority_record(db, user, Incident, incident_id)
     report = db.get(SightingReport, incident.report_id) if incident.report_id else None
     alert = db.scalar(select(Alert).where(Alert.incident_id == incident.id))
     return {
@@ -273,7 +272,7 @@ def update_incident(
     db: Session = Depends(get_db),
     user: User = Depends(require_guard),
 ) -> dict:
-    incident = lock_record(db, Incident, incident_id)
+    incident = authority_record(db, user, Incident, incident_id, lock=True)
     if payload.status == "resolved":
         if incident.report_id is not None and payload.verified is False:
             raise HTTPException(409, "An approved incident must remain verified.")
@@ -284,6 +283,8 @@ def update_incident(
         if payload.status not in {None, incident.status} or payload.verified not in {None, incident.verified}:
             raise HTTPException(409, "This incident cannot change to that status.")
     else:
+        if user.role != "admin":
+            raise HTTPException(403, "Only central administrators can edit standalone incident verification.")
         if payload.status:
             incident.status = payload.status
         if payload.verified is not None:
@@ -300,12 +301,19 @@ def list_reports(
     status: list[str] | None = Query(default=None),
     category: list[str] | None = Query(default=None),
     unread_only: bool = False,
+    unassigned_only: bool = False,
     db: Session = Depends(get_db),
     user: User = Depends(require_guard),
 ) -> dict:
     from backend.api.utils import query_list
 
-    query = select(SightingReport).options(selectinload(SightingReport.incident), selectinload(SightingReport.village))
+    query = select(SightingReport).where(authority_scope(db, user, SightingReport)).options(
+        selectinload(SightingReport.incident), selectinload(SightingReport.village),
+    )
+    if unassigned_only:
+        if user.role != "admin":
+            raise HTTPException(403, "The central review queue is available to central administrators.")
+        query = query.where(SightingReport.jurisdiction_id.is_(None), SightingReport.status.in_(PENDING))
     statuses = query_list(status)
     categories = query_list(category)
     if statuses:
@@ -334,11 +342,14 @@ def list_reports(
 @router.get("/reports/notifications")
 def report_notifications(db: Session = Depends(get_db), user: User = Depends(require_guard)):
     seen = select(ReportRead.report_id).where(ReportRead.user_id == user.id)
-    reports = select(SightingReport).where(~SightingReport.id.in_(seen), SightingReport.is_simulated.is_(False))
+    reports = select(SightingReport).where(
+        authority_scope(db, user, SightingReport), ~SightingReport.id.in_(seen), SightingReport.is_simulated.is_(False),
+    )
     unread = db.scalar(select(func.count()).select_from(reports.subquery()))
-    latest = db.scalar(select(Alert).where(Alert.is_simulated.is_(False)).order_by(Alert.id.desc()).limit(1))
+    visible_alerts = select(Alert).where(authority_scope(db, user, Alert), Alert.is_simulated.is_(False))
+    latest = db.scalar(visible_alerts.order_by(Alert.id.desc()).limit(1))
     seen_alerts = select(AlertRead.alert_id).where(AlertRead.user_id == user.id)
-    alerts = select(Alert).where(Alert.is_simulated.is_(False), ~Alert.id.in_(seen_alerts))
+    alerts = visible_alerts.where(~Alert.id.in_(seen_alerts))
     unread_alerts = db.scalar(select(func.count()).select_from(alerts.subquery()))
     items = [
         {"kind": "report", "id": report.id, "title": report.title or report.reference_code, "created_at": iso(report.created_at)}
@@ -358,7 +369,7 @@ def report_notifications(db: Session = Depends(get_db), user: User = Depends(req
 
 @router.post("/alerts/{alert_id}/read")
 def mark_alert_read(alert_id: int, db: Session = Depends(get_db), user: User = Depends(require_guard)):
-    lock_record(db, Alert, alert_id)
+    authority_record(db, user, Alert, alert_id, lock=True)
     if not db.get(AlertRead, (alert_id, user.id)):
         db.add(AlertRead(alert_id=alert_id, user_id=user.id))
     db.commit()
@@ -367,29 +378,32 @@ def mark_alert_read(alert_id: int, db: Session = Depends(get_db), user: User = D
 
 @router.post("/reports/{report_id}/read")
 def mark_read(report_id: int, db: Session = Depends(get_db), user: User = Depends(require_guard)):
-    lock_record(db, SightingReport, report_id)
+    authority_record(db, user, SightingReport, report_id, lock=True)
     if not db.get(ReportRead, (report_id, user.id)):
         db.add(ReportRead(report_id=report_id, user_id=user.id))
     db.commit()
     return {"unread": False}
 
 
+@router.get("/reports/{report_id}")
+def report_detail(report_id: int, db: Session = Depends(get_db), user: User = Depends(require_guard)):
+    report = authority_record(db, user, SightingReport, report_id)
+    return {"report": serialize_sighting(report)}
+
+
 @router.get("/reports/{report_id}/evidence")
-def report_evidence(report_id: int, db: Session = Depends(get_db), _: User = Depends(require_guard)):
-    report = db.get(SightingReport, report_id)
-    if report and report.image_path:
-        try:
-            path = evidence_path(report.image_path)
-            return FileResponse(path, headers={"Cache-Control": "private, no-store",
-                                "Content-Security-Policy": "sandbox", "X-Content-Type-Options": "nosniff"})
-        except FileNotFoundError:
-            pass
-    raise HTTPException(404, "Photo unavailable.")
+def report_evidence(report_id: int, db: Session = Depends(get_db), user: User = Depends(require_guard)):
+    return evidence_response(authority_record(db, user, SightingReport, report_id).image_path)
+
+
+@router.get("/incidents/{incident_id}/evidence")
+def incident_evidence(incident_id: int, db: Session = Depends(get_db), user: User = Depends(require_guard)):
+    return evidence_response(authority_record(db, user, Incident, incident_id).image_path)
 
 
 @router.post("/reports/{report_id}/retry")
-def retry_analysis(report_id: int, db: Session = Depends(get_db), _: User = Depends(require_guard)):
-    report = lock_record(db, SightingReport, report_id)
+def retry_analysis(report_id: int, db: Session = Depends(get_db), user: User = Depends(require_reviewer)):
+    report = authority_record(db, user, SightingReport, report_id, lock=True)
     if report.analysis_status == "no_photo" or not report.image_path:
         raise HTTPException(409, "Report has no photo to analyse.")
     if report.analysis_status in {"completed", "failed", "unavailable"}:
@@ -402,10 +416,8 @@ def retry_analysis(report_id: int, db: Session = Depends(get_db), _: User = Depe
 
 @router.post("/reports/{report_id}/risk-preview")
 def preview_report_risk(report_id: int, payload: ReportRiskPreview, db: Session = Depends(get_db),
-                        user: User = Depends(require_guard)):
-    report = db.get(SightingReport, report_id)
-    if report is None:
-        raise HTTPException(404, "Report not found.")
+                        user: User = Depends(require_reviewer)):
+    report = authority_record(db, user, SightingReport, report_id)
     if report.status not in PENDING or report.incident:
         raise HTTPException(409, "This report already has a final review decision.")
     incident = report_incident_for_review(report, payload.confirmed_species)
@@ -419,9 +431,9 @@ def preview_report_risk(report_id: int, payload: ReportRiskPreview, db: Session 
 @router.patch("/reports/{report_id}")
 def update_report(
     report_id: int, payload: SightingStatusUpdate, db: Session = Depends(get_db),
-    user: User = Depends(require_guard),
+    user: User = Depends(require_reviewer),
 ) -> dict:
-    report = lock_record(db, SightingReport, report_id)
+    report = authority_record(db, user, SightingReport, report_id, lock=True)
     changed = payload.status and review_report(
         db, report, payload.status, payload.note, payload.confirmed_species, user,
         citizen_note=payload.citizen_note, risk_level=payload.risk_level, risk_reason=payload.risk_reason,

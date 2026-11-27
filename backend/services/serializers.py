@@ -40,12 +40,6 @@ def iso(value: datetime | None) -> str | None:
     return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def media_url(path: str | None) -> str | None:
-    if not path:
-        return None
-    return f"/media/{path.lstrip('/')}"
-
-
 def species_info(key: str) -> dict:
     meta = species_meta(key)
     return {
@@ -131,8 +125,8 @@ def serialize_detection(det: Detection, *, include_bbox: bool = True) -> dict:
         "zone": det.zone,
         "lat": det.lat,
         "lon": det.lon,
-        "image_url": media_url(det.image_path),
-        "annotated_url": media_url(det.annotated_path),
+        "image_url": f"/api/detections/{det.id}/evidence/original" if det.image_path else None,
+        "annotated_url": f"/api/detections/{det.id}/evidence/annotated" if det.annotated_path else None,
         "source_type": det.source_type,
         "is_simulated": det.is_simulated,
         "track_id": det.track_id,
@@ -246,7 +240,7 @@ def serialize_incident(incident: Incident) -> dict:
         "resolved_by_id": incident.resolved_by_id,
         "resolution_note": incident.resolution_note,
         "citizen_resolution_note": incident.citizen_resolution_note,
-        "image_url": media_url(incident.image_path),
+        "image_url": f"/api/incidents/{incident.id}/evidence" if incident.image_path else None,
         "is_simulated": incident.is_simulated,
         "is_public": incident.is_public,
     }
@@ -269,7 +263,7 @@ def serialize_sighting(report: SightingReport, *, public: bool = False) -> dict:
     if not public:
         data.update({
             "lat": report.lat, "lon": report.lon, "contact": report.contact,
-            "title": report.title,
+            "title": report.title, "jurisdiction_id": report.jurisdiction_id,
             "lifecycle_status": lifecycle_status(report, report.incident.status if report.incident else None),
             "confirmed_species": report.incident.species if report.incident else None,
             "confirmed_species_name": species_meta(report.incident.species)["name"] if report.incident else None,

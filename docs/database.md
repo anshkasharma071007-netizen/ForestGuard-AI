@@ -8,7 +8,7 @@ Follow the [macOS or Windows setup commands](setup.md#1-backend-and-local-databa
 
 The default loopback server is `127.0.0.1:5432`, maintenance database `postgres`, target database `forest_guard_ai`, and runtime role `forest_guard_app`. Use `--host`, `--port`, `--maintenance-db`, `--database`, or `--app-user` to select a different local target. Use `--use-libpq` to skip the admin password prompt when credentials are already configured. `--no-env` prints the backend settings without creating an environment file. `--passfile` overrides the default ignored passfile path.
 
-The provisioning account owns the database and applies DDL. FastAPI uses the restricted runtime login with CONNECT, schema USAGE, application-table SELECT/INSERT/UPDATE/DELETE, sequence USAGE/SELECT, and read access to the Alembic revision. The initializer uses the server's current authentication rules and does not edit service configuration. A fresh database requires only repository files and local PostgreSQL credentials.
+The provisioning account owns the database and applies DDL. FastAPI uses the restricted runtime login with CONNECT, schema USAGE, application-table SELECT/INSERT/UPDATE/DELETE, sequence USAGE/SELECT, and read access to the Alembic revision. The initializer uses the server's current authentication rules and does not edit service configuration. Revision `0008` requires PostGIS. Install the extension package for your local PostgreSQL version. The initializer enables it on the dedicated database when needed.
 
 Run `python -m tools.seed_demo` separately for the bundled demo. The command checks all app tables before copying media or inserting data and serializes concurrent attempts. Choose a separate database and `UPLOAD_DIR` if you want an independent demo beside your usual development database.
 
@@ -32,6 +32,8 @@ Revision `0005` adds the `risk_configuration` table and resolution actor and not
 Revision `0006` records when photo analysis finishes for the authority report history. Existing reports keep their analysis results. Completion times are available after a new analysis run.
 
 Revision `0007` adds persisted citizen notifications, authority alert read receipts, and a separate citizen-visible resolution note. The owner initializer applies the revision and grants access to the restricted runtime role. Existing citizen incidents keep their recorded risk, including after routine risk recalculation. The notification inbox starts with lifecycle actions recorded after the migration.
+
+Revision `0008` adds jurisdiction polygons and assignments, indexed incident points and approximate alert points, a saved citizen alert radius, and camera upload references. It preserves report ownership and risk decisions. Existing alerts linked to verified incidents receive an approximate point. Reports stay in central review until an applicable jurisdiction is configured.
 
 After applying the migrations with the owner account, use the runtime environment to preview historical corrections. The command lists candidates by report ID and action. It considers real authenticated citizen reports with preserved approval history. It can publish a missing alert for a verified, unresolved incident and repair clearly documented mismatches between incident and alert resolution. Records requiring judgment appear as `manual_review`. For an alert resolved in the old workflow, the repair copies the recorded timestamp, actor and note where available.
 
@@ -96,6 +98,7 @@ For a full rollback, quiesce clients, retain PostgreSQL and current media, and r
 ```sh
 .venv/bin/python -m pytest -q
 createdb forest_guard_phase2_test
+psql -d forest_guard_phase2_test -c 'CREATE EXTENSION postgis'
 psql -d forest_guard_phase2_test -c 'GRANT CONNECT, CREATE ON DATABASE forest_guard_phase2_test TO forest_guard_app'
 FOREST_GUARD_DB_MODE=local \
   FOREST_GUARD_TEST_POSTGRES_URL=postgresql+psycopg://forest_guard_app@127.0.0.1:5432/forest_guard_phase2_test \
@@ -163,7 +166,7 @@ FOREST_GUARD_DB_MODE=cloud APP_ENV=development AUTHORITY_DEMO_ACCOUNTS_ENABLED=t
 
 ### Owner migrations
 
-Revision `0007` is already applied to the supplied cloud project. For a future migration, create a separate mode-0600 owner passfile at `.forest-guard-local/supabase-owner.pgpass`. Use the session-pooler hostname, port, database and project-qualified owner login in the libpq passfile entry. Escape colons and backslashes in the password. The owner command reuses the selected cloud endpoint and CA. Substitute the owner's project-qualified login from Supabase.
+Revision `0007` is already applied to the supplied cloud project. To apply `0008`, use a separate mode-0600 owner passfile at `.forest-guard-local/supabase-owner.pgpass`. Use the session-pooler hostname, port, database and project-qualified owner login in the libpq passfile entry. Escape colons and backslashes in the password. The owner command reuses the selected cloud endpoint and CA. Substitute the owner's project-qualified login from Supabase.
 
 ```sh
 env -u PGPASSWORD FOREST_GUARD_DB_MODE=cloud \
@@ -172,15 +175,68 @@ env -u PGPASSWORD FOREST_GUARD_DB_MODE=cloud \
   .venv/bin/alembic -x owner=1 upgrade head
 ```
 
-For each new application table, explicitly grant the runtime role the required table privileges and sequence usage in the owner session. Keep revision metadata read-only for the runtime role. Check `alembic current` using the runtime profile before starting the API. The local initializer is for dedicated local databases.
+In the Supabase SQL Editor, execute the following using the database owner after Alembic finishes:
 
-### Media persistence and the object storage phase
+```sql
+BEGIN;
+REVOKE ALL ON public.jurisdictions, public.authority_jurisdictions, public.camera_uploads
+  FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON SEQUENCE public.jurisdictions_id_seq, public.camera_uploads_id_seq
+  FROM PUBLIC, anon, authenticated;
 
-PostgreSQL stores report status, photo paths, analysis state/results and detection media references. Citizen originals are in `UPLOAD_DIR/community`. The analysis worker reads those files and writes its results to PostgreSQL. Citizen owners and authorized authorities retrieve the photos through authenticated FastAPI routes. Camera uploads and annotations live under `UPLOAD_DIR/uploads` and `UPLOAD_DIR/annotated` and are currently served through `/media`. Video analysis uses local scratch frames.
+GRANT SELECT, INSERT ON public.jurisdictions, public.camera_uploads TO forest_guard_app;
+GRANT SELECT, INSERT, DELETE ON public.authority_jurisdictions TO forest_guard_app;
+GRANT USAGE ON SEQUENCE public.jurisdictions_id_seq, public.camera_uploads_id_seq TO forest_guard_app;
 
-Cloud mode defaults to `.forest-guard-local/cloud-uploads`. Use a persistent private volume for a single-host pilot, and back it up alongside PostgreSQL. The API and worker must see the same files. Keep camera evidence off the public deployment until it has an authenticated delivery path.
+DO $$
+DECLARE spatial_schema text;
+BEGIN
+  SELECT n.nspname INTO STRICT spatial_schema
+    FROM pg_extension e JOIN pg_namespace n ON n.oid = e.extnamespace
+    WHERE e.extname = 'postgis';
+  EXECUTE format('GRANT USAGE ON SCHEMA %I TO forest_guard_app', spatial_schema);
+END $$;
+COMMIT;
+```
 
-1. Add a backend storage adapter for the filesystem and a private Supabase Storage or S3-compatible bucket. Use opaque keys and backend-only credentials scoped to the evidence bucket. Keep original evidence and derived annotations private. [Supabase private buckets](https://supabase.com/docs/guides/storage/buckets/fundamentals)
-2. Keep uploads and authorization in FastAPI. Start with authenticated streaming through the existing evidence endpoints to preserve ownership checks. If signed downloads are needed later, issue short-lived links only after the same checks and keep links out of logs. [Supabase private downloads](https://supabase.com/docs/guides/storage/serving/downloads)
-3. Store object identifiers, checksums and media types in PostgreSQL. Queue analysis only after the object is durable, stage downloads in temporary worker files, and make retries and orphan cleanup idempotent.
-4. Plan a dry-run-first copy of existing media, verify checksums before changing pointers, and retain filesystem reads during the rollout. Test owner isolation, worker retries and missing-object recovery before enabling multi-instance deployment.
+The previously granted privileges on existing tables remain sufficient for their new columns. The runtime role retains read-only Alembic metadata access. Check `FOREST_GUARD_DB_MODE=cloud .venv/bin/alembic current` for `0008` before starting the cloud API.
+
+### Enable private Supabase Storage
+
+1. In Supabase **Storage → New bucket**, create `forest-guard-evidence` with **Public bucket** off. Set the bucket and global file size limits to at least the API's `MAX_UPLOAD_MB` (25 MB by default). If you restrict MIME types, allow `image/jpeg`, `image/png`, `image/webp`, `video/mp4`, `video/quicktime`, `video/webm` and `video/x-msvideo`. Leave client access policies absent for this bucket. [Creating buckets](https://supabase.com/docs/guides/storage/buckets/creating-buckets) · [Storage permissions](https://supabase.com/docs/guides/storage/security/access-control)
+2. Under **Settings → API Keys**, create a backend secret key. Add these fields to the existing ignored `.env.cloud` or server secret store on every API instance. Use the same project, bucket and application signing key on all instances. [Supabase API keys](https://supabase.com/docs/guides/getting-started/api-keys)
+
+   ```dotenv
+   MEDIA_STORAGE=supabase
+   SUPABASE_STORAGE_URL=https://<project-ref>.supabase.co
+   SUPABASE_STORAGE_BUCKET=forest-guard-evidence
+   SUPABASE_STORAGE_KEY=<backend-secret-key>
+   ```
+
+3. Start the backend with the cloud profile. Use the existing Vite and Expo API origins. For a private development instance that needs citizen sign-in, enable `APP_ENV=development CITIZEN_DEV_OTP_ENABLED=true` explicitly.
+
+   ```sh
+   FOREST_GUARD_DB_MODE=cloud SEED_ON_START=false \
+     .venv/bin/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+   # Run the clients in separate terminals.
+   npm --prefix frontend run dev
+   npm --prefix mobile run dev
+   ```
+
+Citizen originals, camera uploads and generated camera annotations are stored under opaque keys. FastAPI checks ownership or jurisdiction on each download and refuses uploads to a public bucket. The analysis worker stages remote inputs in temporary files. Existing local references remain readable on hosts with the original private uploads. Keep the existing private volume for those records until they are copied and verified separately. Leave `MEDIA_STORAGE=local` for filesystem development.
+
+### Jurisdictions and nearby alerts
+
+In authority **Settings**, add a GeoJSON Polygon or MultiPolygon in longitude/latitude order, create a range officer or forest guard, and select their jurisdictions. Lower priority numbers win overlaps. Identical priorities use the older jurisdiction ID. New reports use the incident GPS location, or the selected report village center. Creating a boundary also routes existing unassigned reports that it covers. Saved assignments stay attached to their reports. Central administrators can open **Reports → Central review queue** for pending reports outside configured boundaries.
+
+The authenticated `POST /api/citizen/nearby-alerts` endpoint takes `source` (`saved` or `gps`), `lat` and `lon` for GPS, optional `radius_km` (5, 10, 20 or 25), `sort` (`time`, `risk`, or `distance`), `limit` and `offset`. Without a radius override it uses the saved preference. Distance is measured in metres to the same approximate coordinate returned to mobile. Only approved, active warnings appear. Incident resolution removes the warning and preserves citizen history and notifications.
+
+To provision two fictional boundaries and range officers, select an isolated, migrated local database with `test` in its name and no reports or jurisdictions. Keep bundled seeding disabled. The command prompts for a demo password. Use these flags on the private test server as well:
+
+```sh
+FOREST_GUARD_DB_MODE=local FOREST_GUARD_ENV_FILE=/path/to/ignored/test.env \
+  APP_ENV=development DEMO_MODE=true DEMO_JURISDICTIONS_ENABLED=true SEED_ON_START=false \
+  .venv/bin/python -m tools.seed_jurisdictions
+```
+
+The demo zones span longitude 79.10–79.20 and 79.20–79.30 at latitudes 21.65–21.85. Reports created in this test mode are labeled simulated.

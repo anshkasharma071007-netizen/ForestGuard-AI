@@ -33,8 +33,9 @@ export function AdvisoryList({ state, retry }: {
             </Text>
           </View>
           <SupportingText>{[item.area, ...item.villageNames.filter(name => name !== item.area), item.distanceKm === undefined ? undefined
-            : item.distanceKm < 1 ? 'Less than 1 km away' : `About ${item.distanceKm.toFixed(1)} km away`].filter(Boolean).join(' · ')}</SupportingText>
-          <SupportingText>{formatTimestamp(item.publishedAt)}</SupportingText>
+            : item.distanceKm === 0 ? 'Less than 1 km away' : `About ${item.distanceKm} km away`].filter(Boolean).join(' · ')}</SupportingText>
+          <SupportingText>{[item.isSimulated ? 'Simulated alert' : null, formatTimestamp(item.publishedAt)]
+            .filter(Boolean).join(' · ')}</SupportingText>
           {expanded === item.id && item.summary && <Text style={[typeScale.body, { color: colors.primaryText }]}>{item.summary}</Text>}
           {expanded === item.id && item.advice && !item.summary?.includes(item.advice)
             && <Text style={[typeScale.body, { color: colors.secondaryText }]}>{item.advice}</Text>}

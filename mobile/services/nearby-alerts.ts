@@ -1,30 +1,15 @@
-import type { Coordinates, PublicAdvisories, SavedLocation } from './api';
+import type { Coordinates } from './api';
 
 export type AlertSort = 'time' | 'risk' | 'distance';
+export type AlertRadius = 5 | 10 | 20 | 25;
+export type AlertLocation = { source: 'saved' } | ({ source: 'gps' } & Coordinates);
 
-const risk = { high: 3, moderate: 2, low: 1 };
-const nearbyKm = 25;
+export const alertRadii = [5, 10, 20, 25] as const;
 
-function distanceKm(from: Coordinates, to: Coordinates) {
-  const radians = Math.PI / 180;
-  const sinLat = Math.sin((to.lat - from.lat) * radians / 2);
-  const sinLon = Math.sin((to.lon - from.lon) * radians / 2);
-  const fraction = sinLat ** 2 + Math.cos(from.lat * radians) * Math.cos(to.lat * radians) * sinLon ** 2;
-  return 6371 * 2 * Math.asin(Math.sqrt(Math.max(0, Math.min(1, fraction))));
+export function isAlertRadius(value: unknown): value is AlertRadius {
+  return alertRadii.some((radius) => radius === value);
 }
 
-export function nearbyAlerts(feed: PublicAdvisories, location: SavedLocation, sort: AlertSort): PublicAdvisories {
-  const items = feed.items.map((item) => ({
-    ...item, distanceKm: item.approximateLocations.length
-      ? Math.min(...item.approximateLocations.map((point) => distanceKm(location, point))) : undefined,
-  })).filter((item) => (
-    (location.type === 'village' && item.villageIds.includes(location.village.id))
-    || (item.distanceKm !== undefined && item.distanceKm <= nearbyKm)
-  ));
-  items.sort((a, b) => {
-    const primary = sort === 'risk' ? (risk[b.severity as keyof typeof risk] ?? 0) - (risk[a.severity as keyof typeof risk] ?? 0)
-      : sort === 'distance' ? (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity) : 0;
-    return primary || Date.parse(b.publishedAt) - Date.parse(a.publishedAt) || b.id - a.id;
-  });
-  return { ...feed, items };
+export function nearbyAlertQuery(location: AlertLocation, radius: AlertRadius, sort: AlertSort, offset: number) {
+  return { ...location, radius_km: radius, sort, offset };
 }

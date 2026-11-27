@@ -73,6 +73,18 @@ def validate_authority_secret():
 DATABASE_URL = cloud_database_url() if DB_MODE == "cloud" else os.getenv(
     "DATABASE_URL", "postgresql+psycopg://forest_guard_app@127.0.0.1:5432/forest_guard_ai"
 )
+_demo_jurisdictions = os.getenv("DEMO_JURISDICTIONS_ENABLED", "false").strip().lower() == "true"
+
+
+def demo_jurisdictions_allowed() -> bool:
+    if not (DB_MODE == "local" and APP_ENV == "development" and DEMO_MODE and _demo_jurisdictions):
+        return False
+    from sqlalchemy.engine import make_url
+
+    database = make_url(DATABASE_URL).database or ""
+    return bool(re.search(r"(^|[_-])test($|[_.-])", Path(database).name))
+
+
 LOCAL_DATABASE_ROLE = os.getenv("LOCAL_DATABASE_ROLE", "forest_guard_app")
 
 _upload_path = ".forest-guard-local/cloud-uploads" if DB_MODE == "cloud" else "backend/uploads"
@@ -82,6 +94,11 @@ DEMO_WILDLIFE_DIR = os.path.join(ROOT, "demo_data", "wildlife_images")
 DETECTION_ASSETS = os.path.join(ROOT, "demo_data", "detection_assets.json")
 STUDY_AREA_PATH = os.path.join(ROOT, "geospatial", "geojson", "study_area.geojson")
 RISK_CONFIG_PATH = os.getenv("RISK_CONFIG_PATH", os.path.join(ROOT, "demo_data", "risk_config.json"))
+
+MEDIA_STORAGE = os.getenv("MEDIA_STORAGE", "local").strip().lower()
+SUPABASE_STORAGE_URL = os.getenv("SUPABASE_STORAGE_URL", "").strip().rstrip("/")
+SUPABASE_STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "forest-guard-evidence").strip()
+SUPABASE_STORAGE_KEY = os.getenv("SUPABASE_STORAGE_KEY", "").strip()
 
 MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "25"))
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}

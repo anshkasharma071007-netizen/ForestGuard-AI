@@ -1,3 +1,4 @@
+import EvidenceImage from '../components/EvidenceImage'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -18,7 +19,7 @@ import {
   UserCheck,
   Users,
 } from 'lucide-react'
-import api, { errorMessage, mediaUrl } from '../api/client'
+import api, { errorMessage } from '../api/client'
 import { useApi } from '../hooks/useApi'
 import { useAuth } from '../context/AuthContext'
 import MapView from '../components/MapView'
@@ -584,8 +585,8 @@ export default function GuardPanel() {
 
             {record?.detection?.annotated_url ? (
               <div className="grid gap-3 sm:grid-cols-2">
-                <img
-                  src={mediaUrl(record.detection.annotated_url)}
+                <EvidenceImage
+                  path={record.detection.annotated_url}
                   alt="Alert evidence"
                   className="h-40 w-full rounded-xl border border-control-line-7 object-cover"
                 />

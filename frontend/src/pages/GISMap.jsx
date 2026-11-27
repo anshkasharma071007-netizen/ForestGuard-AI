@@ -1,3 +1,4 @@
+import EvidenceImage from '../components/EvidenceImage'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
@@ -19,7 +20,6 @@ import {
 import MapView from '../components/MapView'
 import { Badge, ErrorBox, MetricBar, PageHeader, RiskBadge, SectionTitle, SpeciesTag } from '../components/ui'
 import { useApi } from '../hooks/useApi'
-import { mediaUrl } from '../api/client'
 import {
   RISK_COLOR,
   SPECIES_COLOR,
@@ -357,8 +357,8 @@ export default function GISMapPage() {
 
             <div className="p-4">
               {(detailDetection?.annotated_url || detailDetection?.image_url) && (
-                <img
-                  src={mediaUrl(detailDetection.annotated_url || detailDetection.image_url)}
+                <EvidenceImage
+                  path={detailDetection.annotated_url || detailDetection.image_url}
                   alt={`${detailDetection.species_name} evidence`}
                   className="h-40 w-full rounded-lg border border-control-line-7 object-cover"
                 />

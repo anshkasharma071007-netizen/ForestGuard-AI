@@ -24,6 +24,13 @@ def create_database_engine(url):
     if url.get_backend_name() == "sqlite":
         @event.listens_for(database, "connect")
         def _sqlite_pragmas(dbapi_connection, _record):  # pragma: no cover - driver hook
+            from backend.services.geography import covers
+            from geospatial.mapping import haversine_km
+
+            dbapi_connection.create_function("fg_covers", 3, covers, deterministic=True)
+            dbapi_connection.create_function("fg_distance_m", 4, lambda lat, lon, a, b:
+                                             haversine_km(lat, lon, a, b) * 1000
+                                             if lat is not None and lon is not None else None, deterministic=True)
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA foreign_keys=ON")
             cursor.execute("PRAGMA journal_mode=WAL")

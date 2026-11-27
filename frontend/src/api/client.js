@@ -24,12 +24,6 @@ api.interceptors.response.use(
   },
 )
 
-export function mediaUrl(path) {
-  if (!path) return null
-  if (/^https?:\/\//.test(path)) return path
-  return `${base}${path.startsWith('/') ? '' : '/'}${path}`
-}
-
 export function errorMessage(error) {
   const detail = error?.response?.data?.detail
   if (typeof detail === 'string') return detail

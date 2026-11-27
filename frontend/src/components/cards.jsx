@@ -8,19 +8,15 @@ import {
   statusTone,
   timeAgo,
 } from '../utils/format'
-import { mediaUrl } from '../api/client'
+import EvidenceImage from './EvidenceImage'
 import { Badge, RiskBadge, SpeciesTag, StatusBadge } from './ui'
 
 export function DetectionAvatar({ detection, size = 'md' }) {
   const dimension = size === 'sm' ? 'h-9 w-11' : 'h-11 w-14'
-  const src = mediaUrl(detection.annotated_url || detection.image_url)
   return (
     <div className={`${dimension} shrink-0 overflow-hidden rounded-lg border border-control-line-7 bg-inset-4`}>
-      {src ? (
-        <img src={src} alt={`${detection.species_name} detection`} className="h-full w-full object-cover" loading="lazy" />
-      ) : (
-        <img src={speciesImage(detection.species)} alt="" className="h-full w-full object-cover opacity-70" loading="lazy" />
-      )}
+      <EvidenceImage path={detection.annotated_url || detection.image_url} fallback={speciesImage(detection.species)}
+        alt={`${detection.species_name} detection`} className="h-full w-full object-cover" loading="lazy" />
     </div>
   )
 }

@@ -6,22 +6,32 @@ from math import isfinite
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from geospatial.mapping import haversine_km
+from geospatial.mapping import haversine_km, valid_coordinates
 from geospatial.risk_analysis import RiskSettings, villages_within_radius
 from geospatial.species import species_meta
 
-from backend.models import Alert, AlertEvent, Detection, Guard, Incident, Village, utcnow
-from backend.services.villages import village_risk_inputs
+from backend.models import Alert, AlertEvent, Detection, Guard, Incident, SightingReport, Village, utcnow
+from backend.models.entities import AuthorityJurisdiction
+from backend.services.geography import jurisdiction_at
+from backend.services.villages import village_center, village_risk_inputs
 
 SEVERITY_HIGH = 65.0
 SEVERITY_CRITICAL = 80.0
 
 
-def _nearest_guard(db: Session, lat: float, lon: float) -> Guard | None:
-    guards = db.scalars(select(Guard).where(Guard.status != "off_duty")).all()
-    if not guards:
-        return None
-    return min(guards, key=lambda guard: haversine_km(lat, lon, guard.lat, guard.lon))
+def _nearest_guard(db: Session, detection: Detection | Incident) -> Guard | None:
+    query = select(Guard).where(Guard.status.in_(("available", "on_patrol")))
+    if not detection.is_simulated:
+        if isinstance(detection, Incident) and detection.report_id:
+            target = select(SightingReport.jurisdiction_id).where(SightingReport.id == detection.report_id).scalar_subquery()
+        else:
+            target = jurisdiction_at(db, detection.lat, detection.lon)
+        query = query.where(Guard.user_id.in_(select(AuthorityJurisdiction.user_id).where(
+            AuthorityJurisdiction.jurisdiction_id == target,
+        )))
+    return min(db.scalars(query), key=lambda guard: haversine_km(detection.lat, detection.lon, guard.lat, guard.lon),
+               default=None)
+
 
 
 def _severity(score: float) -> tuple[str, int]:
@@ -101,7 +111,14 @@ def maybe_create_alert(
         is_simulated=detection.is_simulated,
         created_at=created_at,
     )
-    guard = _nearest_guard(db, detection.lat, detection.lon)
+    if incident:
+        village = detection.village
+        if village and valid_coordinates(village.lat, village.lon):
+            center = village_center(village, public=True)
+            alert.public_lat, alert.public_lon = center["lat"], center["lon"]
+        else:
+            alert.public_lat, alert.public_lon = round(detection.lat, 1), round(detection.lon, 1)
+    guard = _nearest_guard(db, detection)
     if guard:
         alert.assigned_guard_id = guard.id
     db.add(alert)

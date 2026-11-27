@@ -2,7 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { createContext, useContext, useEffect, useRef, useState, type PropsWithChildren } from 'react';
 import { Platform } from 'react-native';
-import { ApiError, endCitizenSession, getCitizenProfile, updateCitizenProfile, verifyCitizen, type CitizenAccess, type CitizenProfile, type LocationInput } from '@/services/api';
+import { ApiError, endCitizenSession, getCitizenProfile, updateAlertRadius, updateCitizenProfile, verifyCitizen, type CitizenAccess, type CitizenProfile, type LocationInput } from '@/services/api';
+import type { AlertLocation, AlertRadius } from '@/services/nearby-alerts';
 import { clearCitizenSubmissions, clearLegacyReferences } from '@/services/report-storage';
 
 const key = 'forest-guard.citizen-session';
@@ -13,10 +14,13 @@ const inactiveSession = new AbortController();
 inactiveSession.abort();
 const inactiveAccess: CitizenAccess & { signal: AbortSignal } = { signal: inactiveSession.signal, expire: () => {} };
 
+const savedAlertLocation = { source: 'saved' } as const;
+
 type ActiveSession = {
   profile: CitizenProfile;
   access: CitizenAccess & { signal: AbortSignal };
   controller: AbortController;
+  alertLocation: AlertLocation;
 };
 
 function useSession() {
@@ -35,7 +39,7 @@ function useSession() {
     const access = { token, citizenId: profile.id, signal: controller.signal, expire: () => {
       if (current.current?.access === access) void signOut();
     } };
-    const next = { profile, access, controller };
+    const next = { profile, access, controller, alertLocation: savedAlertLocation };
     current.current = next;
     setSession(next);
   }
@@ -142,7 +146,25 @@ function useSession() {
     if (!active) return;
     const profile = await updateCitizenProfile(active.access, input);
     if (current.current?.access === active.access) {
-      const next = { ...active, profile };
+      const next = { ...current.current, profile };
+      current.current = next;
+      setSession(next);
+    }
+  }
+
+  function setAlertLocation(access: CitizenAccess, alertLocation: AlertLocation) {
+    if (current.current?.access !== access) return;
+    const next = { ...current.current, alertLocation };
+    current.current = next;
+    setSession(next);
+  }
+
+  async function saveAlertRadius(radius: AlertRadius) {
+    const active = current.current;
+    if (!active) return;
+    const alertRadiusKm = await updateAlertRadius(active.access, radius);
+    if (current.current?.access === active.access) {
+      const next = { ...current.current, profile: { ...current.current.profile, alertRadiusKm } };
       current.current = next;
       setSession(next);
     }
@@ -166,6 +188,7 @@ function useSession() {
 
   return {
     profile: session?.profile ?? null, access: session?.access ?? inactiveAccess,
+    alertLocation: session?.alertLocation ?? savedAlertLocation, setAlertLocation, saveAlertRadius,
     loading, restoreError, retry: () => setAttempt((value) => value + 1),
     logoutNotice, logoutPending, verify, save, signOut,
   };

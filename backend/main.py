@@ -18,11 +18,13 @@ from backend.api import (
     routes_community,
     routes_core,
     routes_guard,
+    routes_jurisdictions,
     routes_operations,
     routes_risk,
 )
 from backend.database.session import SessionLocal, validate_runtime_database
 from backend.services.authority_demo import provision_authority_demo_accounts
+from backend.services.media import validate_settings
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("forest-guard-ai")
@@ -49,6 +51,7 @@ def _seed_if_needed() -> dict:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     config.validate_authority_secret()
+    validate_settings()
     with SessionLocal() as db:
         validate_runtime_database(db)
     app.state.seed_result = None
@@ -106,6 +109,7 @@ app.include_router(routes_core.router)
 app.include_router(routes_risk.router)
 app.include_router(routes_alerts.router)
 app.include_router(routes_guard.router)
+app.include_router(routes_jurisdictions.router)
 app.include_router(routes_operations.router)
 app.include_router(routes_community.router)
 app.include_router(routes_citizen.router)
@@ -114,9 +118,10 @@ app.include_router(routes_community.citizen_router)
 class PublicMedia(StaticFiles):
     def lookup_path(self, path):
         full_path, stat = super().lookup_path(path)
-        # Protect existing community uploads too, including case-insensitive filesystems.
-        if stat and "community" in [part.casefold() for part in Path(full_path).relative_to(Path(self.directory).resolve()).parts]:
-            return "", None
+        if stat:
+            relative = Path(full_path).relative_to(Path(self.directory).resolve())
+            if not relative.parts or relative.parts[0] != "demo":
+                return "", None
         return full_path, stat
 
 

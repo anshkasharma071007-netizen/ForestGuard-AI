@@ -1,25 +1,17 @@
 """A leased database job survives API restarts and uses the shared wildlife engine."""
 import logging
 from datetime import timedelta
-from pathlib import Path
 from threading import Event
 
 from sqlalchemy import and_, or_, select, update
 
 from ai_engine.detector import AIUnavailableError, get_engine
-from backend import config
 from backend.database.session import SessionLocal
 from backend.models import SightingReport, utcnow
 
+from backend.services.media import local_evidence
+
 log = logging.getLogger(__name__)
-
-
-def evidence_path(relative: str) -> Path:
-    root = Path(config.UPLOAD_DIR).resolve()
-    path = (root / relative).resolve()
-    if path.parent != root / "community" or not path.is_file():
-        raise FileNotFoundError("Report evidence unavailable")
-    return path
 
 
 def process_next() -> bool:
@@ -38,8 +30,8 @@ def process_next() -> bool:
         if not claimed.rowcount:
             return False
     try:
-        path = evidence_path(job.image_path)
-        result = get_engine().analyze_image(str(path), save_annotated=False)
+        with local_evidence(job.image_path) as path:
+            result = get_engine().analyze_image(str(path), save_annotated=False)
         values = dict(analysis_status="completed", analysis_results=result["detections"])
     except AIUnavailableError:
         log.warning("Photo analysis engine unavailable for report %d", job.id)

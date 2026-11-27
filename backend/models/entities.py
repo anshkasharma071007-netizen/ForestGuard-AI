@@ -12,6 +12,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    false,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -28,12 +29,31 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(120))
     email: Mapped[str] = mapped_column(String(180), unique=True, index=True)
-    role: Mapped[str] = mapped_column(String(20), index=True)  # admin | guard
+    role: Mapped[str] = mapped_column(String(20), index=True)  # admin | range_officer | guard
     badge_id: Mapped[str | None] = mapped_column(String(40))
     password_hash: Mapped[str] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     guard: Mapped["Guard | None"] = relationship(back_populates="user", uselist=False)
+
+
+class Jurisdiction(Base):
+    __tablename__ = "jurisdictions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), unique=True)
+    priority: Mapped[int] = mapped_column(Integer, server_default="100")
+    boundary: Mapped[dict] = mapped_column(JSON)
+    is_demo: Mapped[bool] = mapped_column(Boolean, server_default=false())
+
+
+class AuthorityJurisdiction(Base):
+    __tablename__ = "authority_jurisdictions"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    jurisdiction_id: Mapped[int] = mapped_column(
+        ForeignKey("jurisdictions.id", ondelete="CASCADE"), primary_key=True, index=True,
+    )
 
 
 class Village(Base):
@@ -55,6 +75,7 @@ class Village(Base):
 
 class Citizen(Base):
     __tablename__ = "citizens"
+    __table_args__ = (CheckConstraint("alert_radius_km IN (5, 10, 20, 25)", name="ck_citizen_alert_radius"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     phone: Mapped[str] = mapped_column(String(16), unique=True)
@@ -64,6 +85,8 @@ class Citizen(Base):
     village_id: Mapped[int | None] = mapped_column(ForeignKey("villages.id"))
     lat: Mapped[float | None] = mapped_column(Float)
     lon: Mapped[float | None] = mapped_column(Float)
+
+    alert_radius_km: Mapped[int] = mapped_column(Integer, server_default="25")
 
     village: Mapped[Village | None] = relationship()
 
@@ -90,6 +113,15 @@ class Camera(Base):
     status: Mapped[str] = mapped_column(String(20), default="online")  # online | maintenance | offline
     last_seen: Mapped[datetime | None] = mapped_column(DateTime)
     installed_on: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class CameraUpload(Base):
+    __tablename__ = "camera_uploads"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    camera_id: Mapped[int] = mapped_column(ForeignKey("cameras.id"), index=True)
+    image_path: Mapped[str] = mapped_column(String(255))
+    annotated_path: Mapped[str | None] = mapped_column(String(255))
 
 
 class Guard(Base):
@@ -201,6 +233,9 @@ class SightingReport(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     reference_code: Mapped[str] = mapped_column(String(30), unique=True, index=True)
     citizen_id: Mapped[int | None] = mapped_column(ForeignKey("citizens.id"), index=True)
+    jurisdiction_id: Mapped[int | None] = mapped_column(
+        ForeignKey("jurisdictions.id", name="fk_report_jurisdiction"), index=True,
+    )
     title: Mapped[str | None] = mapped_column(String(120))
     category: Mapped[str] = mapped_column(String(30), default="sighting")  # sighting | conflict
     species: Mapped[str] = mapped_column(String(40))
@@ -273,6 +308,8 @@ class Alert(Base):
     acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime)
     public_summary: Mapped[str | None] = mapped_column(Text)
+    public_lat: Mapped[float | None] = mapped_column(Float)
+    public_lon: Mapped[float | None] = mapped_column(Float)
     is_simulated: Mapped[bool] = mapped_column(Boolean, default=True)
 
     detection: Mapped[Detection | None] = relationship(back_populates="alerts")

@@ -10,6 +10,7 @@ from backend.database.session import get_db
 from backend.models import Guard, User
 from backend.schemas.api import LoginRequest
 from backend.services.authority_demo import DEMO_ACCOUNTS, demo_role_for_credentials
+from backend.services.geography import jurisdiction_label, user_jurisdictions
 from backend.services.serializers import serialize_guard
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -23,6 +24,7 @@ def _user_payload(user: User, db: Session) -> dict:
         "email": user.email,
         "role": user.role,
         "badge_id": user.badge_id,
+        "jurisdictions": [jurisdiction_label(item) for item in user_jurisdictions(db, user)],
         "guard": serialize_guard(guard) if guard else None,
     }
 
