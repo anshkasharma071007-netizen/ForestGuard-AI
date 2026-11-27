@@ -38,7 +38,7 @@ brew services start postgresql@17  # only if PostgreSQL is stopped
 DATABASE_URL=postgresql+psycopg:///forest_guard_ai .venv/bin/alembic current
 APP_ENV=development AUTHORITY_DEMO_ACCOUNTS_ENABLED=true CITIZEN_DEV_OTP_ENABLED=true \
   AI_MODE=auto DEMO_MODE=false SEED_ON_START=false \
-  .venv/bin/python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 \
+  .venv/bin/python -m uvicorn backend.main:app --reload --reload-dir backend --host 0.0.0.0 --port 8000 \
   --env-file .forest-guard-local/backend.env
 ```
 
@@ -78,7 +78,16 @@ The core install uses `AI_MODE=demo` and needs no inference weights. For upload 
 
 ### Authority demo sign-in
 
-Set `APP_ENV=development` and `AUTHORITY_DEMO_ACCOUNTS_ENABLED=true` before starting the backend. Startup provisions the Range Officer (`admin@forestguard.ai`, role `admin`) and Forest Guard (`guard@forestguard.ai`, role `guard`). Keep `DEMO_MODE=false` and `SEED_ON_START=false` when working with genuine data. Use loopback for desktop testing or a trusted development LAN when testing a phone.
+From the repository root, start the current backend with authority demos and citizen development OTP enabled. Stop a previous Uvicorn instance on port 8000 first so Vite connects to the current API.
+
+```sh
+APP_ENV=development AUTHORITY_DEMO_ACCOUNTS_ENABLED=true CITIZEN_DEV_OTP_ENABLED=true \
+  AI_MODE=auto DEMO_MODE=false SEED_ON_START=false \
+  .venv/bin/python -m uvicorn backend.main:app --reload --reload-dir backend --host 127.0.0.1 --port 8000 \
+  --env-file .forest-guard-local/backend.env
+```
+
+Startup provisions the Range Officer (`admin@forestguard.ai`, role `admin`) and Forest Guard (`guard@forestguard.ai`, role `guard`). Use `AI_MODE=demo` with the core-only Python install. Open the Vite site and select **Use a demo account**. The buttons remain disabled while the site checks availability or if the request fails. If the page reports that demo accounts are unavailable, check the backend startup log and select **retry** after the backend is ready.
 
 To provision just the authority accounts without starting the API, run from the repository root:
 

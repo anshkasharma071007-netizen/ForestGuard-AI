@@ -48,9 +48,10 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> dict:
 def demo_accounts(request: Request, response: Response) -> dict:
     response.headers["Cache-Control"] = "private, no-store"
     if not config.authority_demo_accounts_allowed():
-        return {}
+        return {"enabled": False, "accounts": {}}
     available_roles = request.app.state.authority_demo_roles
-    return {role: account for role, account in DEMO_ACCOUNTS.items() if role in available_roles}
+    accounts = {role: account for role, account in DEMO_ACCOUNTS.items() if role in available_roles}
+    return {"enabled": True, "accounts": accounts}
 
 
 @router.get("/me")

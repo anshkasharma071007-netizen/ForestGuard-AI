@@ -49,7 +49,7 @@ def test_authority_demo_startup_and_real_login(authority_db, monkeypatch):
         assert db.scalar(select(func.count()).select_from(User)) == 0
     with TestClient(main.app) as client:
         options = client.get("/api/auth/demo-accounts")
-        assert options.json() == ACCOUNTS
+        assert options.json() == {"enabled": True, "accounts": ACCOUNTS}
         assert options.headers["Cache-Control"] == "private, no-store"
         with authority_db() as db:
             for table in Base.metadata.sorted_tables:
@@ -81,7 +81,7 @@ def test_authority_demo_startup_and_real_login(authority_db, monkeypatch):
         for app_env, flag in (("development", False), ("production", True)):
             monkeypatch.setattr(config, "APP_ENV", app_env)
             monkeypatch.setattr(config, "AUTHORITY_DEMO_ACCOUNTS_ENABLED", flag)
-            assert client.get("/api/auth/demo-accounts").json() == {}
+            assert client.get("/api/auth/demo-accounts").json() == {"enabled": False, "accounts": {}}
             for role, account in ACCOUNTS.items():
                 payload = {"email": account["email"], "password": account["password"]}
                 assert client.post("/api/auth/login", json=payload).status_code == 401
@@ -105,7 +105,9 @@ def test_provisioning_preserves_existing_account(authority_db):
         db.add(User(email=email, name="Existing officer", role="admin", password_hash=original_hash))
 
     with TestClient(main.app) as client:
-        assert client.get("/api/auth/demo-accounts").json() == {"guard": ACCOUNTS["guard"]}
+        assert client.get("/api/auth/demo-accounts").json() == {
+            "enabled": True, "accounts": {"guard": ACCOUNTS["guard"]},
+        }
         assert client.post("/api/auth/login", json={"email": email, "password": existing_password}).status_code == 200
         assert client.post("/api/auth/login", json={"email": email, "password": ACCOUNTS["admin"]["password"]}).status_code == 401
     with authority_db() as db:
