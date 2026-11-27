@@ -10,3 +10,4 @@ export const speciesOptions = [
 
 export type CatalogSpecies = { id: string; label: string };
 export const unknownSpecies = { id: 'unidentified', label: 'Unknown' } as const;
+export const otherSpecies = { id: 'other', label: 'Other animal' } as const;

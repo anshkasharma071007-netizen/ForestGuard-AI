@@ -7,6 +7,7 @@ import { useTheme } from '@/theme';
 import { ThemeProvider, useAppTheme } from '@/theme-context';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { CitizenProvider, useCitizen } from '@/citizen-context';
+import { CitizenNotificationsProvider } from '@/citizen-notifications';
 import { Feedback } from '@/components/Feedback';
 import { Screen } from '@/components/Screen';
 
@@ -35,7 +36,8 @@ function AppShell() {
   if (restoreError) return <Screen><Feedback title="Could not restore your session" detail={restoreError} kind="error" retry={retry} /></Screen>;
   return (
     <>
-      <Stack key={profile?.id ?? 'guest'} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+      <CitizenNotificationsProvider key={profile?.id ?? 'guest'}>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
         <Stack.Protected guard={!profile}>
           <Stack.Screen name="onboarding" />
         </Stack.Protected>
@@ -46,11 +48,14 @@ function AppShell() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="report" options={{ presentation: 'modal' }} />
           <Stack.Screen name="report-detail" />
+          <Stack.Screen name="all-reports" />
+          <Stack.Screen name="notifications" />
           <Stack.Screen name="settings" />
           <Stack.Screen name="guidelines" />
         </Stack.Protected>
         <Stack.Screen name="+not-found" />
       </Stack>
+      </CitizenNotificationsProvider>
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </>
   );

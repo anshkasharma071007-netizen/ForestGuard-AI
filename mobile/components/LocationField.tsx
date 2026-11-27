@@ -1,13 +1,12 @@
 import * as Location from 'expo-location';
-import { LocateFixed, MapPin } from 'lucide-react-native';
-import { useState } from 'react';
-import { View } from 'react-native';
-import { SegmentedControl } from '@/components/Controls';
+import { Circle, CircleCheck, LocateFixed, MapPin } from 'lucide-react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SupportingText } from '@/components/Feedback';
 import { TextAction } from '@/components/TextAction';
 import { VillageSelector } from '@/components/VillageSelector';
 import type { LocationInput, Village } from '@/services/api';
-import { spacing } from '@/theme';
+import { radius, sizing, spacing, typeScale, useTheme } from '@/theme';
 
 export type LocationChoice = { type: 'gps'; lat: number; lon: number } | { type: 'village'; village: Village };
 
@@ -16,64 +15,104 @@ export function locationInput(value: LocationChoice): LocationInput {
 }
 
 const options = [
-  { id: 'gps', label: 'Current location', icon: LocateFixed },
-  { id: 'village', label: 'Choose village', icon: MapPin },
+  { id: 'gps', label: 'Current location', icon: LocateFixed, detail: 'Use device GPS' },
+  { id: 'village', label: 'Choose village', icon: MapPin, detail: 'Use the village center' },
 ] as const;
 
 export function LocationField({ label, value, onChange, disabled, onLocating }: {
   label: string; value: LocationChoice | null; onChange: (value: LocationChoice | null) => void;
   disabled?: boolean; onLocating: (locating: boolean) => void;
 }) {
+  const { colors } = useTheme();
   const [method, setMethod] = useState<LocationChoice['type'] | null>(value?.type ?? null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const generation = useRef(0);
+
+  useEffect(() => () => { generation.current += 1; }, []);
 
   async function capture() {
+    const request = ++generation.current;
+    const current = () => request === generation.current;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    onChange(null);
     setError('');
     setBusy(true);
     onLocating(true);
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
+      if (!current()) return;
       if (!permission.granted) {
         setError('Location permission was denied. You can choose a village.');
         return;
       }
       if (!(await Location.hasServicesEnabledAsync())) throw new Error('Location services disabled.');
+      if (!current()) return;
       const { coords } = await Promise.race([
         Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
         new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('Location timed out.')), 12000); }),
       ]);
-      onChange({ type: 'gps', lat: coords.latitude, lon: coords.longitude });
+      if (current()) onChange({ type: 'gps', lat: coords.latitude, lon: coords.longitude });
     } catch {
-      setError('Location could not be captured. Try again or choose a village.');
+      if (current()) setError('Location could not be captured. Try again or choose a village.');
     } finally {
       clearTimeout(timer);
+      if (current()) {
+        setBusy(false);
+        onLocating(false);
+      }
+    }
+  }
+
+  function select(next: LocationChoice['type']) {
+    if (method === next) return;
+    generation.current += 1;
+    setMethod(next);
+    setError('');
+    onChange(null);
+    if (next === 'gps') void capture();
+    else {
       setBusy(false);
       onLocating(false);
     }
   }
 
   return (
-    <View style={{ gap: spacing.xs }}>
-      <SegmentedControl label={label} options={options} value={method} disabled={disabled || busy} onChange={(next) => {
-        if (method === next) return;
-        setMethod(next);
-        setError('');
-        onChange(null);
-        if (next === 'gps') void capture();
-      }} />
-      {method === 'gps' && (
-        <>
-          {value?.type === 'gps' && <SupportingText>GPS location selected</SupportingText>}
-          <TextAction label={busy ? 'Finding location…' : value?.type === 'gps' ? 'Capture again' : 'Retry location'}
-            onPress={() => void capture()} loading={busy} disabled={disabled || busy} />
-          {!!error && <SupportingText error>{error}</SupportingText>}
-        </>
-      )}
-      {method === 'village' && <VillageSelector startOpen={!value} label={label}
-        selected={value?.type === 'village' ? value.village : null} disabled={disabled}
-        onSelect={(village) => onChange({ type: 'village', village })} />}
+    <View accessibilityRole="radiogroup" accessibilityLabel={label} style={{ gap: spacing.sm }}>
+      {options.map(({ id, label: name, icon: Icon, detail }) => {
+        const selected = id === method;
+        const Mark = selected ? CircleCheck : Circle;
+        return <View key={id} style={[styles.option, { backgroundColor: selected ? colors.successTint : colors.card,
+          borderColor: selected ? colors.focus : colors.border }]}>
+          <Pressable accessibilityRole="radio" accessibilityLabel={name} aria-checked={selected}
+            accessibilityState={{ checked: selected, disabled }} disabled={disabled}
+            onPress={() => select(id)} style={styles.radio}>
+            <Icon size={20} color={selected ? colors.accent : colors.secondaryText} />
+            <View style={styles.details}>
+              <Text style={[typeScale.card, { color: colors.primaryText }]}>{name}</Text>
+              <SupportingText>{detail}</SupportingText>
+            </View>
+            <Mark size={18} color={selected ? colors.accent : colors.mutedText} />
+          </Pressable>
+          {selected && <View style={[styles.content, { borderTopColor: colors.border }]}>
+            {id === 'village' ? <VillageSelector label="Incident village" startOpen={!value}
+              selected={value?.type === 'village' ? value.village : null} disabled={disabled}
+              onSelect={(village) => onChange({ type: 'village', village })} /> : <>
+              {value?.type === 'gps' && <SupportingText>GPS location selected</SupportingText>}
+              <TextAction label={busy ? 'Finding location…' : value?.type === 'gps' ? 'Capture again' : 'Retry location'}
+                onPress={() => void capture()} loading={busy} disabled={disabled || busy} />
+              {!!error && <SupportingText error>{error}</SupportingText>}
+            </>}
+          </View>}
+        </View>;
+      })}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  option: { borderWidth: 1, borderRadius: radius.input },
+  radio: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: sizing.touch, padding: spacing.md },
+  details: { flex: 1, gap: spacing.xs },
+  content: { gap: spacing.xs, borderTopWidth: 1, padding: spacing.md },
+});

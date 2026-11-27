@@ -49,10 +49,14 @@ export type CitizenAccess = {
   expire: () => void;
 };
 export type CitizenReport = ReportIdentity & { title: string; createdAt: string; village?: string };
+export type CitizenNotification = {
+  id: string; event: string; code: string; reportTitle?: string; createdAt: string; readAt?: string;
+};
 export type Advisory = {
   id: number;
   severity: string;
   speciesName: string;
+  title?: string;
   area: string;
   villageNames: string[];
   villageIds: number[];
@@ -98,6 +102,7 @@ export async function getPublicAlerts(signal?: AbortSignal, villageId?: number):
         id,
         severity: requiredText(severity),
         speciesName: requiredText(species_name),
+        title: optionalText(item.alert_title),
         area: requiredText(area_label),
         villageNames: textList(village_names),
         villageIds: Array.isArray(item.village_ids) ? item.village_ids.filter(Number.isInteger) : [],
@@ -179,7 +184,29 @@ export async function getCitizenReport(access: CitizenAccess, code: string, sign
   return { ...parseCitizenReport(record), category: requiredText(record.category), description: optionalText(record.description),
     species: requiredText(record.species_name), coordinates: coordinates(record),
     rejectionReason: optionalText(record.rejection_reason), confirmedSpecies: optionalText(record.confirmed_species_name),
+    locationSource: optionalText(record.location_source), risk: optionalText(record.risk_level),
+    reviewNote: optionalText(record.review_note), resolutionNote: optionalText(record.resolution_note),
+    events: list(record.events ?? []).flatMap((item) => {
+      const at = optionalDate(item.at);
+      return at && typeof item.event === 'string' ? [{ event: item.event, at }] : [];
+    }),
     hasPhoto: record.has_photo === true, analysis: requiredText(record.analysis_status), suggestions: textList(record.suggested_species) };
+}
+
+export async function getCitizenNotifications(access: CitizenAccess, signal?: AbortSignal) {
+  const { items, unread } = await citizenRequest(access, '/notifications', { signal });
+  if (typeof unread !== 'number' || !Number.isInteger(unread) || unread < 0) throw invalidResponse();
+  return { unread, items: list(items).map((item): CitizenNotification => {
+    const createdAt = optionalDate(item.created_at);
+    if (!createdAt) throw invalidResponse();
+    return { id: requiredText(item.id), event: requiredText(item.event), code: requiredText(item.reference_code),
+      reportTitle: optionalText(item.report_title), createdAt, readAt: optionalDate(item.read_at) };
+  }) };
+}
+
+export async function markCitizenNotificationsRead(access: CitizenAccess, id?: string) {
+  const path = id ? `/notifications/${encodeURIComponent(id)}/read` : '/notifications/read-all';
+  return citizenRequest(access, path, { method: 'POST' });
 }
 
 function citizenHeaders(access: CitizenAccess) {

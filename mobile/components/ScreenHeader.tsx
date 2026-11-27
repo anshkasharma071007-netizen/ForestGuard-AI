@@ -1,10 +1,13 @@
 import { router } from 'expo-router';
+import type { ReactNode } from 'react';
 import { ArrowLeft, Settings } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BrandMark } from './BrandMark';
 import { sizing, spacing, typeScale, useTheme } from '../theme';
 
-export function ScreenHeader({ title, back = false, onBack, settings = false }: { title?: string; back?: boolean; onBack?: () => void; settings?: boolean }) {
+export function ScreenHeader({ title, back = false, onBack, settings = false, action }: {
+  title?: string; back?: boolean; onBack?: () => void; settings?: boolean; action?: ReactNode;
+}) {
   const { colors } = useTheme();
 
   return (
@@ -16,6 +19,7 @@ export function ScreenHeader({ title, back = false, onBack, settings = false }: 
         </Pressable>
       )}
       {title ? <Text accessibilityRole="header" style={[styles.title, { color: colors.primaryText }]}>{title}</Text> : <BrandMark />}
+      {action && <View style={styles.settings}>{action}</View>}
       {settings && (
         <Pressable accessibilityRole="button" accessibilityLabel="Settings" style={[styles.control, styles.settings]}
           onPress={() => router.push('/settings')}>

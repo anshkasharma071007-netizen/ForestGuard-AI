@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Resource } from '@/hooks/usePublicData';
 import type { PublicAdvisories } from '@/services/api';
 import { radius, spacing, typeScale, useTheme } from '@/theme';
-import { Feedback, StatusPill, SupportingText } from './Feedback';
+import { Feedback, SupportingText } from './Feedback';
 
 export function AdvisoryList({ state, retry }: {
   state: Resource<PublicAdvisories>; retry: () => void;
@@ -16,23 +16,24 @@ export function AdvisoryList({ state, retry }: {
   if (state.kind !== 'ready') return null;
 
   const { items } = state.data;
-  if (items.length === 0) return <Feedback title="No nearby verified alerts" />;
+  if (items.length === 0) return <Feedback title="No nearby alerts" />;
 
   return (
     <View style={styles.list}>
       {items.map((item) => (
         <Pressable key={item.id} accessibilityRole="button" accessibilityState={{ expanded: expanded === item.id }}
           onPress={() => setExpanded(expanded === item.id ? undefined : item.id)}
-          style={[styles.advisory, { backgroundColor: colors.card }]}>
+          style={[styles.advisory, { backgroundColor: colors.card, borderColor: colors.border,
+            borderLeftColor: item.severity === 'high' ? colors.clay : item.severity === 'moderate' ? colors.amber : colors.moss }]}>
           <View style={styles.meta}>
-            <StatusPill label={`${capitalize(item.severity)} risk`} tone={severityTone(item.severity)} />
-            <SupportingText>{new Date(item.publishedAt).toLocaleString()}</SupportingText>
+            <Text accessibilityRole="header" style={[typeScale.card, { color: colors.primaryText, flexShrink: 1 }]}>{item.title ?? item.speciesName}</Text>
+            <Text style={[typeScale.supporting, { color: item.severity === 'high' ? colors.clay : item.severity === 'moderate' ? colors.warningText : colors.successText }]}>
+              {capitalize(item.severity)} risk
+            </Text>
           </View>
-          <Text accessibilityRole="header" style={[typeScale.card, { color: colors.primaryText }]}>{item.speciesName}</Text>
-          <SupportingText>{[item.area, ...item.villageNames.filter((name) => name !== item.area)].join(' · ')}</SupportingText>
-          {item.distanceKm !== undefined && <SupportingText>
-            {item.distanceKm < 1 ? 'Less than 1 km away' : `About ${Math.round(item.distanceKm)} km away`}
-          </SupportingText>}
+          <SupportingText>{[item.area, item.distanceKm === undefined ? undefined
+            : item.distanceKm < 1 ? 'Less than 1 km away' : `About ${item.distanceKm.toFixed(1)} km away`].filter(Boolean).join(' · ')}</SupportingText>
+          <SupportingText>{new Date(item.publishedAt).toLocaleString()}</SupportingText>
           {expanded === item.id && item.summary && <Text style={[typeScale.body, { color: colors.primaryText }]}>{item.summary}</Text>}
           {expanded === item.id && item.advice && <Text style={[typeScale.body, { color: colors.secondaryText }]}>{item.advice}</Text>}
         </Pressable>
@@ -41,19 +42,12 @@ export function AdvisoryList({ state, retry }: {
   );
 }
 
-function severityTone(severity: string) {
-  if (severity === 'high') return 'danger';
-  if (severity === 'moderate') return 'warning';
-  if (severity === 'low') return 'success';
-  return 'neutral';
-}
-
 function capitalize(text: string) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 const styles = StyleSheet.create({
   list: { gap: spacing.md },
-  meta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm },
-  advisory: { gap: spacing.sm, padding: spacing.md, borderRadius: radius.card },
+  meta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: spacing.sm },
+  advisory: { gap: spacing.xs, padding: spacing.md, borderRadius: radius.input, borderWidth: 1, borderLeftWidth: 3 },
 });

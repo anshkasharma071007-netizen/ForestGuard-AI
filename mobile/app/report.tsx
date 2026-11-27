@@ -3,26 +3,27 @@ import * as ImagePicker from 'expo-image-picker';
 import { Camera, ImageIcon, PawPrint, TriangleAlert } from 'lucide-react-native';
 import { File } from 'expo-file-system';
 import { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { InputField, SegmentedControl } from '@/components/Controls';
 import { Feedback, SupportingText } from '@/components/Feedback';
-import { EvidenceImage } from '@/components/EvidenceImage';
+import { PhotoPreview } from '@/components/PhotoPreview';
+import { ReferenceCode } from '@/components/ReferenceCode';
 import { IdentificationResult } from '@/components/IdentificationResult';
 import { ReportStatusPill } from '@/components/ReportRow';
 import { PhotoViewer } from '@/components/PhotoViewer';
 import { SectionTitle } from '@/components/SectionTitle';
-import { SpeciesSelector, type SpeciesSelection } from '@/components/SpeciesSelector';
+import { SpeciesSelector } from '@/components/SpeciesSelector';
 import { PrimaryButton, SecondaryButton } from '@/components/PrimaryButton';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { TextAction } from '@/components/TextAction';
 import { LocationField, locationInput, type LocationChoice } from '@/components/LocationField';
 import { useCitizen } from '@/citizen-context';
-import { speciesOptions, unknownSpecies, type CatalogSpecies } from '@/data';
+import { otherSpecies, speciesOptions, unknownSpecies, type CatalogSpecies } from '@/data';
 import type { IdentificationState } from '@/identification';
 import { ApiError, getCommunityGuidance, isApiConfigured, submitCitizenReport, type ReportSubmissionResponse } from '@/services/api';
 import { submissionKey, finishSubmission } from '@/services/report-storage';
-import { radius, spacing, typography, typeScale, useTheme } from '@/theme';
+import { radius, spacing, useTheme } from '@/theme';
 
 const categories = [
   { id: 'sighting', label: 'Sighting', icon: PawPrint },
@@ -34,11 +35,11 @@ type Attachment = { original: PhotoAsset; analysis: IdentificationState };
 const descriptionLimit = 4000;
 
 export default function ReportScreen() {
-  const { colors } = useTheme();
   const { access, profile } = useCitizen();
   const [category, setCategory] = useState<Category | null>(null);
   const [title, setTitle] = useState('');
-  const [species, setSpecies] = useState<SpeciesSelection>({ species: unknownSpecies });
+  const [species, setSpecies] = useState<CatalogSpecies>(unknownSpecies);
+  const [otherName, setOtherName] = useState('');
   const [catalog, setCatalog] = useState<readonly CatalogSpecies[]>(speciesOptions);
   const [attachment, setAttachment] = useState<Attachment | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -56,8 +57,8 @@ export default function ReportScreen() {
   const analysis = attachment?.analysis ?? { kind: 'idle' };
   const result = 'result' in analysis ? analysis.result : undefined;
   const activeAnimal = result?.animals.find((animal) => animal.id === animalId) ?? result?.animals[0];
-  const speciesNote = species.customName ? `Reported species name: ${species.customName}` : '';
-  const descriptionBudget = descriptionLimit - (speciesNote ? speciesNote.length + 2 : 0);
+  const animalNote = species.id === otherSpecies.id && otherName.trim() ? `Reported animal: ${otherName.trim()}` : '';
+  const descriptionBudget = descriptionLimit - (animalNote ? animalNote.length + 2 : 0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -106,11 +107,11 @@ export default function ReportScreen() {
     if (!title.trim()) { setError('Enter a report title.'); return; }
     if (!category) { setError('Choose an incident category.'); return; }
     if (description.trim().length > descriptionBudget) {
-      setError(`Shorten the description to ${descriptionBudget.toLocaleString()} characters to fit the species name.`);
+      setError(`Shorten the description to ${descriptionBudget.toLocaleString()} characters to fit the animal name.`);
       return;
     }
-    if (species.species.id !== unknownSpecies.id && !catalog.some(({ id }) => id === species.species.id)) {
-      setError('The species catalog changed. Choose a species from the current list.');
+    if (![unknownSpecies.id, otherSpecies.id].some((id) => id === species.id) && !catalog.some(({ id }) => id === species.id)) {
+      setError('The animal list changed. Choose an animal from the current list.');
       return;
     }
     if (!isApiConfigured) { setError('Set EXPO_PUBLIC_API_URL to the Forest Guard API address and reopen the app.'); return; }
@@ -125,14 +126,14 @@ export default function ReportScreen() {
     submissionInProgress.current = true;
     setSubmitting(true);
     try {
-      const draft = JSON.stringify([title.trim(), category, species.species.id, speciesNote, description.trim(),
+      const draft = JSON.stringify([title.trim(), category, species.id, animalNote, description.trim(),
         draftLocation, photo?.assetId, photo?.fileName, photo?.fileSize,
         photo?.file?.lastModified, photo?.assetId || photo?.fileName ? undefined : photo?.uri]);
       const formData = new FormData();
       formData.append('title', title.trim());
       formData.append('category', category);
-      formData.append('species', species.species.id);
-      formData.append('description', [description.trim(), speciesNote].filter(Boolean).join('\n\n'));
+      formData.append('species', species.id);
+      formData.append('description', [description.trim(), animalNote].filter(Boolean).join('\n\n'));
       for (const [key, value] of Object.entries(incidentLocation)) formData.append(key, String(value));
       if (photo) await appendPhoto(formData, photo);
 
@@ -162,32 +163,27 @@ export default function ReportScreen() {
       <ScreenHeader title="New report" back />
       <View style={styles.form}>
         <InputField label="Title (required)" value={title} onChangeText={setTitle} editable={!submitting} maxLength={120} />
-        <InputField label="Description (optional)" value={description} onChangeText={setDescription} editable={!submitting}
-          multiline maxLength={descriptionBudget} placeholder="Describe what you saw" hint={speciesNote || undefined} />
         <View style={styles.field}>
           <SectionTitle title="Incident category (required)" />
           <SegmentedControl label="Incident category" options={categories} value={category} onChange={setCategory} disabled={submitting} />
         </View>
         <View style={styles.field}>
-          <SectionTitle title="Species" />
+          <SectionTitle title="Animal" />
           <SpeciesSelector catalog={catalog} selection={species} prediction={activeAnimal} disabled={submitting} onSelect={setSpecies} />
+          {species.id === otherSpecies.id && <InputField label="Animal name (optional)" value={otherName}
+            onChangeText={setOtherName} editable={!submitting} maxLength={80} />}
         </View>
+        <InputField label="Description (optional)" value={description} onChangeText={setDescription} editable={!submitting}
+          multiline maxLength={descriptionBudget} placeholder="Describe what you saw" />
         <View style={styles.field}>
           <SectionTitle title="Incident location (required)" />
           <LocationField label="Incident location" value={location} onChange={setLocation} onLocating={setLocating} disabled={submitting} />
         </View>
         <View style={styles.field}>
-          <SectionTitle title={photo ? 'Photo attached' : 'Add photo'} />
+          <SectionTitle title="Photograph" />
           <SupportingText>Optional. Never approach wildlife for a photo.</SupportingText>
-          {photo && (
-            <Pressable accessibilityRole="button" accessibilityLabel="View original incident photo"
-              onPress={() => setViewerOpen(true)} style={({ pressed }) => [styles.previewWrap, { opacity: pressed ? 0.84 : 1 }]}>
-              <EvidenceImage photo={photo} style={[styles.preview, {
-                aspectRatio: photo.width > 0 && photo.height > 0 ? photo.width / photo.height : 4 / 3,
-              }]} overlay={result ? { ...result, activeId: activeAnimal?.id } : undefined} />
-              <Text style={{ ...typeScale.action, color: colors.accent }}>View full photo</Text>
-            </Pressable>
-          )}
+          {photo && <PhotoPreview photo={photo} onExpand={() => setViewerOpen(true)}
+            overlay={result ? { ...result, activeId: activeAnimal?.id } : undefined} />}
           <View style={styles.actions}>
             {Platform.OS !== 'web' && <View style={styles.action}>
               <SecondaryButton icon={Camera} label={photo ? 'Retake photo' : 'Camera'}
@@ -243,20 +239,18 @@ function Confirmation({ response }: { response: ReportSubmissionResponse }) {
   const { colors } = useTheme();
   return (
     <Screen>
-      <ScreenHeader title="Report received" back />
+      <ScreenHeader title="Report submitted" onBack={() => router.dismissTo('/')} />
       <View style={styles.form}>
-        <Text style={{ ...typeScale.body, color: colors.primaryText }}>
-          {response.message || 'Forest officials can now review your report.'}
-        </Text>
         <View style={[styles.reminder, { backgroundColor: colors.card, gap: spacing.sm }]}>
           <SectionTitle title="Reference code" />
-          <Text selectable style={{ color: colors.primaryText, fontFamily: typography.mono, fontSize: 21 }}>{response.reference_code}</Text>
+          <ReferenceCode code={response.reference_code} />
           <ReportStatusPill status={response.status} />
         </View>
         <PrimaryButton label="View report" onPress={() => router.replace({
           pathname: '/report-detail', params: { code: response.reference_code },
         })} />
-        <TextAction label="Return to Home" onPress={() => router.dismissTo('/')} />
+        <TextAction label="Back to home" onPress={() => router.dismissTo('/')} />
+        <SupportingText>Immediate danger? Call 112 or the forest helpline (1926).</SupportingText>
       </View>
     </Screen>
   );
@@ -268,6 +262,4 @@ const styles = StyleSheet.create({
   reminder: { borderRadius: radius.input, padding: spacing.md },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   action: { flexGrow: 1, flexBasis: '40%' },
-  previewWrap: { gap: spacing.xs },
-  preview: { width: '100%', minHeight: 96, maxHeight: 280, borderRadius: radius.input },
 });

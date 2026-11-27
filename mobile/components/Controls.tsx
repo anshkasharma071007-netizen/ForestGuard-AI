@@ -84,13 +84,15 @@ export function NavigationRow({ label, icon: Icon, onPress, disabled = false }: 
   );
 }
 
-export function SelectionRow({ label, detail, selected = false, disabled = false, onPress }: {
-  label: string; detail?: string; selected?: boolean; disabled?: boolean; onPress: () => void;
+export function SelectionRow({ label, detail, icon: Icon, surface = false, selected = false, disabled = false, onPress }: {
+  label: string; detail?: string; icon?: LucideIcon; surface?: boolean; selected?: boolean; disabled?: boolean; onPress: () => void;
 }) {
   const { colors } = useTheme();
   return (
     <Pressable accessibilityRole="radio" aria-checked={selected} accessibilityState={{ checked: selected, disabled }} disabled={disabled} onPress={onPress}
-      style={({ pressed }) => [styles.nav, { borderColor: colors.border, backgroundColor: pressed || selected ? colors.successTint : undefined }]}>
+      style={({ pressed }) => [styles.nav, surface && styles.selectionSurface, { borderColor: selected && surface ? colors.focus : colors.border,
+        backgroundColor: pressed || selected ? colors.successTint : surface ? colors.card : undefined }]}>
+      {Icon && <Icon size={18} color={colors.accent} />}
       <View style={styles.flex}>
         <Text style={[typeScale.body, { color: colors.primaryText }]}>{label}</Text>
         {detail && <Text style={[typeScale.supporting, { color: colors.secondaryText }]}>{detail}</Text>}
@@ -117,4 +119,5 @@ const styles = StyleSheet.create({
   segmentHorizontal: { flex: 1, minWidth: 0 },
   segmentText: { flexShrink: 1, textAlign: 'center' },
   nav: { minHeight: sizing.touch, borderBottomWidth: 1, flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm, paddingHorizontal: spacing.sm, gap: spacing.sm },
+  selectionSurface: { borderWidth: 1, borderRadius: radius.input, paddingHorizontal: spacing.md },
 });
