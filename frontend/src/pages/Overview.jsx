@@ -1,61 +1,69 @@
-import { CheckCircle2, ClipboardList, ShieldAlert, Siren } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { EmptyState, ErrorBox, Loading, PageHeader, RiskBadge, SectionTitle, StatCard } from '../components/ui'
+import { ErrorBox, Loading, RiskBadge } from '../components/ui'
+import RefreshButton from '../components/RefreshButton'
 import { useApi } from '../hooks/useApi'
-import { formatDateTime, titleCase } from '../utils/format'
+import { formatDateTime } from '../utils/format'
 
 const metrics = [
-  ['pending', 'Pending reports', ClipboardList, '/reports?status=pending', 'amber'],
-  ['active', 'Active incidents', Siren, '/alerts', 'forest'],
-  ['high', 'High-risk active incidents', ShieldAlert, '/alerts?risk=high', 'clay'],
-  ['resolved', 'Resolved incidents', CheckCircle2, '/alerts?status=resolved', 'slate'],
+  ['pending', 'Pending reports', '/reports?status=pending'],
+  ['active', 'Active incidents', '/alerts'],
+  ['high', 'High risk', '/alerts?risk=high'],
+  ['resolved', 'Resolved', '/alerts?status=resolved'],
 ]
 
+function DashboardList({ title, items, link, empty, children }) {
+  return <section className="operations-panel px-4 py-3.5">
+    <header className="flex items-center justify-between gap-3 border-b border-line-5 pb-3">
+      <h2 className="font-semibold text-ink">{title}</h2>
+      <Link className="operations-link" to={link} aria-label={`View all ${title.toLowerCase()}`}>View all</Link>
+    </header>
+    {items.length ? <ul className="mt-1 divide-y divide-line-6">{items.map(children)}</ul>
+      : <p className="py-3 text-sm text-muted-3">{empty}</p>}
+  </section>
+}
+
 export default function Overview() {
-  const { data, loading, error, reload } = useApi('/api/operations/dashboard', { interval: 6000 })
+  const { data, loading, error, reload, updatedAt } = useApi('/api/operations/dashboard', { interval: 6000 })
   return <>
-    <PageHeader title="Dashboard" actions={<Link className="btn-outline" to="/map">Open incident map</Link>} />
+    <header className="operations-heading">
+      <h1>Dashboard</h1>
+      <div className="flex flex-wrap items-center gap-3">
+        {updatedAt && <time className="text-xs text-muted-3" dateTime={updatedAt}>Updated {formatDateTime(updatedAt)}</time>}
+        <RefreshButton onClick={reload} loading={loading} label="Refresh dashboard" />
+      </div>
+    </header>
     {error && <ErrorBox message={error} onRetry={reload} />}
-    {!data && loading && <Loading />}
-    {data && <div className="space-y-5">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {metrics.map(([key, label, icon, link, tone]) => <Link key={key} to={link}>
-          <StatCard label={label} icon={icon} value={data.summary[key]} tone={tone} />
+    {!data && loading && <Loading label="Loading dashboard…" height="h-32" />}
+    {data && <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        {metrics.map(([key, label, link]) => <Link className="operations-panel block px-3 py-3 hover:bg-raised sm:px-4" key={key} to={link}>
+          <span className="block text-sm text-secondary-9">{label}</span>
+          <strong className={`mt-1 block text-[28px] font-semibold leading-tight tabular-nums ${key === 'high' && data.summary[key] ? 'text-danger-2' : 'text-ink'}`}>
+            {data.summary[key]}
+          </strong>
         </Link>)}
       </div>
-      <div className="grid gap-5 lg:grid-cols-2">
-        <section className="card p-5">
-          <SectionTitle title="Pending review" action={<Link className="btn-outline" to="/reports?status=pending">Open queue</Link>} />
-          {!data.pending.length && <EmptyState title="No reports awaiting review" />}
-          <ul className="mt-3 divide-y divide-line-6">{data.pending.map((report) =>
-            <li key={report.id} className="py-3">
-              <Link className="font-semibold text-ink hover:underline" to={`/reports?report=${report.id}`}>{report.title}</Link>
-              <div className="text-xs text-muted-3">{[titleCase(report.category), report.village_name, formatDateTime(report.created_at)].filter(Boolean).join(' · ')}</div>
-            </li>)}</ul>
-        </section>
-        <section className="card p-5">
-          <SectionTitle title="Active alerts" action={<Link className="btn-outline" to="/alerts">Open alerts</Link>} />
-          {!data.alerts.length && <EmptyState title="No active incident alerts" />}
-          <ul className="mt-3 divide-y divide-line-6">{data.alerts.map((incident) =>
-            <li key={incident.id} className="flex items-center justify-between gap-3 py-3">
-              <div><Link className="font-semibold text-ink hover:underline" to={`/alerts?incident=${incident.id}`}>{incident.title}</Link>
-                <div className="text-xs text-muted-3">{incident.species_name} · {incident.village_name || 'GPS location'}</div></div>
-              <RiskBadge level={incident.severity} />
-            </li>)}</ul>
-        </section>
-      </div>
-      <section className="card p-5">
-        <SectionTitle title="Recent activity" />
-        {!data.activity.length && <EmptyState title="No citizen report activity" />}
-        <ul className="mt-3 divide-y divide-line-6">{data.activity.map((event) =>
-          <li key={`${event.id}-${event.kind}`} className="flex flex-wrap items-center justify-between gap-2 py-3">
-            <Link className="text-sm font-medium text-ink hover:underline"
-              to={event.incident_id ? `/alerts?status=resolved&incident=${event.incident_id}` : `/reports?report=${event.id}`}>
-              {event.title}
-            </Link>
-            <span className="text-xs text-muted-3">{event.kind} · {formatDateTime(event.at)}</span>
-          </li>)}</ul>
-      </section>
+      <DashboardList title="Pending reports" items={data.pending} link="/reports?status=pending" empty="No pending reports">
+        {report => <li key={report.id}>
+          <Link className="operations-item" to={`/reports?report=${report.id}`}>
+            <span className="operations-item-title"><strong>{report.title}</strong>
+              <span className="block text-muted-3">{report.village_name || 'GPS location'}</span></span>
+            <time dateTime={report.created_at} className="text-xs text-muted-3">{formatDateTime(report.created_at)}</time>
+            <ChevronRight size={16} aria-hidden="true" />
+          </Link>
+        </li>}
+      </DashboardList>
+      <DashboardList title="Active incidents" items={data.alerts} link="/alerts" empty="No active incidents">
+        {incident => <li key={incident.id}>
+          <Link className="operations-item" to={`/alerts?incident=${incident.id}`}>
+            <span className="operations-item-title"><strong>{incident.title}</strong>
+              <span className="block text-muted-3">{incident.village_name || 'GPS location'}</span></span>
+            <RiskBadge level={incident.severity} />
+            <ChevronRight size={16} aria-hidden="true" />
+          </Link>
+        </li>}
+      </DashboardList>
     </div>}
   </>
 }

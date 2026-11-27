@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   BellRing,
   CheckCircle2,
@@ -45,6 +46,7 @@ const WORKFLOW = [
 ]
 
 export default function RiskAlerts() {
+  const [params, setParams] = useSearchParams()
   const { data, loading, error, reload } = useApi('/api/alerts?days=45&limit=200', { interval: 6000 })
   const zones = useApi('/api/risk/zones?days=21')
   const guards = useApi('/api/guards')
@@ -57,8 +59,10 @@ export default function RiskAlerts() {
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState(null)
 
-  const detail = useApi(selectedAlert ? `/api/alerts/${selectedAlert.id}` : null, {
-    enabled: Boolean(selectedAlert),
+  const linkedId = Number(params.get('alert'))
+  const selectedId = selectedAlert?.id ?? (Number.isSafeInteger(linkedId) && linkedId > 0 ? linkedId : null)
+  const detail = useApi(selectedId ? `/api/alerts/${selectedId}` : null, {
+    enabled: Boolean(selectedId),
     interval: 6000,
   })
 
@@ -77,8 +81,7 @@ export default function RiskAlerts() {
   const highCount = items.filter((alert) => openStatuses.includes(alert.status) && alert.severity === 'high').length
   const zoneSummary = zones.data?.summary
   const exposure = zones.data?.villages || []
-  const detailRecord =
-    detail.data?.alert && detail.data.alert.id === selectedAlert?.id ? detail.data.alert : null
+  const detailRecord = detail.data?.alert?.id === selectedId ? detail.data.alert : null
   const detailAlert = detailRecord || selectedAlert
 
   const openDetail = (alert) => {
@@ -89,11 +92,11 @@ export default function RiskAlerts() {
   }
 
   const act = async (action, payload = {}) => {
-    if (!selectedAlert) return
+    if (!selectedId || busy) return
     setBusy(true)
     setActionError(null)
     try {
-      await api.post(`/api/alerts/${selectedAlert.id}/${action}`, { note: note || undefined, ...payload })
+      await api.post(`/api/alerts/${selectedId}/${action}`, { note: note || undefined, ...payload })
       await detail.reload()
       await reload()
       setNote('')
@@ -227,7 +230,7 @@ export default function RiskAlerts() {
                 <div className="text-right text-[9px] text-muted-9">
                   {village.detections_14d} signals
                   <br />
-                  {village.top_species ? titleCase(village.top_species) : 'no dominant species'}
+                  {village.top_species ? titleCase(village.top_species) : 'No dominant animal'}
                 </div>
               </div>
             </div>
@@ -332,8 +335,11 @@ export default function RiskAlerts() {
       </section>
 
       <Modal
-        open={Boolean(selectedAlert)}
-        onClose={() => setSelectedAlert(null)}
+        open={Boolean(selectedId)}
+        onClose={() => {
+          setSelectedAlert(null)
+          if (params.has('alert')) setParams(previous => { const next = new URLSearchParams(previous); next.delete('alert'); return next })
+        }}
         title={detailAlert ? `${detailAlert.species_name} alert` : 'Alert'}
         subtitle={detailAlert ? `Alert #${detailAlert.id} · ${detailAlert.severity} priority · ${formatDateTime(detailAlert.created_at)}` : ''}
         width="max-w-3xl"
@@ -360,7 +366,9 @@ export default function RiskAlerts() {
           )
         }
       >
-        {selectedAlert && (
+        {!detailAlert && detail.loading && <Loading label="Loading alert…" height="h-24" />}
+        {!detailAlert && detail.error && <ErrorBox message={detail.error} onRetry={detail.reload} />}
+        {detailAlert && (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
               <SpeciesTag species={detailAlert.species} name={detailAlert.species_name} color={detailAlert.color} />

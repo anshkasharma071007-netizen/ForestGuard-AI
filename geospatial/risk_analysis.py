@@ -251,7 +251,7 @@ def score_detection(
     labels = {
         "proximity": ("Distance to nearest village", f"{distance_km:.1f} km" if distance_km is not None else "Unavailable"),
         "recency": ("Recency of detection", f"{age_days:.1f} days ago"),
-        "frequency": ("Recent same-species activity", f"{freq} detections / 7 days"),
+        "frequency": ("Recent activity for this animal class", f"{freq} detections / 7 days"),
         "incident": ("Verified incidents nearby", f"{incident_count} incidents / 30 days"),
         "movement": ("Inferred movement toward village", "camera sequence" if movement else "not established"),
     }
@@ -290,7 +290,7 @@ def score_detection(
     if village:
         reason = (
             f"{meta['name']} detected {distance_km:.1f} km from {village.get('name') or 'the nearest village'}. "
-            f"{freq} same-species detections nearby in the previous 7 days; "
+            f"{freq} detections of this animal class nearby in the previous 7 days; "
             f"{incident_count} verified incidents in the previous 30 days."
         )
         if movement:

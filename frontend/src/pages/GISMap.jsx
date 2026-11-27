@@ -149,7 +149,7 @@ export default function GISMapPage() {
 
       <div className="card flex flex-wrap items-center gap-3 px-4 py-3">
         <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-9">
-          <Filter className="h-3.5 w-3.5" /> Species
+          <Filter className="h-3.5 w-3.5" /> Animal
         </div>
         <div className="flex flex-wrap gap-1.5">
           {SPECIES.map(([key, label]) => {
@@ -376,7 +376,7 @@ export default function GISMapPage() {
               <div className="mt-3 grid grid-cols-2 gap-2">
                 {[
                   ['Confidence', confidencePercent(detailDetection?.confidence)],
-                  ['Species conf.', confidencePercent(detailDetection?.species_confidence)],
+                  ['AI confidence', confidencePercent(detailDetection?.species_confidence)],
                   ['Station', detailDetection?.camera_code || 'Uploaded'],
                   ['Observed', formatDateTime(detailDetection?.detected_at)],
                   ['Nearest village', detailDetection?.nearest_village || 'Unavailable'],

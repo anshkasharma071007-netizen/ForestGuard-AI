@@ -1,6 +1,6 @@
 # Forest Guard AI
 
-Phase 2 continues on `codex/authority-incident-lifecycle` from Phase 1 commit `56c24c0`. The incident-reporting branch merged into `main` at `6f8e109` and citizen onboarding was added in `93a6c58`. Preserve branding, working features, records and Alembic history. Keep secrets, machine-specific addresses, databases, model weights and uploaded evidence in ignored local files. Keep operational data genuine. Use the explicit, labeled demo dataset only when needed and only in an empty database.
+Product refinement continues on `codex/product-refinement` from `codex/authority-incident-lifecycle` commit `63fe0dc`. Preserve branding, working features, records and Alembic history. Keep secrets, machine-specific addresses, databases, model weights and uploaded evidence in ignored local files. Keep operational data genuine. Use the explicit, labeled demo dataset only when needed and only in an empty database.
 
 ## Architecture and development
 
@@ -25,6 +25,15 @@ The village registry in PostgreSQL is shared by citizen onboarding, profile and 
 
 Authority demo login is available with `APP_ENV=development AUTHORITY_DEMO_ACCOUNTS_ENABLED=true`. Startup or `.venv/bin/python -m tools.provision_authority_demo` provisions the Range Officer (`admin`) and Forest Guard (`guard`) users with the runtime database role. It preserves existing users and does not seed operational data. The website fetches available demo accounts from the backend. See [local setup](docs/setup.md) for commands and existing account handling.
 
+## Product refinement
+
+- Home shows Pending and Under Work reports. All Reports is a separate owned history with search and status filters. The report form separates GPS from village selection and uses the six animals from the backend catalogue plus Unknown and Other. Reference copying uses `expo-clipboard`. Report details show recorded activity and ownership-protected photographs. The authority website has compact account-specific report and alert controls, manual refresh, and separate report review and incident management views.
+- Citizen reporting has a separate approval policy from camera detections. For the six recognized animals, the automatic score is 30 points times the configured animal threat weight, plus 70% of the existing proximity, recency, local activity and verified-incident contributions, plus 20 points for the conflict category. Only preceding history with matching simulation status contributes. There are no inferred movement points. Scores are capped at 100 and use the configured thresholds (defaults 35 Moderate and 65 High). An unavailable nearest-village distance adds no proximity points and applies a Moderate minimum with an explicit missing-factor indicator. This policy is an operational prioritisation rule and has not been validated against field outcomes.
+- Guards and administrators must choose Low, Moderate or High and enter a reason for Unknown or Other. Only administrators may override automatic risk. The incident records the final severity, method, original automatic assessment for overrides, reason, and responsible user and time for manual decisions. The approval and preview use the same backend calculation. Routine recalculation preserves historical and newly persisted citizen approvals. Every approved citizen report publishes one alert of the same severity.
+- Revision `0006` adds the report analysis completion timestamp. Revision `0007` adds `citizen_notifications`, `alert_reads` and a separate citizen-visible incident resolution note. Apply as the database owner through the initializer so the runtime role receives the table grants. Neither revision backfills notifications or rewrites historical risk.
+- Approval, rejection and resolution insert a citizen notification in the same transaction. The report ID and event type form the stable identity. `GET /api/citizen/notifications` returns the authenticated inbox and unread count. `POST /api/citizen/notifications/{id}/read` and `POST /api/citizen/notifications/read-all` persist read status. The mobile app polls every 10 seconds in the foreground. Its first loaded inbox establishes the baseline for one-time foreground toasts.
+- `POST /api/reports/{id}/risk-preview` accepts `confirmed_species`. The review PATCH accepts `risk_level`, `risk_reason` and an optional `citizen_note`. Resolution PATCH and POST accept a separate `citizen_note`. The citizen detail API returns severity, location source, submission/review/resolution events and only explicitly shared review or resolution notes. The legacy rejection note field remains supported as a citizen-visible reason. The authority header uses `GET /api/reports/notifications`, the existing report read receipt and `POST /api/alerts/{id}/read`.
+
 ## Final functional specification
 
 **Mobile.** Exactly three navigation tabs, Home, Map, and Profile. First-time onboarding collects name, phone, optional email, OTP verification, and GPS or manual location. Home offers New Report, My Reports, and nearby alerts sortable by time, risk, and distance. Map shows the user's location, a selectable radius, risk-colored incident markers, and clickable alert details. Profile covers personal information, location preferences, and appearance. Alerts and reports are Home features rather than separate tabs.
@@ -46,5 +55,5 @@ Authority demo login is available with `APP_ENV=development AUTHORITY_DEMO_ACCOU
 
 ## Remaining development order
 
-1. Shared interactive maps and configurable radius.
-2. Complete physical-device integration testing, including native SecureStore restart, invalid sessions, failed sign-out, account switching with a previously opened photo, GPS, camera, and gallery.
+1. Complete physical-device integration testing, including native SecureStore restart, invalid sessions, failed sign-out, account switching with a previously opened photo, GPS, camera, gallery, and reference copying.
+2. Shared interactive maps and configurable radius remain on hold until explicitly requested. Background push notifications and production SMS are deferred.

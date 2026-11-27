@@ -30,7 +30,7 @@ python3 -m venv .venv
 
 #### Existing macOS checkout and physical-phone testing
 
-Start in the repository root. Use the same database owner and passfile as the original provisioning. The initializer applies revision `0005`, verifies the schema and checks that the runtime role can read the new objects.
+Start in the repository root. Use the same database owner and passfile as the original provisioning. The initializer applies migrations through revision `0007`, verifies the schema and checks that the runtime role can read the new objects.
 
 ```sh
 brew services start postgresql@17  # only if PostgreSQL is stopped

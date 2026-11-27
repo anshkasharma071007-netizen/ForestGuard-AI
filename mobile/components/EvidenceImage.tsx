@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Image, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Image, Platform, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { containImage, projectBox, type AnimalPrediction, type ImageSize } from '@/identification';
 import { photoViewerColors, spacing, typeScale, useTheme } from '@/theme';
 
@@ -19,7 +19,7 @@ export function EvidenceImage({ photo, style, overlay, label = 'Original inciden
   return (
     <View style={[styles.frame, style]} onLayout={({ nativeEvent }) => setFrame(nativeEvent.layout)}>
       <Image source={{ uri: photo.uri }} resizeMode="contain" style={StyleSheet.absoluteFill}
-        accessibilityRole="image" accessibilityLabel={label} />
+        accessibilityRole={Platform.OS === 'web' ? undefined : 'image'} accessibilityLabel={label} />
       {canDraw && overlay.animals.map((animal, index) => {
         const rect = animal.box && projectBox(animal.box, overlay.image, frame);
         return rect && (

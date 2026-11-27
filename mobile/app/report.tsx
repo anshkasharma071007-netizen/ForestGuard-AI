@@ -59,6 +59,7 @@ export default function ReportScreen() {
   const activeAnimal = result?.animals.find((animal) => animal.id === animalId) ?? result?.animals[0];
   const animalNote = species.id === otherSpecies.id && otherName.trim() ? `Reported animal: ${otherName.trim()}` : '';
   const descriptionBudget = descriptionLimit - (animalNote ? animalNote.length + 2 : 0);
+  const clearError = () => { if (error) setError(''); };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -93,6 +94,7 @@ export default function ReportScreen() {
         const [original] = result.assets;
         setAttachment({ original, analysis: { kind: 'idle' } });
         setAnimalId(undefined);
+        clearError();
       }
     } catch {
       setPhotoError('The photo could not be selected. Please try again.');
@@ -162,22 +164,26 @@ export default function ReportScreen() {
     <Screen>
       <ScreenHeader title="New report" back />
       <View style={styles.form}>
-        <InputField label="Title (required)" value={title} onChangeText={setTitle} editable={!submitting} maxLength={120} />
+        <InputField label="Title (required)" value={title} onChangeText={value => { setTitle(value); clearError(); }}
+          editable={!submitting} maxLength={120} />
         <View style={styles.field}>
           <SectionTitle title="Incident category (required)" />
-          <SegmentedControl label="Incident category" options={categories} value={category} onChange={setCategory} disabled={submitting} />
+          <SegmentedControl label="Incident category" options={categories} value={category}
+            onChange={value => { setCategory(value); clearError(); }} disabled={submitting} />
         </View>
         <View style={styles.field}>
           <SectionTitle title="Animal" />
-          <SpeciesSelector catalog={catalog} selection={species} prediction={activeAnimal} disabled={submitting} onSelect={setSpecies} />
+          <SpeciesSelector catalog={catalog} selection={species} prediction={activeAnimal} disabled={submitting}
+            onSelect={value => { setSpecies(value); clearError(); }} />
           {species.id === otherSpecies.id && <InputField label="Animal name (optional)" value={otherName}
-            onChangeText={setOtherName} editable={!submitting} maxLength={80} />}
+            onChangeText={value => { setOtherName(value); clearError(); }} editable={!submitting} maxLength={80} />}
         </View>
-        <InputField label="Description (optional)" value={description} onChangeText={setDescription} editable={!submitting}
+        <InputField label="Description (optional)" value={description} onChangeText={value => { setDescription(value); clearError(); }} editable={!submitting}
           multiline maxLength={descriptionBudget} placeholder="Describe what you saw" />
         <View style={styles.field}>
           <SectionTitle title="Incident location (required)" />
-          <LocationField label="Incident location" value={location} onChange={setLocation} onLocating={setLocating} disabled={submitting} />
+          <LocationField label="Incident location" value={location} onChange={value => { setLocation(value); clearError(); }}
+            onLocating={setLocating} disabled={submitting} />
         </View>
         <View style={styles.field}>
           <SectionTitle title="Photograph" />

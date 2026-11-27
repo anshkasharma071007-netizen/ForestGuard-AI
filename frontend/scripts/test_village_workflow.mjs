@@ -26,26 +26,48 @@ async function signUp(page, name, phone) {
   await button(page, 'Verify phone').click()
 }
 
-async function report(page, title, chooseLocation) {
+async function report(page, title, chooseLocation, other = false) {
   await button(page, 'New report').click()
   await page.getByLabel('Title (required)', { exact: true }).fill(title)
   await page.getByRole('radio', { name: 'Sighting', exact: true }).click()
+  if (other) {
+    await page.getByLabel(/^Animal:/).click()
+    await page.getByRole('radio', { name: /^Other/ }).click()
+    await page.getByLabel('Animal name (optional)').fill('Porcupine')
+    const picker = page.waitForEvent('filechooser')
+    await button(page, 'Gallery').click()
+    await (await picker).setFiles('frontend/public/images/deer.jpg')
+    await button(page, 'Expand submitted photograph').waitFor()
+  }
   await chooseLocation()
   await button(page, 'Submit report').click()
-  await page.getByText('Report received', { exact: true }).waitFor()
+  await page.getByText('Report submitted', { exact: true }).waitFor()
   const code = await page.getByText(/^FG-[A-F0-9]{24}$/).innerText()
   await page.getByRole('button', { name: 'View report', exact: true }).click()
   return code
 }
 
-async function review(title, location, id) {
+async function review(title, location, id, manual = false) {
   await nav.getByRole('link', { name: /^Reports/ }).click()
   await official.getByRole('button', { name: new RegExp(title) }).click()
   const dialog = official.getByRole('dialog', { name: title }).or(
     official.locator('.fade-in').filter({ has: official.getByText(title, { exact: true }) }),
   )
   if (location) await dialog.getByText(location).waitFor()
-  await dialog.getByRole('button', { name: /^Approve(?: report)?$/ }).click()
+  if (manual) {
+    const analysis = dialog.getByRole('region', { name: 'AI analysis' })
+    await analysis.getByText('Analysis unavailable', { exact: true }).waitFor()
+    await button(analysis, 'Retry analysis').click()
+    await analysis.getByText('Analysing image…', { exact: true }).waitFor()
+    await dialog.getByRole('img', { name: 'Submitted incident evidence' }).waitFor()
+    await dialog.getByText('Manual assessment required', { exact: true }).waitFor()
+    assert.equal(await button(dialog, 'Approve report').isDisabled(), true)
+    await dialog.getByLabel('Risk level').selectOption('low')
+    await dialog.getByLabel('Assessment reason').fill('No contact or immediate threat reported.')
+  } else {
+    await dialog.getByLabel('Confirmed animal').selectOption('deer')
+  }
+  await dialog.getByRole('button', { name: 'Approve report', exact: true }).click()
   const approved = official.waitForResponse(response => response.request().method() === 'PATCH'
     && new URL(response.url()).pathname === `/api/reports/${id}`)
   await button(dialog, 'Confirm approval').click()
@@ -88,7 +110,9 @@ try {
   await citizen.getByText('Resolved', { exact: true }).waitFor()
 
   execFileSync(python, ['-m', 'tools.seed_villages'], { stdio: 'inherit' })
-  const observer = await browser.newPage({ viewport: { width: 430, height: 900 } })
+  const observer = await browser.newPage({
+    viewport: { width: 430, height: 900 }, geolocation: { latitude: 21.735, longitude: 79.35 }, permissions: ['geolocation'],
+  })
   await signUp(observer, 'Village observer', '9876500146')
   await observer.getByRole('radio', { name: 'Choose village', exact: true }).click()
   for (const name of villages) await villageOption(observer, name).waitFor()
@@ -107,17 +131,24 @@ try {
 
   await observer.getByRole('tab', { name: 'Home', exact: true }).click()
   const code = await report(observer, 'Village sighting', async () => {
+    await observer.getByRole('radio', { name: 'Current location', exact: true }).click()
+    await observer.getByText('GPS location selected').waitFor()
     await observer.getByRole('radio', { name: 'Choose village', exact: true }).click()
     for (const name of villages) await villageOption(observer, name).waitFor()
     await villageOption(observer, 'Haritgaon').click()
-  })
+  }, true)
   await observer.getByText('Haritgaon (Demo)', { exact: true }).waitFor()
   const submitted = await (await observer.request.get(`${authority}/api/citizen/reports/${code}`)).json()
   assert.notEqual(submitted.village_id, profile.location.village.id)
+  assert.equal(submitted.location_source, 'village')
+  assert.equal(submitted.lat, null)
+  assert.equal(submitted.lon, null)
   await nav.getByRole('link', { name: 'Dashboard', exact: true }).click()
   await official.getByText(/Haritgaon \(Demo\)/).waitFor()
-  const approved = await review('Village sighting', 'Haritgaon (Demo)', 2)
+  const approved = await review('Village sighting', 'Haritgaon (Demo)', 2, true)
   assert.equal(approved.village_id, submitted.village_id)
+  assert.equal(approved.confirmed_species, 'other')
+  assert.equal(approved.risk.assessment_method, 'manual')
   await observer.getByText('Under Work', { exact: true }).waitFor()
   await button(citizen, 'Back').click()
   await citizen.getByText(/Illustrative Pench area.*Haritgaon/).waitFor()
@@ -125,6 +156,7 @@ try {
     `${authority}/api/community/alerts?verified_only=true&field_only=true`,
   )).json()).items
   assert.equal((await publicAlerts()).length, 1)
+  assert.equal((await publicAlerts())[0].severity, 'low')
   assert.deepEqual((await publicAlerts())[0].village_ids, [submitted.village_id])
 
   await nav.getByRole('link', { name: 'Map', exact: true }).click()
@@ -135,7 +167,7 @@ try {
   await official.getByRole('option', { name: /Village sighting/ }).waitFor({ state: 'attached' })
   await resolve('Village sighting')
   await observer.getByText('Resolved', { exact: true }).waitFor()
-  await citizen.getByText('No nearby verified alerts', { exact: false }).waitFor()
+  await citizen.getByText('No nearby alerts', { exact: false }).waitFor()
   assert.deepEqual(await publicAlerts(), [])
   console.log('Shared village browser workflow passed, including PATCH /api/reports/1 with zero villages.')
 } finally {

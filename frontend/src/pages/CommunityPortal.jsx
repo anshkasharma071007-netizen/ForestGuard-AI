@@ -374,7 +374,7 @@ export default function CommunityPortal() {
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
                     <label className="field-label" htmlFor="report-species">
-                      Species (best estimate)
+                      Animal (best estimate)
                     </label>
                     <select
                       id="report-species"
@@ -600,7 +600,7 @@ export default function CommunityPortal() {
         <section id="safety" className="scroll-mt-24">
           <SectionTitle
             title="Safety guidance"
-            subtitle="General household advice and species-specific notes for the buffer landscape"
+            subtitle="General household advice and animal-specific notes for the buffer landscape"
             className="mb-3"
           />
           {guidelines.loading && !guidelines.data ? (

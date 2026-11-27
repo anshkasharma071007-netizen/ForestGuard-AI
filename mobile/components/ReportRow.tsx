@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { ChevronRight } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { formatTimestamp } from '@/format';
 import type { CitizenReport, ReportStatus } from '@/services/api';
 import { radius, spacing, typeScale, useTheme } from '@/theme';
 import { StatusPill } from './Feedback';
@@ -39,7 +40,7 @@ export function ReportRow({ report, showReference = false }: { report: CitizenRe
     {showReference && <Text style={[typeScale.supporting, { color: colors.mutedText }]}>{report.reference_code}</Text>}
     <View style={styles.line}>
       <ReportStatusText status={report.status} />
-      <Text style={[typeScale.supporting, { color: colors.secondaryText }]}>{new Date(report.createdAt).toLocaleString()}</Text>
+      <Text style={[typeScale.supporting, { color: colors.secondaryText }]}>{formatTimestamp(report.createdAt)}</Text>
     </View>
   </Pressable>;
 }

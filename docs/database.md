@@ -29,7 +29,11 @@ For model changes, generate a revision against a development database at the pre
 
 Revision `0005` adds the `risk_configuration` table and resolution actor and notes to incidents. The existing unique foreign keys from incident to report and alert to incident continue to enforce one linked record at each step. The migration leaves historical report, incident and alert rows in place. On the first settings save, existing values from `demo_data/risk_config.json` or the configured `RISK_CONFIG_PATH` are carried into the database along with the changes. Future saves and resets use the database.
 
-After applying the migration with the owner account, use the runtime environment to preview historical corrections. The command lists candidates by report ID and action. It considers real authenticated citizen reports with preserved approval history. It can publish a missing alert for a verified, unresolved incident and repair clearly documented mismatches between incident and alert resolution. Records requiring judgment appear as `manual_review`. For an alert resolved in the old workflow, the repair copies the recorded timestamp, actor and note where available.
+Revision `0006` records when photo analysis finishes for the authority report history. Existing reports keep their analysis results. Completion times are available after a new analysis run.
+
+Revision `0007` adds persisted citizen notifications, authority alert read receipts, and a separate citizen-visible resolution note. The owner initializer applies the revision and grants access to the restricted runtime role. Existing citizen incidents keep their recorded risk, including after routine risk recalculation. The notification inbox starts with lifecycle actions recorded after the migration.
+
+After applying the migrations with the owner account, use the runtime environment to preview historical corrections. The command lists candidates by report ID and action. It considers real authenticated citizen reports with preserved approval history. It can publish a missing alert for a verified, unresolved incident and repair clearly documented mismatches between incident and alert resolution. Records requiring judgment appear as `manual_review`. For an alert resolved in the old workflow, the repair copies the recorded timestamp, actor and note where available.
 
 ```sh
 .venv/bin/dotenv -f .forest-guard-local/backend.env run -- \

@@ -95,7 +95,7 @@ export function LocationField({ label, value, onChange, disabled, onLocating }: 
             <Mark size={18} color={selected ? colors.accent : colors.mutedText} />
           </Pressable>
           {selected && <View style={[styles.content, { borderTopColor: colors.border }]}>
-            {id === 'village' ? <VillageSelector label="Incident village" startOpen={!value}
+            {id === 'village' ? <VillageSelector label={label} startOpen={!value}
               selected={value?.type === 'village' ? value.village : null} disabled={disabled}
               onSelect={(village) => onChange({ type: 'village', village })} /> : <>
               {value?.type === 'gps' && <SupportingText>GPS location selected</SupportingText>}

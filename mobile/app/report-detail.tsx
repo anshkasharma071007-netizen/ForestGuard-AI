@@ -14,6 +14,7 @@ import { ReportStatusText } from '@/components/ReportRow';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionTitle } from '@/components/SectionTitle';
+import { formatTimestamp } from '@/format';
 import { useAppActive } from '@/hooks/useAppActive';
 import { usePublicData } from '@/hooks/usePublicData';
 import { getCitizenEvidence, getCitizenReport } from '@/services/api';
@@ -32,7 +33,7 @@ export default function ReportDetail() {
   const location = report?.village ?? (point && `${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}`);
   const source = report?.locationSource ?? (point ? 'gps' : report?.village ? 'village' : undefined);
   const risk = report?.risk;
-  const hasResponse = report && (report.confirmedSpecies || risk || report.rejectionReason || report.reviewNote || report.resolutionNote);
+  const hasResponse = report && (report.confirmedSpecies || risk || report.reviewNote || report.resolutionNote);
 
   return (
     <Screen>
@@ -48,7 +49,7 @@ export default function ReportDetail() {
             <ReportStatusText status={report.status} />
           </View>
           <Text accessibilityRole="header" style={[typeScale.screen, { color: colors.primaryText }]}>{report.title}</Text>
-          <SupportingText>{new Date(report.createdAt).toLocaleString()}</SupportingText>
+          <SupportingText>{formatTimestamp(report.createdAt)}</SupportingText>
           {!!report.rejectionReason && <View style={[styles.rejection, { borderColor: colors.clay, backgroundColor: colors.dangerTint }]}>
             <Field label="Rejection reason" value={report.rejectionReason} />
           </View>}
@@ -74,7 +75,7 @@ export default function ReportDetail() {
           {report.events.length > 0 && <Section title="Activity">
             {report.events.map(({ event, at }) => <View key={event + at} style={styles.activity}>
               <Text style={[typeScale.body, { color: colors.primaryText }]}>{eventLabels[event] ?? 'Report updated'}</Text>
-              <SupportingText>{new Date(at).toLocaleString()}</SupportingText>
+              <SupportingText>{formatTimestamp(at)}</SupportingText>
             </View>)}
           </Section>}
         </View>

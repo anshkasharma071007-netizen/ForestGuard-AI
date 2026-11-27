@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import api, { errorMessage } from '../api/client'
-import ThemeToggle from '../components/ThemeToggle'
-import { ErrorBox, Loading, PageHeader, SectionTitle } from '../components/ui'
+import { ErrorBox, Loading, SectionTitle } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { useApi } from '../hooks/useApi'
 import { titleCase } from '../utils/format'
@@ -41,7 +40,7 @@ export default function Settings() {
       })
       const { settings } = result.data
       setForm({ ...settings, ...settings.thresholds })
-      setFeedback({ message: 'Risk settings saved and scores recalculated.' })
+      setFeedback({ message: 'Risk settings saved. Detection scores refreshed.' })
       config.reload()
     } catch (error) {
       setFeedback({ error: errorMessage(error) })
@@ -51,10 +50,10 @@ export default function Settings() {
   }
 
   return <>
-    <PageHeader title="Settings" />
-    <div className="grid gap-5 lg:grid-cols-2">
+    <header className="operations-heading"><h1>Settings</h1></header>
+    <div className="grid items-start gap-4 lg:grid-cols-2">
       <div className="space-y-5">
-        <section className="card space-y-3 p-5">
+        <section className="operations-panel space-y-3 p-4">
           <SectionTitle title="Authority account" />
           <dl className="space-y-2 text-sm">
             <div><dt className="text-muted-3">Name</dt><dd>{user?.name}</dd></div>
@@ -63,13 +62,9 @@ export default function Settings() {
           </dl>
           <button type="button" className="btn-outline" onClick={logout}>Sign out</button>
         </section>
-        <section className="card flex items-center justify-between p-5">
-          <SectionTitle title="Appearance" subtitle="Switch between light and dark themes." />
-          <ThemeToggle />
-        </section>
       </div>
-      <section className="card space-y-4 p-5">
-        <SectionTitle title="Risk configuration" subtitle={isAdmin ? 'Changes apply across the deployment.' : 'Only administrators can edit these settings.'} />
+      <section className="operations-panel space-y-4 p-4">
+        <SectionTitle title="Risk configuration" subtitle={!isAdmin ? 'Only administrators can edit these settings.' : undefined} />
         {config.error && <ErrorBox message={config.error} onRetry={config.reload} />}
         {!form && config.loading && <Loading />}
         {form && <form className="space-y-3" onSubmit={save}>

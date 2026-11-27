@@ -1,212 +1,167 @@
-import { useRef, useState } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
-  ClipboardList,
-  ChevronRight,
-  LayoutDashboard,
-  LogOut,
-  Map,
-  Menu,
-  Settings,
-  ShieldAlert,
-  X,
+  Bell, ClipboardList, LayoutDashboard, Map, Menu, Settings, UserRound, X,
 } from 'lucide-react'
+import api, { errorMessage } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { useApi } from '../hooks/useApi'
+import { formatDateTime } from '../utils/format'
 import LanguageSwitcher from './LanguageSwitcher'
 import ThemeToggle from './ThemeToggle'
 import { Logo } from './ui'
+import './operations.css'
 
 const SECTIONS = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/reports', label: 'Reports', icon: ClipboardList },
   { to: '/map', label: 'Map', icon: Map },
-  { to: '/alerts', label: 'Alerts', icon: ShieldAlert },
+  { to: '/alerts', label: 'Alerts', icon: Bell },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]
 
-const TITLES = {
-  '/': 'Dashboard',
-  '/monitoring': 'Live monitoring',
-  '/map': 'Map',
-  '/wildlife': 'Wildlife intelligence',
-  '/reports': 'Reports',
-  '/alerts': 'Alerts',
-  '/settings': 'Settings',
-  '/risk': 'Detection alerts',
-  '/guard': 'Forest guard panel',
-  '/analytics': 'Analytics & reports',
+export function refreshAuthorityNotifications() {
+  window.dispatchEvent(new Event('fg-notifications-changed'))
 }
 
-function SidebarContent({ onNavigate, unread }) {
-  const { user, logout } = useAuth()
-  return (
-    <div className="flex h-full flex-col">
-      <div className="px-5 pb-6 pt-6">
-        <NavLink to="/" onClick={onNavigate}>
-          <Logo light />
-        </NavLink>
-        <div className="mt-5 flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-lime opacity-60" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-lime" />
-          </span>
-          <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-forest-100/80">
-            Pench Landscape
-          </div>
-        </div>
+function AuthorityNavigation({ close }) {
+  return <nav aria-label="Authority navigation" className="operations-nav">
+    {SECTIONS.map(({ to, label, icon: Icon, end }) => (
+      <NavLink key={to} to={to} end={end} onClick={close}><Icon size={17} aria-hidden="true" />{label}</NavLink>
+    ))}
+  </nav>
+}
+
+function Notifications({ data, loading, error, reload }) {
+  const [open, setOpen] = useState(false)
+  const [failure, setFailure] = useState('')
+  const [busy, setBusy] = useState(false)
+  const container = useRef(null)
+  const trigger = useRef(null)
+  const request = useRef(null)
+  const location = useLocation()
+  const navigate = useNavigate()
+  const count = data ? data.unread + data.unread_alerts : 0
+
+  useEffect(() => {
+    setOpen(false)
+    setFailure('')
+    return () => request.current?.abort()
+  }, [location.key])
+
+  useEffect(() => {
+    if (!open) return undefined
+    function outside(event) {
+      if (!container.current?.contains(event.target)) setOpen(false)
+    }
+    function escape(event) {
+      if (event.key !== 'Escape') return
+      event.stopPropagation()
+      setOpen(false)
+      trigger.current?.focus()
+    }
+    document.addEventListener('pointerdown', outside)
+    document.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('pointerdown', outside)
+      document.removeEventListener('keydown', escape)
+    }
+  }, [open])
+
+  async function openItem(item) {
+    if (request.current) return
+    if (item.kind === 'report') {
+      navigate(`/reports?report=${item.id}`)
+      return
+    }
+    const controller = new AbortController()
+    request.current = controller
+    setBusy(true)
+    setFailure('')
+    try {
+      await api.post(`/api/alerts/${item.id}/read`, null, { signal: controller.signal })
+      if (controller.signal.aborted) return
+      navigate(item.incident_id ? `/alerts?incident=${item.incident_id}` : `/risk?alert=${item.id}`)
+      await reload()
+    } catch (err) {
+      if (!controller.signal.aborted) setFailure(errorMessage(err))
+    } finally {
+      request.current = null
+      setBusy(false)
+    }
+  }
+
+  return <div className="relative" ref={container}>
+    <button ref={trigger} type="button" className="operations-control" aria-label={count ? `Notifications, ${count} unread` : 'Notifications'}
+      title="Notifications" aria-expanded={open} aria-controls={open ? 'authority-notifications' : undefined}
+      onClick={() => { setOpen(!open); if (!open) reload() }}>
+      <Bell size={18} aria-hidden="true" />
+      {count > 0 && <span className="operations-notification-dot" />}
+    </button>
+    {open && <section id="authority-notifications" aria-label="Notifications" className="operations-popover">
+      <div className="flex items-center justify-between gap-2 px-4 py-3">
+        <h2 className="font-semibold">Notifications</h2>
+        {data && <span className="text-xs text-muted-3">{count} unread</span>}
       </div>
-
-      <nav aria-label="Authority navigation" className="sidebar-scroll flex-1 space-y-1 overflow-y-auto px-3">
-        {SECTIONS.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end}
-            onClick={onNavigate}
-            className={({ isActive }) =>
-              `group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12.5px] font-medium transition-all ${isActive
-                ? 'bg-white/[0.09] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
-                : 'text-forest-100/65 hover:bg-white/[0.05] hover:text-white'
-              }`
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <span
-                  className={`absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r bg-lime transition-opacity ${isActive ? 'opacity-100' : 'opacity-0'
-                    }`}
-                />
-                <item.icon
-                  className={`h-[17px] w-[17px] transition-colors ${isActive ? 'text-lime' : 'text-forest-200/60 group-hover:text-forest-100'
-                    }`}
-                  strokeWidth={1.8}
-                />
-                <span className="flex-1">{item.label}{item.to === '/reports' && unread > 0 && ` (${unread})`}</span>
-                {isActive && <ChevronRight className="h-3.5 w-3.5 text-forest-200/60" />}
-              </>
-            )}
-          </NavLink>
-        ))}
-      </nav>
-
-      <div className="border-t border-white/10 p-3">
-        <div className="flex items-center gap-3 rounded-xl px-2 py-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-lime/15 text-[12px] font-bold text-lime">
-            {(user?.name || 'FG')
-              .split(' ')
-              .map((part) => part[0])
-              .slice(0, 2)
-              .join('')}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-[12px] font-semibold text-white">{user?.name || 'Guest'}</div>
-            <div className="truncate text-[10px] uppercase tracking-[0.12em] text-forest-200/60">
-              {user?.role === 'admin' ? 'Range officer' : 'Forest guard'}
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={logout}
-            className="rounded-lg p-2 text-forest-200/60 transition hover:bg-white/10 hover:text-white"
-            title="Sign out"
-          >
-            <LogOut className="h-4 w-4" />
+      {(failure || error) && <p role="alert" className="px-4 pb-2 text-sm text-danger-7">{failure || error}</p>}
+      {loading && !data && <p role="status" className="px-4 pb-3 text-sm text-muted-3">Loading…</p>}
+      {data && !data.items.length && <p className="px-4 pb-3 text-sm text-muted-3">No unread notifications</p>}
+      <ul className="max-h-[60vh] overflow-auto">
+        {data?.items.map(item => <li key={`${item.kind}-${item.id}`}>
+          <button className="operations-notification-row" type="button" disabled={busy} onClick={() => void openItem(item)}>
+            <span className="block break-words font-semibold">{item.title}</span>
+            <span className="block text-xs text-muted-3">{item.kind === 'report' ? 'New report' : 'New alert'} · {formatDateTime(item.created_at)}</span>
           </button>
-        </div>
-      </div>
-    </div>
-  )
+        </li>)}
+      </ul>
+    </section>}
+  </div>
 }
 
 export default function Layout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const location = useLocation()
   const { user } = useAuth()
-  const title = TITLES[location.pathname] || 'Forest Guard AI'
+  const notifications = useApi('/api/reports/notifications', { interval: 6000, deps: [user?.id] })
+  const { reload } = notifications
+  useEffect(() => {
+    window.addEventListener('fg-notifications-changed', reload)
+    return () => window.removeEventListener('fg-notifications-changed', reload)
+  }, [reload])
 
-  const notifications = useApi('/api/reports/notifications', { interval: 6000 })
-  const latestAlert = notifications.data?.latest_alert
-  const unread = notifications.data?.unread ?? 0
-  const initialAlert = useRef(undefined)
-  if (notifications.data && initialAlert.current === undefined) initialAlert.current = latestAlert?.id ?? 0
-  const today = new Date().toLocaleDateString('en-IN', {
-    weekday: 'short',
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  })
-
-  return (
-    <div className="min-h-screen bg-sand">
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[264px] bg-forest-950 bg-topo lg:block">
-        <SidebarContent unread={unread} />
-      </aside>
-
-      {mobileOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-forest-950/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-          <aside className="relative h-full w-[264px] bg-forest-950 bg-topo shadow-2xl">
-            <button
-              type="button"
-              onClick={() => setMobileOpen(false)}
-              className="absolute right-3 top-3 rounded-lg p-2 text-white/60 hover:bg-white/10"
-            >
-              <X className="h-4 w-4" />
-            </button>
-            <SidebarContent unread={unread} onNavigate={() => setMobileOpen(false)} />
-          </aside>
+  const unread = notifications.data?.unread
+  return <div className="min-h-screen bg-sand">
+    <header className="operations-header">
+      <div className="operations-shell operations-header-content">
+        <div className="flex min-w-0 items-center gap-2">
+          <button type="button" className="operations-control operations-mobile-trigger" aria-label={mobileOpen ? 'Close navigation' : 'Open navigation'}
+            aria-expanded={mobileOpen} onClick={() => setMobileOpen(!mobileOpen)}>
+            {mobileOpen ? <X size={19} /> : <Menu size={19} />}
+          </button>
+          <NavLink to="/" className="operations-brand" onClick={() => setMobileOpen(false)}>
+            <Logo compact />
+            <span>Forest Guard AI</span>
+          </NavLink>
         </div>
-      )}
-
-      <div className="lg:pl-[264px]">
-        <header className="sticky top-0 z-30 border-b border-line-5/80 bg-sand/85 backdrop-blur-xl">
-          <div className="flex h-[62px] items-center justify-between px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setMobileOpen(true)}
-                className="rounded-lg border border-control-line-3 p-2 text-success-9 lg:hidden"
-                aria-label="Open navigation"
-              >
-                <Menu className="h-4 w-4" />
-              </button>
-              <div>
-                <div className="text-[9.5px] font-semibold uppercase tracking-[0.2em] text-muted-16">
-                  Forest Guard AI / Operations
-                </div>
-                <div className="font-display text-[15px] font-medium leading-tight text-ink">{title}</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <div aria-live="polite" className="flex flex-wrap gap-2 text-xs">
-                {unread > 0 && <NavLink to="/reports" className="btn">{unread} unread reports</NavLink>}
-                {latestAlert?.id > initialAlert.current && <NavLink to={latestAlert.incident_id ? `/alerts?incident=${latestAlert.incident_id}` : '/risk'} className="btn" title={latestAlert.summary}>New field alert #{latestAlert.id}</NavLink>}
-              </div>
-              <LanguageSwitcher />
-              <ThemeToggle />
-              <div className="hidden text-right sm:block">
-                <div className="text-[10.5px] font-medium text-secondary-9">{today}</div>
-                <div className="text-[9.5px] uppercase tracking-[0.12em] text-muted-16">Seoni · Madhya Pradesh</div>
-              </div>
-              <div className="flex h-9 w-9 items-center justify-center rounded-full border border-control-line-1 bg-forest-900 text-[11px] font-semibold text-lime">
-                {(user?.name || 'FG')
-                  .split(' ')
-                  .map((part) => part[0])
-                  .slice(0, 2)
-                  .join('')}
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <main className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</main>
-
-        <footer className="mx-auto flex max-w-[1500px] flex-col gap-2 border-t border-line-5 px-4 py-5 text-[10.5px] text-muted-12 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-          <span>Forest Guard AI · Protecting Forests. Preventing Conflict. Saving Lives.</span>
-          <span>Conservation Intelligence & Human–Wildlife Coexistence</span>
-        </footer>
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          <NavLink to="/reports?unread=1" className="operations-control" title="Unread reports"
+            aria-label={unread == null ? 'Unread reports' : `Unread reports, ${unread}`}>
+            <ClipboardList size={18} aria-hidden="true" />
+            {unread != null && <span className="text-xs tabular-nums">{unread}</span>}
+          </NavLink>
+          <Notifications {...notifications} />
+          <span className="hidden xl:inline-flex"><LanguageSwitcher /></span>
+          <ThemeToggle />
+          <NavLink to="/settings" title={user?.name || 'Authority account'} aria-label="Authority account" className="operations-control">
+            <UserRound size={18} aria-hidden="true" />
+          </NavLink>
+        </div>
       </div>
+    </header>
+    <div className="operations-shell operations-body">
+      <aside className={mobileOpen ? 'operations-sidebar is-open' : 'operations-sidebar'}>
+        <AuthorityNavigation close={() => setMobileOpen(false)} />
+      </aside>
+      <main className="min-w-0">{children}</main>
     </div>
-  )
+  </div>
 }

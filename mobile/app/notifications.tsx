@@ -8,6 +8,7 @@ import { IconAction } from '@/components/IconAction';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { TextAction } from '@/components/TextAction';
+import { formatTimestamp } from '@/format';
 import type { CitizenNotification } from '@/services/api';
 import { radius, spacing, typeScale, useTheme } from '@/theme';
 
@@ -54,7 +55,7 @@ export default function Notifications() {
         <View style={styles.info}>
           <Text style={[typeScale.card, { color: colors.primaryText }]}>{eventLabels[item.event] ?? 'Report updated'}</Text>
           <Text style={[typeScale.body, { color: colors.primaryText }]}>{item.reportTitle ?? item.code}</Text>
-          <SupportingText>{new Date(item.createdAt).toLocaleString()}</SupportingText>
+          <SupportingText>{formatTimestamp(item.createdAt)}</SupportingText>
         </View>
         <ChevronRight size={16} color={colors.mutedText} />
       </Pressable>)}
