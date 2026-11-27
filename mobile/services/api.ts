@@ -22,11 +22,14 @@ const REQUEST_TIMEOUT_MS = 30000;
 
 export const isApiConfigured = /^https?:\/\/[^/\s]+(?::\d+)?(?:\/[^\s]*)?$/i.test(API_URL);
 
-export type ApiErrorKind = 'unavailable' | 'unreachable' | 'timeout' | 'invalid-input' | 'not-found' | 'unauthorized' | 'request-failed' | 'invalid-response';
+export type ApiErrorKind = 'cancelled' | 'unavailable' | 'unreachable' | 'timeout' | 'invalid-input' | 'not-found' | 'unauthorized' | 'request-failed' | 'invalid-response';
 
 export class ApiError extends Error {
-  constructor(readonly kind: ApiErrorKind, message: string) {
+  readonly kind: ApiErrorKind;
+
+  constructor(kind: ApiErrorKind, message: string) {
     super(message);
+    this.kind = kind;
     this.name = 'ApiError';
   }
 }
@@ -42,7 +45,8 @@ export type Village = { id: number; code: string; name: string; district?: strin
 export type Coordinates = { lat: number; lon: number };
 export type SavedLocation = ({ type: 'gps' } | { type: 'village'; village: Village }) & Coordinates;
 export type LocationInput = Coordinates | { village_id: number };
-export type CitizenProfile = { id: number; name: string; email: string | null; phone: string; location: SavedLocation | null; alertRadiusKm: AlertRadius };
+export type CitizenProfile = { id: number; name: string; email: string | null; phone: string; location: SavedLocation | null;
+  savedAlertLocation: SavedLocation | null; alertRadiusKm: AlertRadius };
 export type CitizenAccess = {
   token?: string;
   citizenId?: number;
@@ -51,11 +55,12 @@ export type CitizenAccess = {
 };
 export type CitizenReport = ReportIdentity & { title: string; createdAt: string; village?: string };
 export type CitizenNotification = {
-  id: string; event: string; code: string; reportTitle?: string; createdAt: string; readAt?: string;
+  id: string; event: string; code: string; reportTitle?: string; createdAt: string; readAt?: string; risk?: string;
 };
 export type Advisory = {
   id: number;
   severity: string;
+  status?: string;
   speciesName: string;
   title?: string;
   area: string;
@@ -66,6 +71,7 @@ export type Advisory = {
   publishedAt: string;
   approximateLocations: Coordinates[];
   distanceKm?: number;
+  uncertaintyRadiusM?: number;
   isSimulated: boolean;
 };
 export type PublicAdvisories = { items: Advisory[]; nextOffset: number | null };
@@ -93,7 +99,7 @@ export async function getNearbyAlerts(access: CitizenAccess, location: AlertLoca
   const { items, next_offset } = await citizenRequest(access, '/nearby-alerts', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(nearbyAlertQuery(location, radius, sort, offset)), signal,
-  });
+  }, { unavailable: 'Nearby alerts require a Forest Guard backend that supports location searches.' });
   if (next_offset !== null && (typeof next_offset !== 'number' || !Number.isInteger(next_offset) || next_offset <= offset)) {
     throw invalidResponse();
   }
@@ -109,6 +115,7 @@ export async function getNearbyAlerts(access: CitizenAccess, location: AlertLoca
       return {
         id,
         severity: requiredText(severity),
+        status: optionalText(item.status),
         speciesName: requiredText(species_name),
         title: optionalText(item.alert_title),
         area: requiredText(area_label),
@@ -119,6 +126,7 @@ export async function getNearbyAlerts(access: CitizenAccess, location: AlertLoca
         publishedAt,
         isSimulated: item.is_simulated === true,
         distanceKm: typeof item.distance_km === 'number' ? item.distance_km : undefined,
+        uncertaintyRadiusM: typeof item.uncertainty_radius_m === 'number' ? item.uncertainty_radius_m : undefined,
         approximateLocations: Array.isArray(item.approximate_locations)
           ? list(item.approximate_locations).flatMap((location) => coordinates(location) ?? []) : [],
       };
@@ -173,10 +181,16 @@ export async function getCitizenProfile(access: CitizenAccess, signal?: AbortSig
   return parseProfile(await citizenRequest(access, '/profile', { signal }));
 }
 
-export async function updateCitizenProfile(access: CitizenAccess, input: { name: string; email: string | null; location: LocationInput }) {
+export async function updateCitizenProfile(access: CitizenAccess, input: { name: string; email: string | null; location?: LocationInput }) {
   return parseProfile(await citizenRequest(access, '/profile', {
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input),
   }));
+}
+
+export async function updateSavedAlertLocation(access: CitizenAccess, location: LocationInput | null) {
+  return parseProfile(await citizenRequest(access, '/saved-location', location ? {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(location),
+  } : { method: 'DELETE' }));
 }
 
 export async function updateAlertRadius(access: CitizenAccess, radius: AlertRadius) {
@@ -218,7 +232,7 @@ export async function getCitizenNotifications(access: CitizenAccess, signal?: Ab
     const createdAt = optionalDate(item.created_at);
     if (!createdAt) throw invalidResponse();
     return { id: requiredText(item.id), event: requiredText(item.event), code: requiredText(item.reference_code),
-      reportTitle: optionalText(item.report_title), createdAt, readAt: optionalDate(item.read_at) };
+      reportTitle: optionalText(item.report_title), createdAt, readAt: optionalDate(item.read_at), risk: optionalText(item.risk_level) };
   }) };
 }
 
@@ -235,23 +249,25 @@ function citizenHeaders(access: CitizenAccess) {
 }
 
 export async function getCitizenEvidence(access: CitizenAccess, code: string, signal: AbortSignal) {
-  const response = await fetch(`${API_URL}/api/citizen/reports/${encodeURIComponent(code)}/evidence`, {
-    credentials: Platform.OS === 'web' ? 'include' : 'omit',
-    headers: citizenHeaders(access), signal, cache: 'no-store',
-  });
-  if (response.status === 401 && !signal.aborted && !access.signal?.aborted) access.expire();
-  if (!response.ok) throw new Error('Photo could not be loaded.');
-  return response.blob();
+  return citizenResponse(access, `/reports/${encodeURIComponent(code)}/evidence`, { signal }, async (response) => {
+    if (Platform.OS === 'web') return { blob: await response.blob() };
+    return { bytes: new Uint8Array(await response.arrayBuffer()) };
+  }, { notFound: 'Photo unavailable.' });
 }
 
-type RequestContext = { submission?: boolean; notFound?: string };
+type RequestContext = { submission?: boolean; notFound?: string; unavailable?: string };
 
-async function citizenRequest(access: CitizenAccess, path: string, init: RequestInit, context?: RequestContext) {
+function citizenRequest(access: CitizenAccess, path: string, init: RequestInit, context?: RequestContext) {
+  return citizenResponse(access, path, { ...init, headers: { Accept: 'application/json', ...init.headers } }, readObject, context);
+}
+
+async function citizenResponse<T>(access: CitizenAccess, path: string, init: RequestInit,
+  read: (response: Response) => Promise<T>, context?: RequestContext) {
   try {
-    return await request(`/api/citizen${path}`, {
-      ...init, credentials: Platform.OS === 'web' ? 'include' : 'omit',
+    return await fetchResponse(`/api/citizen${path}`, {
+      ...init, credentials: Platform.OS === 'web' ? 'include' : 'omit', cache: 'no-store',
       headers: { ...init.headers, ...citizenHeaders(access) },
-    }, context, access.signal);
+    }, read, context, access.signal);
   } catch (error) {
     if (!access.signal?.aborted && !init.signal?.aborted && error instanceof ApiError && error.kind === 'unauthorized') {
       access.expire();
@@ -260,32 +276,50 @@ async function citizenRequest(access: CitizenAccess, path: string, init: Request
   }
 }
 
-async function request(path: string, init: RequestInit, context?: RequestContext, sessionSignal?: AbortSignal) {
+function request(path: string, init: RequestInit) {
+  return fetchResponse(path, { ...init, headers: { Accept: 'application/json', ...init.headers } }, readObject);
+}
+
+async function readJson(response: Response): Promise<unknown> {
+  const payload = await response.text();
+  try { return JSON.parse(payload); } catch { return null; }
+}
+
+async function readObject(response: Response) {
+  return object(await readJson(response));
+}
+
+async function fetchResponse<T>(path: string, init: RequestInit, read: (response: Response) => Promise<T>,
+  context?: RequestContext, sessionSignal?: AbortSignal) {
+  const signal = init.signal;
+  const cancelled = () => signal?.aborted || sessionSignal?.aborted;
+  const cancellation = () => new ApiError('cancelled', 'The request was cancelled.');
+  if (cancelled()) throw cancellation();
   if (!isApiConfigured) throw new ApiError('unavailable', 'The Forest Guard service is not configured on this device.');
 
   const controller = new AbortController();
   const cancel = () => controller.abort();
-  const signal = init.signal;
-  if (signal?.aborted || sessionSignal?.aborted) throw new ApiError('request-failed', 'The request was cancelled.');
   signal?.addEventListener('abort', cancel, { once: true });
   sessionSignal?.addEventListener('abort', cancel, { once: true });
-  const timeout = setTimeout(cancel, REQUEST_TIMEOUT_MS);
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    cancel();
+  }, REQUEST_TIMEOUT_MS);
   try {
-    const response = await fetch(`${API_URL}${path}`, {
-      ...init,
-      headers: { Accept: 'application/json', ...init.headers },
-      signal: controller.signal,
-    });
-    const payload = await response.text();
-    let value: unknown;
-    try { value = JSON.parse(payload); } catch { value = null; }
+    const response = await fetch(`${API_URL}${path}`, { ...init, signal: controller.signal });
+    if (controller.signal.aborted) throw cancellation();
+    if (response.ok) {
+      const data = await read(response);
+      if (controller.signal.aborted) throw cancellation();
+      return data;
+    }
 
-    if (controller.signal.aborted) throw new ApiError('request-failed', 'The request was cancelled.');
-    if (response.ok) return object(value);
+    const value = await readJson(response);
     if (response.status === 401) throw new ApiError('unauthorized', validationMessage(value) ?? 'Sign in again.');
     if (response.status === 404 && context?.notFound) throw new ApiError('not-found', context.notFound);
     if (response.status === 404 || response.status === 501 || response.status === 405) {
-      throw new ApiError('unavailable', 'This feature is unavailable on the configured service.');
+      throw new ApiError('unavailable', context?.unavailable ?? 'This feature is unavailable on the configured service.');
     }
     if ([400, 403, 409, 413, 415, 422].includes(response.status)) {
       throw new ApiError('invalid-input', validationMessage(value) ?? 'Check the information you entered and try again.');
@@ -293,13 +327,14 @@ async function request(path: string, init: RequestInit, context?: RequestContext
     if (response.status === 429) throw new ApiError('request-failed', 'Too many requests. Try again shortly.');
     throw new ApiError('request-failed', 'The Forest Guard service could not complete the request. Try again.');
   } catch (error) {
-    if (error instanceof ApiError) throw error;
-    if (__DEV__) console.error('[API Error]', path, error);
-    if (controller.signal.aborted) {
+    if (cancelled()) throw cancellation();
+    if (timedOut) {
       throw new ApiError('timeout', context?.submission
         ? 'The request timed out. Retry this report to retrieve its reference.'
         : 'The request timed out. Check your connection and try again.');
     }
+    if (error instanceof ApiError) throw error;
+    if (__DEV__) console.error('[API Error]', path, error);
     throw new ApiError('unreachable', 'Could not reach Forest Guard. Check your Wi-Fi and API address, then retry.');
   } finally {
     clearTimeout(timeout);
@@ -338,21 +373,25 @@ function parseVillage(record: Record<string, unknown>): Village {
   };
 }
 
-function parseProfile(record: Record<string, unknown>): CitizenProfile {
-  const { id, name, email, phone, location, alert_radius_km } = record;
-  if (typeof id !== 'number' || !Number.isInteger(id)) throw invalidResponse();
-  let saved: SavedLocation | null = null;
-  if (location !== null) {
-    const data = object(location);
-    const point = coordinates(data);
-    if (!point) throw invalidResponse();
-    if (data.type === 'gps') saved = { type: 'gps', ...point };
-    else if (data.type === 'village') {
-      const village = object(data.village);
-      saved = { type: 'village', ...point, village: { ...parseVillage(village), center: point } };
-    } else throw invalidResponse();
+function parseLocation(location: unknown): SavedLocation | null {
+  if (location === null) return null;
+  const data = object(location);
+  const point = coordinates(data);
+  if (!point) throw invalidResponse();
+  if (data.type === 'gps') return { type: 'gps', ...point };
+  if (data.type === 'village') {
+    const village = object(data.village);
+    return { type: 'village', ...point, village: { ...parseVillage(village), center: point } };
   }
+  throw invalidResponse();
+}
+
+function parseProfile(record: Record<string, unknown>): CitizenProfile {
+  const { id, name, email, phone, location, saved_alert_location, alert_radius_km } = record;
+  if (typeof id !== 'number' || !Number.isInteger(id)) throw invalidResponse();
+  const saved = parseLocation(location);
   return { id, name: requiredText(name), phone: requiredText(phone), email: optionalText(email) ?? null, location: saved,
+    savedAlertLocation: saved_alert_location === undefined ? saved : parseLocation(saved_alert_location),
     alertRadiusKm: isAlertRadius(alert_radius_km) ? alert_radius_km : 25 };
 }
 

@@ -51,7 +51,7 @@ function glyphIcon(kind, label) {
 }
 
 function ringOf(feature) {
-  const geometry = feature?.geometry
+  const geometry = feature?.geometry || feature
   if (!geometry) return []
   if (geometry.type === 'Polygon') return geometry.coordinates[0].map(([lon, lat]) => [lat, lon])
   if (geometry.type === 'MultiPolygon') return geometry.coordinates[0][0].map(([lon, lat]) => [lat, lon])
@@ -68,6 +68,9 @@ export default function MapView({
   focus,
   showLegend = true,
   className = '',
+  jurisdiction,
+  onSelectReport,
+  selectedReportId,
 }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
@@ -76,6 +79,8 @@ export default function MapView({
   const incidentMarkers = useRef(new Map())
   const onSelectRef = useRef(onSelectDetection)
   onSelectRef.current = onSelectDetection
+  const onSelectReportRef = useRef(onSelectReport)
+  onSelectReportRef.current = onSelectReport
   const layerKey = JSON.stringify(layerInput)
   const layers = useMemo(
     () => ({ ...DEFAULT_LAYERS, ...JSON.parse(layerKey) }),
@@ -102,8 +107,8 @@ export default function MapView({
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return undefined
     const map = L.map(containerRef.current, {
-      center: [21.732, 79.36],
-      zoom: 11,
+      center: jurisdiction ? [22, 79] : [21.732, 79.36],
+      zoom: jurisdiction ? 5 : 11,
       zoomControl: false,
       attributionControl: true,
       preferCanvas: true,
@@ -129,7 +134,13 @@ export default function MapView({
       fittedRef.current = false
       setReady(false)
     }
-  }, [])
+  }, [Boolean(jurisdiction)])
+
+  useEffect(() => {
+    if (!ready || !jurisdiction?.boundary) return
+    const bounds = L.geoJSON(jurisdiction.boundary).getBounds()
+    if (bounds.isValid()) mapRef.current.fitBounds(bounds, { padding: [28, 28], maxZoom: 15, animate: false })
+  }, [jurisdiction?.id, ready])
 
   useEffect(() => {
     const map = mapRef.current
@@ -138,6 +149,13 @@ export default function MapView({
     const openIncident = [...incidentMarkers.current.entries()].find(([, marker]) => marker.isPopupOpen())?.[0]
     incidentMarkers.current.clear()
     overlay.clearLayers()
+
+    if (layers.jurisdiction && jurisdiction?.boundary) {
+      L.geoJSON(jurisdiction.boundary, {
+        interactive: false,
+        style: { color: '#14543a', weight: 3, dashArray: '8 5', fillOpacity: 0.07 },
+      }).addTo(overlay)
+    }
 
     const studyFeatures = data?.study_area?.features || []
     if (layers.forest) {
@@ -206,7 +224,7 @@ export default function MapView({
             fillColor: RISK_COLOR[level],
             fillOpacity: 0.12,
           })
-            .bindTooltip(`${village.name} · ${level} exposure`, { sticky: true })
+            .bindTooltip(escapeHtml(`${village.name} · ${level} exposure`), { sticky: true })
             .addTo(overlay)
         }
         const center = Number.isFinite(village.lat) && Number.isFinite(village.lon)
@@ -310,6 +328,30 @@ export default function MapView({
       })
     }
 
+    if (data?.reports?.length) {
+      const group = clusterReady ? L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 24 }) : L.layerGroup()
+      for (const report of data.reports) {
+        const point = [report.lat, report.lon]
+        const color = RISK_COLOR[report.severity] || '#687f99'
+        if (layers.riskZones && report.coverage_radius_m) {
+          L.circle(point, { radius: report.coverage_radius_m, color, weight: 1.5,
+            fillOpacity: 0.13, dashArray: '4 4', interactive: false }).addTo(overlay)
+        }
+        if (!layers[report.status]) continue
+        const glyph = report.status === 'resolved' ? '✓' : report.status === 'pending' ? '?' : '!'
+        const icon = L.divIcon({
+          className: 'fg-marker-wrap',
+          html: `<span class="operations-map-pin ${report.status}${selectedReportId === report.id ? ' selected' : ''}" style="--risk:${color}">${glyph}</span>`,
+          iconSize: [26, 26], iconAnchor: [13, 13],
+        })
+        const marker = L.marker(point, { icon, alt: report.title, title: report.title })
+          .bindTooltip(escapeHtml(report.title))
+          .on('click', () => onSelectReportRef.current?.(report))
+        group.addLayer(marker)
+      }
+      group.addTo(overlay)
+    }
+
     if (layers.detections && data?.detections?.length) {
       const group =
         clusterReady && L.markerClusterGroup
@@ -359,12 +401,12 @@ export default function MapView({
         fittedRef.current = true
       }
     }
-  }, [data, layers, ready, clusterReady, selectedDetectionId, selectedTrackId])
+  }, [data, layers, ready, clusterReady, selectedDetectionId, selectedTrackId, jurisdiction, selectedReportId])
 
   useEffect(() => {
-    if (!mapRef.current || !focus?.length) return
+    if (!ready || !mapRef.current || !focus?.length) return
     mapRef.current.setView([focus[0], focus[1]], focus[2] || 13, { animate: true })
-  }, [focus])
+  }, [focus, ready])
 
   const speciesLegend = data?.detections?.length
     ? [...new Set(data.detections.map((item) => item.species))].slice(0, 6)

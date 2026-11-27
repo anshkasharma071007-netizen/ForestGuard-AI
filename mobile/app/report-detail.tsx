@@ -18,6 +18,7 @@ import { formatTimestamp } from '@/format';
 import { useAppActive } from '@/hooks/useAppActive';
 import { usePublicData } from '@/hooks/usePublicData';
 import { getCitizenEvidence, getCitizenReport } from '@/services/api';
+import { cacheEvidence } from '@/services/evidence-cache';
 import { radius, spacing, typeScale, useTheme } from '@/theme';
 
 export default function ReportDetail() {
@@ -61,7 +62,7 @@ export default function ReportDetail() {
               <Field label="Location source" value={source === 'gps' ? 'GPS' : source === 'village' ? 'Village selection' : undefined} />
             </View>
             <Field label="Description" value={report.description} />
-            {report.hasPhoto && <IncidentPhoto key={report.reference_code} code={report.reference_code} />}
+            {focused && report.hasPhoto && <IncidentPhoto key={report.reference_code} code={report.reference_code} />}
           </Section>
           {!!hasResponse && <Section title="Authority response">
             <View style={styles.fields}>
@@ -110,36 +111,39 @@ function IncidentPhoto({ code }: { code: string }) {
 
   useEffect(() => {
     const controller = new AbortController();
-    const cancel = () => controller.abort();
-    let objectUrl: string | undefined;
-    let reader: FileReader | undefined;
     if (access.signal.aborted) return;
+    let release: (() => void) | undefined;
+    const cancel = () => {
+      controller.abort();
+      release?.();
+      release = undefined;
+    };
     const failed = () => { if (!controller.signal.aborted) setImageError(true); };
     const load = (uri: string) => Image.getSize(uri, (width, height) => {
       if (!controller.signal.aborted) setPhoto({ uri, width, height });
     }, failed);
 
     access.signal.addEventListener('abort', cancel, { once: true });
-    void getCitizenEvidence(access, code, controller.signal).then((blob) => {
+    void getCitizenEvidence(access, code, controller.signal).then(async (evidence) => {
       if (controller.signal.aborted) return;
-      if (Platform.OS === 'web') {
-        objectUrl = URL.createObjectURL(blob);
-        load(objectUrl);
-      } else {
-        // Keep private evidence in memory instead of caching the authenticated URL.
-        reader = new FileReader();
-        reader.onload = () => {
-          if (!controller.signal.aborted && typeof reader?.result === 'string') load(reader.result);
-        };
-        reader.onerror = failed;
-        reader.readAsDataURL(blob);
+      if (evidence.blob) {
+        const uri = URL.createObjectURL(evidence.blob);
+        release = () => URL.revokeObjectURL(uri);
+        load(uri);
+        return;
       }
+      // Decode a temporary app-private file without copying evidence through Blob and base64.
+      const file = await cacheEvidence(evidence.bytes);
+      release = file.release;
+      if (controller.signal.aborted) {
+        cancel();
+        return;
+      }
+      load(file.uri);
     }).catch(failed);
     return () => {
       access.signal.removeEventListener('abort', cancel);
       cancel();
-      reader?.abort();
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [access, code, attempt]);
 

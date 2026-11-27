@@ -164,6 +164,7 @@ def run():
         from backend.api.routes_jurisdictions import JurisdictionInput, add_jurisdiction, replace_assignments
         from backend.main import WebsiteFiles, app
         from backend.services.risk_service import get_settings
+        from tools.provision_greater_noida import provision
         app.router.routes[:] = [route for route in app.routes if getattr(route, "name", None) != "frontend"]
         app.mount("/", WebsiteFiles(directory=website, html=True), name="workflow-frontend")
 
@@ -195,6 +196,7 @@ def run():
             ]}
             district = add_jurisdiction(db, JurisdictionInput(name="Isolated workflow jurisdiction", boundary=boundary))
             replace_assignments(db, user, {district.id})
+            provision(db, secret)
             auth = {"Authorization": "Bearer " + create_token(user)}
             admin_auth = {"Authorization": "Bearer " + create_token(central)}
         client = TestClient(app)

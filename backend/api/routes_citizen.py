@@ -68,7 +68,7 @@ class AlertPreferences(BaseModel):
 class ProfileUpdate(BaseModel):
     name: Name
     email: Email | None = None
-    location: Location
+    location: Location | None = None
 
 
 def _normalize_phone(value: str) -> str:
@@ -83,17 +83,26 @@ def _normalize_phone(value: str) -> str:
 
 
 def saved_location(citizen: Citizen, *, approximate=False) -> dict | None:
-    if citizen.village and valid_coordinates(citizen.village.lat, citizen.village.lon):
-        return {"type": "village", "village": village_identity(citizen.village),
-                **village_center(citizen.village, public=approximate)}
-    if valid_coordinates(citizen.lat, citizen.lon):
-        return {"type": "gps", "lat": citizen.lat, "lon": citizen.lon}
+    return _serialize_location(citizen.village, citizen.lat, citizen.lon, approximate=approximate)
+
+
+def _serialize_location(village, lat, lon, *, approximate):
+    if village and valid_coordinates(village.lat, village.lon):
+        return {"type": "village", "village": village_identity(village),
+                **village_center(village, public=approximate)}
+    if valid_coordinates(lat, lon):
+        return {"type": "gps", "lat": lat, "lon": lon}
     return None
+
+
+def saved_alert_location(citizen: Citizen) -> dict | None:
+    return _serialize_location(citizen.alert_village, citizen.alert_lat, citizen.alert_lon, approximate=True)
 
 
 def _profile(citizen: Citizen) -> dict:
     return {"id": citizen.id, "phone": citizen.phone, "name": citizen.name, "email": citizen.email,
-            "location": saved_location(citizen, approximate=True), "alert_radius_km": citizen.alert_radius_km}
+            "location": saved_location(citizen, approximate=True), "alert_radius_km": citizen.alert_radius_km,
+            "saved_alert_location": saved_alert_location(citizen)}
 
 
 def _token_hash(token: str) -> str:
@@ -198,14 +207,39 @@ def profile(citizen: Citizen = Depends(get_citizen)):
 
 @router.put("/profile")
 def update_profile(payload: ProfileUpdate, citizen: Citizen = Depends(get_citizen), db: Session = Depends(get_db)):
-    location = payload.location
+    if payload.location is not None:
+        location = payload.location
+        village = _location_village(db, location)
+        citizen.village, citizen.lat, citizen.lon = village, location.lat, location.lon
+        citizen.alert_village, citizen.alert_lat, citizen.alert_lon = village, location.lat, location.lon
+    elif not saved_location(citizen):
+        raise HTTPException(400, "Choose a location to finish setting up your profile.")
+    citizen.name = payload.name
+    citizen.email = payload.email
+    db.commit()
+    return _profile(citizen)
+
+
+def _location_village(db: Session, location: Location):
     village = resolve_village(db, village_id=location.village_id, village_code=location.village_code)
     if village is not None and not valid_coordinates(village.lat, village.lon):
         raise HTTPException(400, "This village has no usable location. Choose another village or use GPS.")
-    citizen.name = payload.name
-    citizen.email = payload.email
-    citizen.village = village
-    citizen.lat, citizen.lon = location.lat, location.lon
+    return village
+
+
+@router.put("/saved-location")
+def update_saved_location(payload: Location, citizen: Citizen = Depends(onboarded_citizen),
+                          db: Session = Depends(get_db)):
+    citizen.alert_village = _location_village(db, payload)
+    citizen.alert_lat, citizen.alert_lon = payload.lat, payload.lon
+    db.commit()
+    return _profile(citizen)
+
+
+@router.delete("/saved-location")
+def remove_saved_location(citizen: Citizen = Depends(onboarded_citizen), db: Session = Depends(get_db)):
+    citizen.alert_village = None
+    citizen.alert_lat = citizen.alert_lon = None
     db.commit()
     return _profile(citizen)
 

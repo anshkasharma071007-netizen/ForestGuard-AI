@@ -87,8 +87,12 @@ class Citizen(Base):
     lon: Mapped[float | None] = mapped_column(Float)
 
     alert_radius_km: Mapped[int] = mapped_column(Integer, server_default="25")
+    alert_village_id: Mapped[int | None] = mapped_column(ForeignKey("villages.id", name="fk_citizen_alert_village"))
+    alert_lat: Mapped[float | None] = mapped_column(Float)
+    alert_lon: Mapped[float | None] = mapped_column(Float)
 
-    village: Mapped[Village | None] = relationship()
+    village: Mapped[Village | None] = relationship(foreign_keys=[village_id])
+    alert_village: Mapped[Village | None] = relationship(foreign_keys=[alert_village_id])
 
 
 class CitizenSession(Base):

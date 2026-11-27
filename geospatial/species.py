@@ -6,6 +6,8 @@ not been benchmarked on a labelled field dataset; see docs/ai-limitations.md.
 """
 from __future__ import annotations
 
+import re
+
 SPECIES: dict[str, dict] = {
     "tiger": {
         "name": "Bengal tiger",
@@ -111,6 +113,29 @@ REPORT_ANIMALS = {
     "unidentified": {**SPECIES["unidentified"], "name": "Unknown animal"},
     "other": {**SPECIES["unidentified"], "name": "Other animal"},
 }
+
+CITIZEN_RISK_BASELINE = {
+    "tiger": "high", "leopard": "high", "elephant": "high",
+    "sloth_bear": "high", "wild_boar": "moderate", "deer": "low",
+}
+
+def _animal_words(value: str) -> str:
+    return " ".join(re.findall(r"[a-z0-9]+", value.lower()))
+
+
+_REPORT_ALIASES = {
+    "indian elephant": "elephant", "chital": "deer", "spotted deer": "deer",
+    "chital spotted deer": "deer", "chital deer": "deer", "wild pig": "wild_boar",
+    "boar": "wild_boar", "indian sloth bear": "sloth_bear", "unknown": "unidentified",
+}
+for _key, _animal in REPORT_ANIMALS.items():
+    for _label in (_key, _animal["name"], _animal["scientific"]):
+        if _label != "—":
+            _REPORT_ALIASES[_animal_words(_label)] = _key
+
+
+def normalize_report_animal(value: str) -> str:
+    return _REPORT_ALIASES.get(_animal_words(value), value)
 
 # Prompt aliases improve zero-shot retrieval without over-claiming classes.
 SPECIES_PROMPTS = {

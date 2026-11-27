@@ -1,10 +1,11 @@
 import { router, useFocusEffect, useIsFocused } from 'expo-router';
 import { Bell, ChevronDown, Filter, MapPin, RefreshCw } from 'lucide-react-native';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useCitizen } from '@/citizen-context';
 import { useCitizenNotifications } from '@/citizen-notifications';
 import { AdvisoryList } from '@/components/AdvisoryList';
+import { AlertSearchControls } from '@/components/AlertSearchControls';
 import { SegmentedControl } from '@/components/Controls';
 import { Feedback, SupportingText } from '@/components/Feedback';
 import { IconAction } from '@/components/IconAction';
@@ -17,41 +18,36 @@ import { TextAction } from '@/components/TextAction';
 import { useAppActive } from '@/hooks/useAppActive';
 import { usePublicData } from '@/hooks/usePublicData';
 import { getCitizenReports, getNearbyAlerts } from '@/services/api';
-import { getCurrentCoordinates, LocationPermissionError } from '@/services/device-location';
-import { alertRadii, type AlertRadius, type AlertSort } from '@/services/nearby-alerts';
+import { type AlertSort } from '@/services/nearby-alerts';
 import { recoverCitizenSubmissions } from '@/services/report-storage';
 import { radius, sizing, spacing, typeScale, useTheme } from '@/theme';
 
-const locationOptions = [{ id: 'saved', label: 'Saved location' }, { id: 'gps', label: 'Current GPS' }] as const;
-const radiusOptions = alertRadii.map(km => ({ id: `${km}` as const, label: `${km} km` }));
 const sortOptions = [{ id: 'time', label: 'Time' }, { id: 'risk', label: 'Risk' }, { id: 'distance', label: 'Distance' }] as const;
 
 export default function HomeScreen() {
-  const { profile, access, alertLocation, setAlertLocation, saveAlertRadius } = useCitizen();
+  const { profile, access, alertLocation, alertRadius } = useCitizen();
   const { inbox } = useCitizenNotifications();
   const { colors } = useTheme();
   const [sort, setSort] = useState<AlertSort>('time');
   const [showSort, setShowSort] = useState(false);
   const [pulling, setPulling] = useState(false);
   const [offset, setOffset] = useState(0);
-  const [locating, setLocating] = useState(false);
-  const [locationError, setLocationError] = useState('');
-  const [savingRadius, setSavingRadius] = useState(false);
-  const [radiusError, setRadiusError] = useState('');
-  const alertRadius = profile?.alertRadiusKm ?? 25;
   const focused = useIsFocused();
   const active = useAppActive();
   const enabled = focused && active;
-  const location = profile?.location;
+  const location = profile?.savedAlertLocation;
   const fetchReports = useCallback((signal: AbortSignal) => getCitizenReports(access, signal), [access]);
   const fetchAlerts = useCallback((signal: AbortSignal) =>
-    getNearbyAlerts(access, alertLocation, alertRadius, sort, offset, signal),
+    alertLocation ? getNearbyAlerts(access, alertLocation, alertRadius, sort, offset, signal)
+      : Promise.resolve({ items: [], nextOffset: null }),
     [access, alertLocation, alertRadius, sort, offset]);
   const reports = usePublicData(fetchReports, enabled, 10000);
-  const alerts = usePublicData(fetchAlerts, enabled, 15000);
+  const alerts = usePublicData(fetchAlerts, enabled && Boolean(alertLocation), 15000);
   const reportReload = reports.revalidate;
   const citizenId = profile?.id;
   const unread = inbox?.unread ?? 0;
+
+  useEffect(() => setOffset(0), [alertLocation, alertRadius]);
 
   useFocusEffect(useCallback(() => {
     if (!citizenId || !active) return;
@@ -60,41 +56,6 @@ export default function HomeScreen() {
       .then((recovered) => { if (recovered) return reportReload(controller.signal); }).catch(() => {});
     return () => controller.abort();
   }, [access, active, citizenId, reportReload]));
-
-  async function selectAlertLocation(source: 'saved' | 'gps') {
-    setLocationError('');
-    if (source === 'saved') {
-      setAlertLocation(access, { source });
-      setOffset(0);
-      return;
-    }
-    setLocating(true);
-    try {
-      const point = await getCurrentCoordinates();
-      setAlertLocation(access, { source, ...point });
-      setOffset(0);
-    } catch (error) {
-      setLocationError(error instanceof LocationPermissionError
-        ? 'Location permission was denied. You can use your saved location.'
-        : 'Current GPS is unavailable. Try again or use your saved location.');
-    } finally {
-      setLocating(false);
-    }
-  }
-
-  async function selectRadius(value: AlertRadius) {
-    if (value === alertRadius) return;
-    setSavingRadius(true);
-    setRadiusError('');
-    try {
-      await saveAlertRadius(value);
-      setOffset(0);
-    } catch (error) {
-      setRadiusError(error instanceof Error ? error.message : 'Could not save the alert radius.');
-    } finally {
-      setSavingRadius(false);
-    }
-  }
 
   const activeReports = reports.state.kind === 'ready' ? reports.state.data.filter(
     ({ status }) => status === 'pending' || status === 'forwarded' || status === 'under_work' || status === 'verified',
@@ -120,7 +81,7 @@ export default function HomeScreen() {
           onPress={() => router.push('/profile')}>
           <MapPin size={16} color={colors.accent} />
           <Text style={[typeScale.supporting, { color: colors.primaryText, flexShrink: 1 }]}>
-            {location?.type === 'village' ? [location.village.name, location.village.district].filter(Boolean).join(', ') : 'Saved GPS location'}
+            {location?.type === 'village' ? [location.village.name, location.village.district].filter(Boolean).join(', ') : location ? 'Saved GPS location' : 'Manage saved location'}
           </Text>
           <ChevronDown size={14} color={colors.mutedText} />
         </Pressable>
@@ -141,17 +102,12 @@ export default function HomeScreen() {
             <IconAction icon={Filter} label={showSort ? 'Hide alert sorting' : 'Sort nearby alerts'} onPress={() => setShowSort(!showSort)} />
             <IconAction icon={RefreshCw} label="Refresh nearby alerts" loading={alerts.refreshing} onPress={alerts.reload} />
           </View>} />
-          <SegmentedControl label="Alert location" options={locationOptions} value={alertLocation.source}
-            onChange={value => void selectAlertLocation(value)} disabled={locating} />
-          {locating && <SupportingText>Finding your current location…</SupportingText>}
-          {!!locationError && <SupportingText error>{locationError}</SupportingText>}
-          <SegmentedControl label="Alert radius" options={radiusOptions} value={`${alertRadius}`}
-            onChange={value => void selectRadius(Number(value) as AlertRadius)} disabled={savingRadius} />
-          {!!radiusError && <SupportingText error>{radiusError}</SupportingText>}
+          <AlertSearchControls onChange={() => setOffset(0)} />
           {showSort && <SegmentedControl label="Sort nearby alerts" options={sortOptions} value={sort}
             onChange={value => { setSort(value); setOffset(0); }} />}
           {!!alerts.refreshError && <SupportingText error>{alerts.refreshError}</SupportingText>}
-          <AdvisoryList state={alerts.state} retry={alerts.reload} />
+          {alertLocation ? <AdvisoryList state={alerts.state} retry={alerts.reload} radiusKm={alertRadius} />
+            : <SupportingText>Choose a location to search for nearby alerts.</SupportingText>}
           {(offset > 0 || (alerts.state.kind === 'ready' && alerts.state.data.nextOffset !== null)) && <View style={styles.controls}>
             {offset > 0 && <TextAction label="Previous alerts" onPress={() => setOffset(Math.max(0, offset - 20))} />}
             {alerts.state.kind === 'ready' && alerts.state.data.nextOffset !== null &&

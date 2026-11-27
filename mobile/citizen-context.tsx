@@ -2,7 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { createContext, useContext, useEffect, useRef, useState, type PropsWithChildren } from 'react';
 import { Platform } from 'react-native';
-import { ApiError, endCitizenSession, getCitizenProfile, updateAlertRadius, updateCitizenProfile, verifyCitizen, type CitizenAccess, type CitizenProfile, type LocationInput } from '@/services/api';
+import { ApiError, endCitizenSession, getCitizenProfile, updateAlertRadius, updateCitizenProfile, updateSavedAlertLocation,
+  verifyCitizen, type CitizenAccess, type CitizenProfile, type Coordinates, type LocationInput } from '@/services/api';
+import { getCurrentCoordinates, LocationPermissionError } from '@/services/device-location';
 import type { AlertLocation, AlertRadius } from '@/services/nearby-alerts';
 import { clearCitizenSubmissions, clearLegacyReferences } from '@/services/report-storage';
 
@@ -14,13 +16,13 @@ const inactiveSession = new AbortController();
 inactiveSession.abort();
 const inactiveAccess: CitizenAccess & { signal: AbortSignal } = { signal: inactiveSession.signal, expire: () => {} };
 
-const savedAlertLocation = { source: 'saved' } as const;
-
 type ActiveSession = {
   profile: CitizenProfile;
   access: CitizenAccess & { signal: AbortSignal };
   controller: AbortController;
-  alertLocation: AlertLocation;
+  alertLocation: AlertLocation | null;
+  gps?: Coordinates;
+  alertRadius: AlertRadius;
 };
 
 function useSession() {
@@ -33,14 +35,23 @@ function useSession() {
   const [logoutNotice, setLogoutNotice] = useState('');
   const [logoutPending, setLogoutPending] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState('');
+  const gpsRequest = useRef<CitizenAccess | null>(null);
+  const radiusRequest = useRef<CitizenAccess | null>(null);
+  const [savingAlertRadius, setSavingAlertRadius] = useState(false);
 
   function activate(profile: CitizenProfile, token?: string) {
     const controller = new AbortController();
     const access = { token, citizenId: profile.id, signal: controller.signal, expire: () => {
       if (current.current?.access === access) void signOut();
     } };
-    const next = { profile, access, controller, alertLocation: savedAlertLocation };
+    const next: ActiveSession = { profile, access, controller,
+      alertLocation: profile.savedAlertLocation ? { source: 'saved' } : null, alertRadius: profile.alertRadiusKm };
     current.current = next;
+    setLocating(false);
+    setLocationError('');
+    setSavingAlertRadius(false);
     setSession(next);
   }
 
@@ -141,32 +152,90 @@ function useSession() {
     }
   }
 
-  async function save(input: { name: string; email: string | null; location: LocationInput }) {
+  async function save(input: { name: string; email: string | null; location?: LocationInput }) {
     const active = current.current;
     if (!active) return;
     const profile = await updateCitizenProfile(active.access, input);
-    if (current.current?.access === active.access) {
-      const next = { ...current.current, profile };
-      current.current = next;
-      setSession(next);
-    }
+    applyLocationProfile(active.access, profile, Boolean(input.location));
   }
 
-  function setAlertLocation(access: CitizenAccess, alertLocation: AlertLocation) {
-    if (current.current?.access !== access) return;
-    const next = { ...current.current, alertLocation };
+  function applyLocationProfile(access: CitizenAccess, profile: CitizenProfile, changedLocation: boolean) {
+    const active = current.current;
+    if (active?.access !== access) return;
+    let alertLocation = active.alertLocation;
+    if (changedLocation && alertLocation?.source !== 'gps') {
+      alertLocation = profile.savedAlertLocation ? { source: 'saved' } : null;
+    }
+    const next = { ...active, profile, alertLocation };
     current.current = next;
     setSession(next);
   }
 
-  async function saveAlertRadius(radius: AlertRadius) {
+  async function saveLocation(location: LocationInput | null) {
     const active = current.current;
     if (!active) return;
-    const alertRadiusKm = await updateAlertRadius(active.access, radius);
-    if (current.current?.access === active.access) {
-      const next = { ...current.current, profile: { ...current.current.profile, alertRadiusKm } };
+    const profile = await updateSavedAlertLocation(active.access, location);
+    applyLocationProfile(active.access, profile, true);
+  }
+
+  async function selectAlertLocation(source: AlertLocation['source']) {
+    const active = current.current;
+    if (!active || gpsRequest.current === active.access) return;
+    setLocationError('');
+    if (source === 'saved') {
+      if (!active.profile.savedAlertLocation) return;
+      const next: ActiveSession = { ...active, alertLocation: { source } };
       current.current = next;
       setSession(next);
+      return;
+    }
+    gpsRequest.current = active.access;
+    setLocating(true);
+    try {
+      const point = await getCurrentCoordinates();
+      if (current.current?.access !== active.access) return;
+      const next: ActiveSession = { ...current.current, gps: point, alertLocation: { source, ...point } };
+      current.current = next;
+      setSession(next);
+    } catch (error) {
+      if (current.current?.access === active.access) {
+        setLocationError(error instanceof LocationPermissionError
+          ? 'Location permission was denied. Allow GPS access or choose a saved location in Profile.'
+          : 'Current GPS is unavailable. Try again or choose a saved location in Profile.');
+      }
+    } finally {
+      if (gpsRequest.current === active.access) gpsRequest.current = null;
+      if (current.current?.access === active.access) setLocating(false);
+    }
+  }
+
+  const hasOnboarded = Boolean(session?.profile.location);
+  useEffect(() => {
+    if (hasOnboarded) void selectAlertLocation('gps');
+  }, [hasOnboarded, session?.access]);
+
+  async function saveAlertRadius(radius: AlertRadius) {
+    const active = current.current;
+    if (!active || radiusRequest.current === active.access) return false;
+    radiusRequest.current = active.access;
+    setSavingAlertRadius(true);
+    const next = { ...active, alertRadius: radius };
+    current.current = next;
+    setSession(next);
+    try {
+      const alertRadiusKm = await updateAlertRadius(active.access, radius);
+      if (current.current?.access === active.access) {
+        const saved = { ...current.current, profile: { ...current.current.profile, alertRadiusKm } };
+        current.current = saved;
+        setSession(saved);
+      }
+      return true;
+    } catch (error) {
+      if (error instanceof ApiError && error.kind === 'unavailable') return false;
+      throw error;
+    } finally {
+      if (radiusRequest.current === active.access) radiusRequest.current = null;
+      if (current.current?.access === active.access) setSavingAlertRadius(false);
     }
   }
 
@@ -188,9 +257,10 @@ function useSession() {
 
   return {
     profile: session?.profile ?? null, access: session?.access ?? inactiveAccess,
-    alertLocation: session?.alertLocation ?? savedAlertLocation, setAlertLocation, saveAlertRadius,
+    alertLocation: session?.alertLocation ?? null, gps: session?.gps, selectAlertLocation, locating, locationError,
+    alertRadius: session?.alertRadius ?? 25, saveAlertRadius, savingAlertRadius,
     loading, restoreError, retry: () => setAttempt((value) => value + 1),
-    logoutNotice, logoutPending, verify, save, signOut,
+    logoutNotice, logoutPending, verify, save, saveLocation, signOut,
   };
 }
 

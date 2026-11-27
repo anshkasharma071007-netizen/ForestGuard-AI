@@ -6,8 +6,8 @@ import type { PublicAdvisories } from '@/services/api';
 import { radius, spacing, typeScale, useTheme } from '@/theme';
 import { Feedback, SupportingText } from './Feedback';
 
-export function AdvisoryList({ state, retry }: {
-  state: Resource<PublicAdvisories>; retry: () => void;
+export function AdvisoryList({ state, retry, radiusKm }: {
+  state: Resource<PublicAdvisories>; retry: () => void; radiusKm: number;
 }) {
   const { colors } = useTheme();
   const [expanded, setExpanded] = useState<number>();
@@ -17,7 +17,7 @@ export function AdvisoryList({ state, retry }: {
   if (state.kind !== 'ready') return null;
 
   const { items } = state.data;
-  if (items.length === 0) return <Feedback title="No nearby alerts" />;
+  if (items.length === 0) return <Feedback title={`No active alerts within ${radiusKm} km`} />;
 
   return (
     <View style={styles.list}>

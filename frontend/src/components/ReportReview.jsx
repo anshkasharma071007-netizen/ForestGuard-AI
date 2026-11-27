@@ -415,7 +415,7 @@ export function ReportReview({ report, title, species, onClose, reload, canRevie
                 {riskPreview?.error && <ErrorBox message={riskPreview.error} onRetry={() => setPreviewAttempt(value => value + 1)} />}
                 {riskPreview?.data?.risk && <>
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span>Automatic</span><RiskBadge level={riskPreview.data.risk.level} />
+                    <span>Automatic</span><RiskBadge level={riskPreview.data.risk.level} score={riskPreview.data.risk.score} />
                   </div>
                   {riskPreview.data.risk.missing_factors?.includes('village_proximity') &&
                     <p className="report-review-secondary">Village proximity unavailable</p>}
@@ -475,7 +475,7 @@ export function ReportReview({ report, title, species, onClose, reload, canRevie
               <Field label="Linked incident"><Link className="report-review-link underline"
                 to={`/alerts?incident=${latestReview.incident_id}`}>Incident #{latestReview.incident_id}</Link></Field>
               {latestReview.risk && <>
-                <Field label="Risk"><RiskBadge level={latestReview.risk.level} /></Field>
+                <Field label="Risk"><RiskBadge level={latestReview.risk.level} score={latestReview.risk.score} /></Field>
                 <Field label="Method">{assessmentLabel(latestReview.risk)}</Field>
                 <Field label={latestReview.risk.assessment_method === 'override' ? 'Override reason' : 'Assessment reason'} wide>
                   {latestReview.risk.assessment_reason}

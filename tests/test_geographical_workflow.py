@@ -155,7 +155,12 @@ def test_jurisdiction_review_and_shared_active_discovery(client, admin_headers, 
     assert {"species", "severity", "status", "created_at"} <= found[0].keys()
     assert not {"lat", "lon", "reporter_name", "contact", "incident_id", "report_id", "evidence_url"} & found[0].keys()
     assert "23.0222" not in str(found) and "Private Reporter" not in str(found)
-    assert [alert["id"] for alert in discover(citizen_c, source="gps", lat=23.0, lon=82.0, radius_km=5)] == [aid]
+    for radius in (5, 10, 20, 25):
+        assert [alert["id"] for alert in discover(citizen_b, radius_km=radius)] == ([] if radius == 5 else [aid])
+        assert [alert["id"] for alert in discover(citizen_c, source="gps", lat=23.0, lon=82.0, radius_km=radius)] == [aid]
+        preference = client.put("/api/citizen/alert-preferences", headers=citizen_a, json={"radius_km": radius})
+        assert preference.status_code == 200, preference.text
+        assert preference.json() == {"radius_km": radius}
 
     assert client.put("/api/citizen/alert-preferences", headers=citizen_a, json={"radius_km": 10}).status_code == 200
     with TestClient(client.app) as device_b:

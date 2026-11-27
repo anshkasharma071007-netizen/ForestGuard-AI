@@ -158,15 +158,24 @@ def risk_zones(
 @router.get("/analytics")
 def analytics(
     days: int = Query(default=30, ge=7, le=365),
+    operational: bool = False,
     db: Session = Depends(get_db),
     user: User = Depends(require_guard),
 ) -> dict:
     now = utcnow()
     since = now - timedelta(days=days)
+    simulated = config.demo_jurisdictions_allowed()
+    detection_query = select(Detection).where(authority_scope(db, user, Detection))
+    incident_query = select(Incident).where(authority_scope(db, user, Incident))
+    alert_query = select(Alert).where(authority_scope(db, user, Alert))
+    if operational:
+        detection_query = detection_query.where(Detection.is_simulated.is_(simulated))
+        incident_query = incident_query.where(Incident.is_simulated.is_(simulated))
+        alert_query = alert_query.where(Alert.is_simulated.is_(simulated))
     detections = db.scalars(
-        select(Detection).where(authority_scope(db, user, Detection)).where(Detection.detected_at >= since).order_by(Detection.detected_at)
+        detection_query.where(Detection.detected_at >= since).order_by(Detection.detected_at)
     ).all()
-    prior = db.scalars(select(Detection).where(authority_scope(db, user, Detection)).where(Detection.detected_at < since)).all()
+    prior = db.scalars(detection_query.where(Detection.detected_at < since)).all()
 
     species_counts = Counter(detection.species for detection in detections)
     risk_counts = Counter(detection.risk_level for detection in detections)
@@ -202,12 +211,12 @@ def analytics(
         )
 
     incidents = db.scalars(
-        select(Incident).where(authority_scope(db, user, Incident)).where(Incident.created_at >= since).order_by(Incident.created_at, Incident.id)
+        incident_query.where(Incident.created_at >= since).order_by(Incident.created_at, Incident.id)
     ).all()
     incident_categories = Counter(incident.category for incident in incidents)
     incident_severity = Counter(incident.severity for incident in incidents)
 
-    alerts = db.scalars(select(Alert).where(authority_scope(db, user, Alert)).where(Alert.created_at >= since)).all()
+    alerts = db.scalars(alert_query.where(Alert.created_at >= since)).all()
     resolved = [alert for alert in alerts if alert.resolved_at and alert.acknowledged_at]
     ack_minutes = [
         (alert.acknowledged_at - alert.created_at).total_seconds() / 60
@@ -290,22 +299,23 @@ def analytics(
             "off_duty": len([g for g in guards if g.status == "off_duty"]),
         },
         "generated_at": now.isoformat() + "Z",
-        "note": "Demonstration dataset. Response-time figures are artefactual for synthetic records.",
+        "note": ("Jurisdiction-scoped operational records." if operational and not simulated
+                 else "Demonstration dataset. Response-time figures are artefactual for synthetic records."),
     }
 
 
 @router.get("/analytics/export")
 def export_analytics(
     days: int = Query(default=30, ge=1, le=365),
+    operational: bool = False,
     db: Session = Depends(get_db),
     user: User = Depends(require_guard),
 ) -> Response:
     since = utcnow() - timedelta(days=days)
-    detections = db.scalars(
-        select(Detection).where(authority_scope(db, user, Detection))
-        .where(Detection.detected_at >= since)
-        .order_by(Detection.detected_at.desc())
-    ).all()
+    query = select(Detection).where(authority_scope(db, user, Detection), Detection.detected_at >= since)
+    if operational:
+        query = query.where(Detection.is_simulated.is_(config.demo_jurisdictions_allowed()))
+    detections = db.scalars(query.order_by(Detection.detected_at.desc())).all()
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(

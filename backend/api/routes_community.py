@@ -16,10 +16,10 @@ from sqlalchemy import func, literal_column, or_, select, text, update
 from sqlalchemy.orm import Session, selectinload
 
 from geospatial.mapping import valid_coordinates
-from geospatial.species import REPORT_ANIMALS, SPECIES_ORDER, species_meta
+from geospatial.species import REPORT_ANIMALS, SPECIES_ORDER, normalize_report_animal, species_meta
 
 from backend import config
-from backend.api.routes_citizen import AlertRadius, onboarded_citizen, saved_location
+from backend.api.routes_citizen import AlertRadius, onboarded_citizen, saved_alert_location
 from backend.api.utils import now_iso, public_area_label
 from backend.database.session import get_db
 from backend.models import Alert, Incident, SightingReport, Village, utcnow
@@ -160,7 +160,9 @@ def nearby_alerts(
     if payload.source == "saved":
         if lat is not None or lon is not None:
             raise HTTPException(400, "Choose either saved location or current GPS.")
-        location = saved_location(citizen)
+        location = saved_alert_location(citizen)
+        if location is None:
+            raise HTTPException(400, "Choose current GPS or save a location in your profile.")
         lat, lon = location["lat"], location["lon"]
     if not valid_coordinates(lat, lon):
         raise HTTPException(400, "Provide a valid current GPS location.")
@@ -177,14 +179,15 @@ def nearby_alerts(
         distance = func.fg_distance_m(Alert.public_lat, Alert.public_lon, lat, lon)
         nearby = distance <= radius_km * 1000
     order = {"time": (), "risk": (Alert.priority_rank,), "distance": (distance,)}[payload.sort]
-    matches = db.execute(query.add_columns(distance).where(
+    matches = db.execute(query.add_columns(distance, Incident.village_id).where(
         Incident.verified.is_(True), Incident.is_public.is_(True), Alert.is_simulated.is_(config.demo_jurisdictions_allowed()), nearby
     ).order_by(*order, Alert.created_at.desc(), Alert.id.desc()).offset(offset).limit(limit + 1)).all()
     return {
         "items": [
             {**_public_alert(db, alert), "approximate_locations": [{"lat": alert.public_lat, "lon": alert.public_lon}],
+             "uncertainty_radius_m": 1000 if village_id and alert.village_ids else 8000,
              "distance_km": round(metres / 1000)}
-            for alert, metres in matches[:limit]
+            for alert, metres, village_id in matches[:limit]
         ],
         "radius_km": radius_km,
         "next_offset": offset + limit if len(matches) > limit else None,
@@ -316,6 +319,7 @@ def _persist_report(
     village_code: str | None, village_id: int | None, lat: float | None, lon: float | None, submission_key: UUID | None,
     image: UploadFile | None, title: str | None = None, citizen_id: int | None = None,
 ) -> dict:
+    species = normalize_report_animal(species)
     if category not in {"sighting", "conflict"} or species not in REPORT_ANIMALS:
         raise HTTPException(400, "Choose a supported category and animal.")
     if any("\x00" in value for value in (title or "", description, reporter_name, contact or "", village_code or "")):
@@ -480,16 +484,17 @@ def citizen_report(reference_code: str, citizen: Citizen = Depends(onboarded_cit
 @citizen_router.get("/notifications")
 def citizen_notifications(citizen: Citizen = Depends(onboarded_citizen), db: Session = Depends(get_db)):
     rows = db.execute(
-        select(CitizenNotification, SightingReport.title, SightingReport.reference_code)
+        select(CitizenNotification, SightingReport.title, SightingReport.reference_code, Incident.severity)
         .join(SightingReport, SightingReport.id == CitizenNotification.report_id)
+        .outerjoin(Incident, Incident.report_id == SightingReport.id)
         .where(CitizenNotification.citizen_id == citizen.id, SightingReport.citizen_id == citizen.id)
         .order_by(CitizenNotification.created_at.desc(), CitizenNotification.report_id.desc(), CitizenNotification.event)
     ).all()
     return {
         "items": [{"id": f"{item.report_id}:{item.event}", "event": item.event,
                    "report_title": title, "reference_code": reference, "created_at": iso(item.created_at),
-                   "read_at": iso(item.read_at)} for item, title, reference in rows],
-        "unread": sum(item.read_at is None for item, _, _ in rows),
+                   "read_at": iso(item.read_at), "risk_level": severity} for item, title, reference, severity in rows],
+        "unread": sum(item.read_at is None for item, *_ in rows),
     }
 
 

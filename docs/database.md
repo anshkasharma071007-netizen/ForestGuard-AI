@@ -166,7 +166,7 @@ FOREST_GUARD_DB_MODE=cloud APP_ENV=development AUTHORITY_DEMO_ACCOUNTS_ENABLED=t
 
 ### Owner migrations
 
-Revision `0007` is already applied to the supplied cloud project. To apply `0008`, use a separate mode-0600 owner passfile at `.forest-guard-local/supabase-owner.pgpass`. Use the session-pooler hostname, port, database and project-qualified owner login in the libpq passfile entry. Escape colons and backslashes in the password. The owner command reuses the selected cloud endpoint and CA. Substitute the owner's project-qualified login from Supabase.
+Use a separate mode-0600 owner passfile at `.forest-guard-local/supabase-owner.pgpass` to apply cloud migrations. Use the session-pooler hostname, port, database and project-qualified owner login in the libpq passfile entry. Escape colons and backslashes in the password. The owner command reuses the selected cloud endpoint and CA. Substitute the owner's project-qualified login from Supabase.
 
 ```sh
 env -u PGPASSWORD FOREST_GUARD_DB_MODE=cloud \
@@ -175,7 +175,7 @@ env -u PGPASSWORD FOREST_GUARD_DB_MODE=cloud \
   .venv/bin/alembic -x owner=1 upgrade head
 ```
 
-In the Supabase SQL Editor, execute the following using the database owner after Alembic finishes:
+If you are upgrading from before `0008`, execute the following in the Supabase SQL Editor as the database owner after Alembic finishes.
 
 ```sql
 BEGIN;
@@ -199,7 +199,16 @@ END $$;
 COMMIT;
 ```
 
-The previously granted privileges on existing tables remain sufficient for their new columns. The runtime role retains read-only Alembic metadata access. Check `FOREST_GUARD_DB_MODE=cloud .venv/bin/alembic current` for `0008` before starting the cloud API.
+Revision `0009` separates the saved alert-search location from the onboarding location. It copies existing coordinates or village IDs into the new preferences once. On a database already at `0008`, run the same owner migration command above to advance to `0009`. The existing table-level grants already cover the new columns on `citizens`. If the deployment uses column-level grants, run the following as owner:
+
+```sql
+GRANT SELECT (alert_village_id, alert_lat, alert_lon),
+      INSERT (alert_village_id, alert_lat, alert_lon),
+      UPDATE (alert_village_id, alert_lat, alert_lon)
+ON public.citizens TO forest_guard_app;
+```
+
+The runtime role retains read-only Alembic metadata access. Check `FOREST_GUARD_DB_MODE=cloud .venv/bin/alembic current` for `0009` before starting the cloud API. For local PostgreSQL, apply migrations and runtime grants with `.venv/bin/python -m tools.init_database --admin-user <owner>`.
 
 ### Enable private Supabase Storage
 
@@ -230,6 +239,27 @@ Citizen originals, camera uploads and generated camera annotations are stored un
 In authority **Settings**, add a GeoJSON Polygon or MultiPolygon in longitude/latitude order, create a range officer or forest guard, and select their jurisdictions. Lower priority numbers win overlaps. Identical priorities use the older jurisdiction ID. New reports use the incident GPS location, or the selected report village center. Creating a boundary also routes existing unassigned reports that it covers. Saved assignments stay attached to their reports. Central administrators can open **Reports → Central review queue** for pending reports outside configured boundaries.
 
 The authenticated `POST /api/citizen/nearby-alerts` endpoint takes `source` (`saved` or `gps`), `lat` and `lon` for GPS, optional `radius_km` (5, 10, 20 or 25), `sort` (`time`, `risk`, or `distance`), `limit` and `offset`. Without a radius override it uses the saved preference. Distance is measured in metres to the same approximate coordinate returned to mobile. Only approved, active warnings appear. Incident resolution removes the warning and preserves citizen history and notifications.
+
+On the intended **private development** database, run the following using its existing runtime connection profile. The command prompts for a new password on the first run and prints the development officer's sign-in email. Use `FOREST_GUARD_DB_MODE=local` for local PostgreSQL or `FOREST_GUARD_DB_MODE=cloud` for a private cloud development project.
+
+```sh
+APP_ENV=development DEMO_MODE=false SEED_ON_START=false \
+  .venv/bin/python -m tools.provision_greater_noida
+```
+
+The Greater Noida polygon provides approximate development coverage. The provisioner stores the polygon and officer assignment through the same routing service as Settings. Existing assigned reports retain their assignments. An officer signs in and opens **Map** to view their assigned polygon. Central administrators can switch jurisdictions from the map.
+
+Profile **Saved location** can store GPS or a registered village. Removing it clears the saved preference. Home and Map share the current search location and radius, while each new report requires its own incident location. GPS warning zones use an 8 km uncertainty radius around coarse grid centers. Village zones use a 1 km radius around the approximate registered center. The circles illustrate location uncertainty.
+
+After deploying the new citizen risk policy, review candidate historical corrections with the runtime profile for the intended database:
+
+```sh
+.venv/bin/python -m tools.correct_citizen_risk
+# Run only after reviewing the dry-run output and receiving approval.
+.venv/bin/python -m tools.correct_citizen_risk --apply
+```
+
+The correction updates automatic citizen incident and alert assessments together and retains the previous assessment in the incident audit record. Manual decisions, incident status, saved locations and notification read receipts are preserved.
 
 To provision two fictional boundaries and range officers, select an isolated, migrated local database with `test` in its name and no reports or jurisdictions. Keep bundled seeding disabled. The command prompts for a demo password. Use these flags on the private test server as well:
 

@@ -1,7 +1,7 @@
 /** Invoked by backend.tests.report_workflow with an isolated API and fresh mobile web export. */
 import assert from 'node:assert/strict'
 import { chromium } from 'playwright-core'
-import { existsSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const brave = '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'
@@ -10,11 +10,30 @@ const browser = await chromium.launch({
 })
 const mobile = await browser.newPage({ viewport: { width: 430, height: 900 } })
 const official = await browser.newPage()
+const greaterNoida = 'Greater Noida (approximate development jurisdiction)'
+const hasGreaterNoidaTiles = () => [...document.querySelectorAll('.leaflet-tile')].some(tile => {
+  const match = tile.src.match(/\/(\d+)\/(\d+)\/(\d+)\.png$/)
+  if (!match) return false
+  const [, z, x, y] = match.map(Number)
+  const phi = 28.5 * Math.PI / 180
+  const expectedX = Math.floor((77.52 + 180) / 360 * 2 ** z)
+  const expectedY = Math.floor((1 - Math.asinh(Math.tan(phi)) / Math.PI) / 2 * 2 ** z)
+  return z >= 10 && x === expectedX && y === expectedY
+})
+// Use the identical pinned Leaflet assets without depending on a CDN during regression tests.
+await mobile.route('https://unpkg.com/leaflet@1.9.4/dist/leaflet.*', route => {
+  const css = route.request().url().endsWith('.css')
+  const filename = css ? 'leaflet.css' : 'leaflet.js'
+  return route.fulfill({ status: 200, contentType: css ? 'text/css' : 'application/javascript',
+    headers: { 'access-control-allow-origin': '*' },
+    body: readFileSync(new URL(`../node_modules/leaflet/dist/${filename}`, import.meta.url)) })
+})
 const api = 'http://127.0.0.1:18765/api'
 const firstPhone = '9876500145'
 const secondPhone = '9876500146'
 const button = (name) => mobile.getByRole('button', { name, exact: true })
 const field = (name) => mobile.getByLabel(name, { exact: true })
+const activeMobile = (locator) => locator.and(mobile.locator(':not([inert], [inert] *)'))
 const screenshotDir = process.env.WORKFLOW_SCREENSHOTS
 const authorityBell = official.getByRole('button', { name: /^Notifications(?:,|$)/ })
 const mobileBell = mobile.getByRole('button', { name: /^Notifications(?:,|$)/ })
@@ -55,12 +74,24 @@ try {
   await official.getByRole('button', { name: 'Sign in' }).click()
   const nav = official.getByRole('navigation', { name: 'Authority navigation' })
   await nav.getByRole('link', { name: /^Reports/ }).waitFor()
-  assert.deepEqual((await nav.getByRole('link').allTextContents()).map(label => label.replace(/ \(\d+\)$/, '')), ['Dashboard', 'Reports', 'Map', 'Alerts', 'Settings'])
-  for (const [path, title] of [['/', 'Dashboard'], ['/map', 'Incident map'], ['/alerts', 'Alerts'],
+  assert.deepEqual(await nav.getByRole('link').allTextContents(),
+    ['Dashboard', 'Reports', 'Map', 'Alerts', 'Live Monitoring', 'Wildlife Intelligence', 'Analytics & Reports', 'Forest Guard Panel', 'Settings'])
+  const sidebar = await nav.boundingBox()
+  for (const [path, title] of [['/', 'Dashboard'], ['/map', 'Jurisdiction map'], ['/alerts', 'Alerts'],
     ['/settings', 'Settings'], ['/reports', 'Reports']]) {
     await official.goto('http://127.0.0.1:18765' + path, { waitUntil: 'domcontentloaded' })
     await official.getByRole('heading', { name: title, exact: true }).waitFor()
+    assert.equal((await nav.boundingBox()).x, sidebar.x)
+    assert.equal((await nav.boundingBox()).width, sidebar.width)
   }
+  const noidaOfficer = await browser.newPage()
+  await noidaOfficer.goto('http://127.0.0.1:18765/map', { waitUntil: 'domcontentloaded' })
+  await noidaOfficer.locator('input[type=email]').fill('greater-noida-officer@example.com')
+  await noidaOfficer.locator('input[type=password]').fill(process.env.WORKFLOW_PASSWORD)
+  await noidaOfficer.getByRole('button', { name: 'Sign in' }).click()
+  await noidaOfficer.getByRole('main').getByText(greaterNoida, { exact: true }).waitFor()
+  await noidaOfficer.waitForFunction(hasGreaterNoidaTiles)
+  await noidaOfficer.close()
   await official.getByLabel('Status', { exact: true }).selectOption('pending')
   await official.getByText('No matching reports', { exact: true }).waitFor()
   await official.getByLabel('Status', { exact: true }).selectOption('')
@@ -226,6 +257,16 @@ try {
   await button('Sort nearby alerts').click()
   await mobile.getByRole('radio', { name: 'Risk', exact: true }).click()
   await mobile.getByRole('radio', { name: 'Distance', exact: true }).click()
+  await mobile.getByRole('tab', { name: 'Map', exact: true }).click()
+  const mobileMap = mobile.frameLocator('iframe[title="Nearby wildlife risk map"]')
+  const mobileZone = mobileMap.getByRole('button', { name: 'Open wildlife warning', exact: true })
+  await mobileZone.waitFor()
+  assert.equal(await mobileZone.getAttribute('fill'), '#b32825')
+  await mobileZone.click()
+  await mobile.getByText('High risk · Active', { exact: true }).waitFor()
+  await button('Close warning details').click()
+  await button('Recenter map').click()
+  await mobile.getByRole('tab', { name: 'Home', exact: true }).click()
   await mobile.getByRole('tab', { name: 'Profile', exact: true }).click()
   assert.equal(await mobile.getByLabel('Phone number', { exact: true }).isEditable(), false)
   await mobile.getByRole('button', { name: 'Appearance', exact: true }).click()
@@ -324,9 +365,17 @@ try {
   await button('Back').click()
   await official.getByRole('button', { name: 'Close', exact: true }).click()
   await nav.getByRole('link', { name: 'Map', exact: true }).click()
-  await official.getByRole('option', { name: /Elephant near the settlement/ }).waitFor({ state: 'attached' })
+  await official.locator('[data-risk-count="high"]').filter({ hasText: /^1$/ }).waitFor()
+  await official.getByLabel('Animal', { exact: true }).selectOption('elephant')
+  await official.locator('.leaflet-marker-icon[title="Elephant near the settlement"]').click()
+  const mapPanel = official.getByRole('region', { name: 'Map report details' })
+  await mapPanel.getByRole('img', { name: 'Evidence for Elephant near the settlement' }).waitFor()
+  await mapPanel.getByRole('link', { name: 'Open report' }).waitFor()
+  await mapPanel.getByText('Active verified', { exact: true }).waitFor()
+  await official.getByLabel('Active verified incidents', { exact: true }).uncheck()
+  await official.locator('[data-risk-count="high"]').filter({ hasText: /^0$/ }).waitFor()
   await nav.getByRole('link', { name: 'Dashboard', exact: true }).click()
-  await official.getByRole('link', { name: /^Elephant near the settlement/ }).waitFor()
+  await official.getByRole('table').getByRole('link', { name: 'Elephant near the settlement', exact: true }).waitFor()
   await capture(official, 'authority-dashboard-active-dark')
   await nav.getByRole('link', { name: 'Alerts', exact: true }).click()
   await official.getByRole('button', { name: /Elephant near the settlement/ }).waitFor()
@@ -363,7 +412,68 @@ try {
   await capture(mobile, 'mobile-report-detail-dark')
   await button('Back').click()
   await button('Back').click()
-  await mobile.getByText('No nearby alerts', { exact: false }).waitFor()
+  await activeMobile(mobile.getByText('No active alerts within 25 km', { exact: true })).waitFor()
+  const preferences = api + '/citizen/alert-preferences'
+  const unavailablePreference = route => route.request().method() === 'PUT'
+    ? route.fulfill({ status: 404, json: { detail: 'Not Found' }, headers: {
+      'access-control-allow-origin': 'http://127.0.0.1:18766', 'access-control-allow-credentials': 'true',
+    } })
+    : route.continue()
+  await mobile.route(preferences, unavailablePreference)
+  await mobile.getByRole('radio', { name: '5 km', exact: true }).click()
+  await mobile.getByText('This radius is active for this session only.', { exact: true }).waitFor()
+  await mobile.getByText('No active alerts within 5 km', { exact: true }).waitFor()
+  await mobile.unroute(preferences, unavailablePreference)
+  for (const radius of [10, 20, 25]) {
+    await mobile.getByRole('radio', { name: `${radius} km`, exact: true }).click()
+    await mobile.getByText(`No active alerts within ${radius} km`, { exact: true }).waitFor()
+  }
+  await mobile.bringToFront()
+  await mobile.getByRole('tab', { name: 'Map', exact: true }).click()
+  await activeMobile(mobile.getByRole('heading', { name: 'Nearby risk map' })).waitFor()
+  await activeMobile(mobile.getByText('No active alerts within 25 km', { exact: true })).waitFor()
+  assert.equal(await mobileZone.count(), 0)
+  for (const km of [5, 10, 20, 25]) {
+    const option = activeMobile(mobile.getByRole('radio', { name: `${km} km`, exact: true }))
+    const checked = option.and(mobile.locator('[aria-checked="true"]'))
+    const [response] = await Promise.all([
+      mobile.waitForResponse(result => result.url().endsWith('/api/citizen/nearby-alerts') &&
+        result.request().method() === 'POST' && result.request().postDataJSON()?.radius_km === km),
+      (async () => {
+        await option.click()
+        try {
+          await checked.waitFor({ timeout: 1800 })
+        } catch {
+          await option.click()
+          await checked.waitFor()
+        }
+      })(),
+    ])
+    assert.equal(response.status(), 200)
+    await activeMobile(mobile.getByText(`No active alerts within ${km} km`, { exact: true })).waitFor()
+  }
+  const reportsUrl = api + '/citizen/reports'
+  // Let the foreground refresh complete before holding the explicit refresh request.
+  await Promise.all([
+    mobile.waitForResponse(reportsUrl),
+    mobile.getByRole('tab', { name: 'Home', exact: true }).click(),
+  ])
+  await button('Refresh active reports').and(mobile.locator(':not([disabled])')).waitFor()
+  const resumeReport = Promise.withResolvers()
+  await mobile.route(reportsUrl, async route => {
+    await resumeReport.promise
+    await route.continue()
+  }, { times: 1 })
+  try {
+    await Promise.all([mobile.waitForRequest(reportsUrl), button('Refresh active reports').click()])
+    await mobile.getByRole('tab', { name: 'Profile', exact: true }).click()
+    const reportResponse = mobile.waitForResponse(reportsUrl)
+    resumeReport.resolve()
+    assert.equal((await reportResponse).status(), 200)
+  } finally {
+    resumeReport.resolve()
+  }
+  await mobile.getByRole('tab', { name: 'Home', exact: true }).click()
   await official.getByRole('button', { name: 'Close', exact: true }).click()
   await official.getByRole('button', { name: 'Resolved history' }).click()
   await official.getByRole('button', { name: /Elephant near the settlement/ }).waitFor()
@@ -377,6 +487,11 @@ try {
   await official.locator('input[type=email]').fill('admin@example.invalid')
   await official.locator('input[type=password]').fill(process.env.WORKFLOW_PASSWORD)
   await official.getByRole('button', { name: 'Sign in' }).click()
+  await nav.getByRole('link', { name: 'Map', exact: true }).click()
+  const jurisdictionSelect = official.getByLabel('Jurisdiction', { exact: true })
+  await jurisdictionSelect.selectOption({ label: 'Isolated workflow jurisdiction' })
+  await jurisdictionSelect.selectOption({ label: greaterNoida })
+  await official.waitForFunction(hasGreaterNoidaTiles)
   await nav.getByRole('link', { name: 'Settings', exact: true }).click()
   await official.getByLabel('Automated alert trigger score').fill('72')
   await official.getByRole('button', { name: 'Save and recalculate', exact: true }).click()
@@ -418,10 +533,22 @@ try {
   await mobile.context().setGeolocation({ latitude: 21.76, longitude: 79.30 })
   await mobile.getByRole('tab', { name: 'Profile', exact: true }).click()
   await mobile.getByLabel('Full name', { exact: true }).fill('Updated browser observer')
+  await button('Save personal information').click()
+  await mobile.getByText('Personal information saved.', { exact: true }).waitFor()
   await mobile.getByRole('radio', { name: 'Current location', exact: true }).click()
   await mobile.getByText('GPS location selected', { exact: true }).waitFor()
-  await mobile.getByRole('button', { name: 'Save profile', exact: true }).click()
-  await mobile.getByText('Profile saved.', { exact: true }).waitFor()
+  await button('Save location').click()
+  await mobile.getByText('Alert location saved.', { exact: true }).waitFor()
+  assert.equal((await (await mobile.request.get(api + '/citizen/profile')).json()).saved_alert_location.type, 'gps')
+  await button('Remove saved location').click()
+  await mobile.getByText('Saved location removed.', { exact: true }).waitFor()
+  await mobile.getByRole('tab', { name: 'Home', exact: true }).click()
+  await activeMobile(mobile.getByRole('heading', { name: 'My active reports' })).waitFor()
+  assert.equal(await activeMobile(mobile.getByRole('radio', { name: 'Saved location', exact: true })).count(), 0)
+  await activeMobile(mobile.getByRole('radio', { name: 'Current GPS', exact: true })).click()
+  await mobile.getByRole('tab', { name: 'Map', exact: true }).click()
+  await mobile.getByText('Your GPS', { exact: true }).waitFor()
+  await mobile.getByRole('tab', { name: 'Profile', exact: true }).click()
   await mobile.getByRole('button', { name: 'Appearance', exact: true }).click()
   assert.equal(await mobile.getByRole('radio', { name: 'Dark', exact: true }).getAttribute('aria-checked'), 'true')
   assert.equal((await mobile.request.post(api + '/citizen/sign-out')).status(), 200)

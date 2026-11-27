@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from geospatial.mapping import distance_to_polygon_km, polygon_ring, valid_coordinates
 from geospatial.risk_analysis import RiskSettings, risk_level, score_detection, utcnow
-from geospatial.species import species_meta
+from geospatial.species import CITIZEN_RISK_BASELINE, normalize_report_animal, species_meta
 
 from backend import config
 from backend.models import Detection, Incident, SightingReport, Track, Village
@@ -101,14 +101,24 @@ def score_report_incident(db: Session, incident: Incident, settings: RiskSetting
           for item in risk["components"] if item["key"] != "movement"],
     ]
     score = min(100.0, round(sum(item["points"] for item in components), 1))
-    if risk["distance_km"] is None and score < settings.thresholds["moderate"]:
-        minimum = settings.thresholds["moderate"]
-        components.append({"key": "missing_proximity", "label": "Precautionary minimum",
-                           "detail": "Village proximity unavailable", "points": round(minimum - score, 1)})
-        score = minimum
-    return {**risk, "score": score, "level": risk_level(score, settings.thresholds),
-            "components": components, "assessment_method": "automatic",
-            "missing_factors": ["village_proximity"] if risk["distance_km"] is None else []}
+    return apply_citizen_baseline(incident.species, {
+        **risk, "score": score, "components": components, "assessment_method": "automatic",
+        "missing_factors": ["village_proximity"] if risk["distance_km"] is None else [],
+    }, settings)
+
+
+def apply_citizen_baseline(species: str, assessment: dict, settings: RiskSettings) -> dict:
+    baseline = CITIZEN_RISK_BASELINE[normalize_report_animal(species)]
+    contextual_score = assessment["score"]
+    minimum = settings.thresholds.get(baseline, 0.0)
+    score = max(contextual_score, minimum)
+    components = list(assessment.get("components") or [])
+    if score > contextual_score:
+        components.append({"key": "citizen_safety_baseline", "label": "Citizen safety policy minimum",
+                           "detail": baseline.title(), "points": round(score - contextual_score, 3)})
+    return {**assessment, "score": score, "level": risk_level(score, settings.thresholds),
+            "components": components, "policy_baseline": baseline, "thresholds": settings.thresholds,
+            "reason": f"{assessment['reason']} Citizen safety policy baseline: {baseline.title()}."}
 
 
 def recalculate_all(

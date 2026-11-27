@@ -252,8 +252,8 @@ def test_report_risk_preview_manual_and_override(client, admin_headers, citizens
     assert scores["tiger"]["level"] == "high"
     assert scores["deer"]["level"] == "low"
     assert scores["tiger"]["species_weight"] > scores["wild_boar"]["species_weight"]
-    assert preview(far_id, "tiger")["risk"]["level"] == "moderate"
-    assert preview(conflict_id, "tiger")["risk"]["score"] > preview(far_id, "tiger")["risk"]["score"]
+    assert preview(far_id, "tiger")["risk"]["level"] == "high"
+    assert next(item["points"] for item in preview(conflict_id, "tiger")["risk"]["components"] if item["key"] == "category") == 20
     assert preview(far_id, "other") == {"assessment_method": "manual", "risk": None, "can_override": False}
     assert preview(far_id, "unidentified")["assessment_method"] == "manual"
 

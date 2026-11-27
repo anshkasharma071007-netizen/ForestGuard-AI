@@ -6,7 +6,7 @@ from backend.models import Alert, AlertEvent, Incident, SightingReport, User, ut
 from backend.models.entities import CitizenNotification
 from backend.services.alerts import maybe_create_alert
 from backend.services.risk_service import get_settings, score_report_incident
-from geospatial.species import REPORT_ANIMALS, SPECIES_ORDER
+from geospatial.species import REPORT_ANIMALS, SPECIES_ORDER, normalize_report_animal
 from geospatial.mapping import valid_coordinates
 
 PENDING = ("pending", "forwarded")
@@ -49,7 +49,7 @@ def report_location(report: SightingReport) -> tuple[float, float] | None:
 
 
 def report_incident_for_review(report: SightingReport, confirmed_species: str | None) -> Incident:
-    animal = confirmed_species or report.species
+    animal = normalize_report_animal(confirmed_species or report.species)
     if animal not in REPORT_ANIMALS:
         raise HTTPException(400, "Choose a supported animal.")
     location = report_location(report)
