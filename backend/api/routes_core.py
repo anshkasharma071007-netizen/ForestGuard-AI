@@ -107,8 +107,8 @@ def health(db: Session = Depends(get_db)) -> dict:
 
 
 @router.get("/meta")
-def meta() -> dict:
-    settings = get_settings()
+def meta(db: Session = Depends(get_db)) -> dict:
+    settings = get_settings(db)
     return {
         "project": {
             "name": "Forest Guard AI",
@@ -176,7 +176,7 @@ def overview(db: Session = Depends(get_db), _: User = Depends(require_guard)) ->
     cameras = db.scalars(select(Camera)).all()
     village_risks = db.scalars(select(Village).order_by(Village.name)).all()
 
-    settings = get_settings()
+    settings = get_settings(db)
     detections_month = db.scalars(
         select(Detection).where(Detection.detected_at >= month_ago)
     ).all()
@@ -418,7 +418,7 @@ def detection_detail(
     detection = db.get(Detection, detection_id)
     if not detection:
         raise HTTPException(status_code=404, detail="Detection not found.")
-    settings = get_settings()
+    settings = get_settings(db)
     risk = rescore_detection(db, detection, settings)
     alerts = db.scalars(
         select(Alert).where(Alert.detection_id == detection.id).order_by(Alert.created_at.desc())
@@ -532,7 +532,7 @@ async def upload_media(
     db.commit()
 
     if created:
-        settings = get_settings()
+        settings = get_settings(db)
         rebuild_tracks(db)
         recalculate_all(db, settings)
         for detection in created:
@@ -588,6 +588,7 @@ def map_layers(
     species: list[str] | None = Query(default=None),
     risk: list[str] | None = Query(default=None),
     days: int = Query(default=45, ge=1, le=365),
+    operational: bool = False,
     db: Session = Depends(get_db),
     _: User = Depends(require_guard),
 ) -> dict:
@@ -602,12 +603,23 @@ def map_layers(
     villages = db.scalars(select(Village)).all()
     cameras = db.scalars(select(Camera)).all()
     guards = db.scalars(select(Guard)).all()
-    incidents = db.scalars(
-        select(Incident).where(Incident.created_at >= since).order_by(Incident.created_at.desc())
-    ).all()
+    incident_query = select(Incident).order_by(Incident.created_at.desc())
+    if operational:
+        incident_query = incident_query.where(Incident.verified.is_(True), Incident.status == "verified",
+                                              Incident.is_simulated.is_(False))
+        if species_list:
+            incident_query = incident_query.where(Incident.species.in_(species_list))
+        if risk_list:
+            incident_query = incident_query.where(Incident.severity.in_(risk_list))
+    else:
+        incident_query = incident_query.where(Incident.created_at >= since)
+    incidents = db.scalars(incident_query).all()
+    report_ids = [incident.report_id for incident in incidents if incident.report_id is not None]
+    titles = dict(db.execute(select(SightingReport.id, SightingReport.title).where(
+        SightingReport.id.in_(report_ids))).all()) if report_ids else {}
     tracks = db.scalars(select(Track).order_by(Track.ended_at.desc()).limit(60)).all()
 
-    settings = get_settings()
+    settings = get_settings(db)
     zones = build_risk_zones(
         [
             {
@@ -639,7 +651,7 @@ def map_layers(
         "cameras": [serialize_camera(camera) for camera in cameras],
         "guards": [serialize_guard(guard) for guard in guards],
         "detections": [serialize_detection(detection) for detection in detections],
-        "incidents": [serialize_incident(incident) for incident in incidents],
+        "incidents": [dict(serialize_incident(incident), title=titles.get(incident.report_id)) for incident in incidents],
         "tracks": [serialize_track(track) for track in tracks],
         "risk_zones": zones,
         "risk": {

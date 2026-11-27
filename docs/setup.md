@@ -28,6 +28,33 @@ python3 -m venv .venv
 .venv/bin/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 
+#### Existing macOS checkout and physical-phone testing
+
+Start in the repository root. Use the same database owner and passfile as the original provisioning. The initializer applies revision `0005`, verifies the schema and checks that the runtime role can read the new objects.
+
+```sh
+brew services start postgresql@17  # only if PostgreSQL is stopped
+.venv/bin/python -m tools.init_database --admin-user "$(id -un)" --use-libpq --no-env
+DATABASE_URL=postgresql+psycopg:///forest_guard_ai .venv/bin/alembic current
+APP_ENV=development CITIZEN_DEV_OTP_ENABLED=true AI_MODE=auto DEMO_MODE=false SEED_ON_START=false \
+  .venv/bin/python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 \
+  --env-file .forest-guard-local/backend.env
+```
+
+Run the website and the native Expo dev server in two other terminals.
+
+```sh
+cd frontend
+npm run dev
+```
+
+```sh
+cd mobile
+npm run dev -- --lan
+```
+
+Open the authority site on port 5173. On the phone, use a compatible Expo client on the same trusted LAN. Keep the existing ignored `mobile/.env`. Update `EXPO_PUBLIC_API_URL` only if the Mac's LAN address changed. Check `http://127.0.0.1:8000/api/health` on the Mac and open the same path at the LAN API origin on the phone to confirm connectivity. Use the existing dependencies for this upgrade.
+
 ### Windows PowerShell
 
 Start your installed PostgreSQL service from **Services**. A typical installer-created provisioning login is `postgres`. Use the password chosen for that login during installation.
@@ -58,8 +85,7 @@ The AI engine expects two artefacts:
 | CLIP `ViT-B-32.pt` | PyTorch cache (`weights/clip/` in this workspace) | Downloaded automatically by `clip.load("ViT-B/32")` on first run |
 
 Both are excluded from git by `*.pt`. Air-gapped installs must copy these files in manually.
-If inference dependencies or weights are unavailable, run with `AI_MODE=demo`; uploads then
-return HTTP 503 with an explanatory message rather than inventing a detection.
+With `AI_MODE=demo`, standalone detection uploads return HTTP 503. Citizen photo reports still persist and show that analysis is unavailable. Authorities can review them manually.
 
 ## 2. Frontend
 
@@ -96,6 +122,7 @@ Copy `.env.example` to `.env` and edit as needed. `.env` is git-ignored. The dat
 | `PGPASSFILE` | Set by the initializer | Path to the private runtime libpq passfile |
 | `AI_MODE` | `demo` in the generated environment | `auto` = load YOLO-World + CLIP; `demo` = no model loading, uploads 503 |
 | `YOLO_WORLD_WEIGHTS` | `yolov8s-worldv2.pt` | Detector weights path (relative to repo root or absolute) |
+| `RISK_CONFIG_PATH` | `demo_data/risk_config.json` | Initial risk settings from the existing file before the first database save |
 | `CLIP_MODEL` | `ViT-B/32` | CLIP backbone |
 | `AI_CONFIDENCE_THRESHOLD` | `0.55` | Reported/stored detection confidence floor used by the engine facade |
 | `MAX_UPLOAD_MB` | `25` | Upload size limit for images and videos |
@@ -108,7 +135,7 @@ Copy `.env.example` to `.env` and edit as needed. `.env` is git-ignored. The dat
 
 Run `python -m tools.seed_demo` with the backend virtual environment and your local settings to opt in to synthetic data. Set `DEMO_MODE=true` in that demo environment to display demo labeling. It seeds only when all application tables are empty. Repeating the command on a populated database skips seeding. A seed failure rolls back the database changes. Demo image copies can remain in `backend/uploads/demo` and are reused on retry.
 
-To reset only the risk configuration, use **Risk & Alerts → Configuration → Reset**, or:
+Administrators can restore risk defaults in **Settings → Risk configuration → Restore defaults**, or run the API operation below.
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/risk/config/reset -H "Authorization: Bearer <admin-token>"

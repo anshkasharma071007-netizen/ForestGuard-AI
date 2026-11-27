@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import copy
-import threading
+from copy import deepcopy
 from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, text, update
 from sqlalchemy.orm import Session
 
 from geospatial.mapping import distance_to_polygon_km, polygon_ring
@@ -12,36 +11,25 @@ from geospatial.risk_analysis import RiskSettings, risk_level, score_detection, 
 from geospatial.species import species_meta
 
 from backend import config
-from backend.models import Detection, Incident, Track, Village
+from backend.models import Alert, Detection, Incident, SightingReport, Track, Village
+from backend.models.entities import RiskConfiguration
 
-_lock = threading.Lock()
-_settings: RiskSettings | None = None
-
-
-def get_settings(reload: bool = False) -> RiskSettings:
-    global _settings
-    with _lock:
-        if _settings is None or reload:
-            _settings = RiskSettings.load(config.RISK_CONFIG_PATH)
-        return _settings
+def get_settings(db: Session | None = None) -> RiskSettings:
+    stored = db.get(RiskConfiguration, 1) if db is not None else None
+    return RiskSettings(deepcopy(stored.settings)) if stored else RiskSettings.load(config.RISK_CONFIG_PATH)
 
 
-def update_settings(patch: dict) -> dict:
-    global _settings
-    with _lock:
-        settings = _settings or RiskSettings.load(config.RISK_CONFIG_PATH)
+def store_settings(db: Session, patch: dict | None = None) -> RiskSettings:
+    # Lock even before the first settings row exists.
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(text("SELECT pg_advisory_xact_lock(71239412)"))
+    elif not db.connection().connection.driver_connection.in_transaction:
+        db.connection().exec_driver_sql("BEGIN IMMEDIATE")
+    settings = get_settings(db) if patch is not None else RiskSettings()
+    if patch is not None:
         settings.update(patch)
-        settings.save(config.RISK_CONFIG_PATH)
-        _settings = settings
-        return settings.to_dict()
-
-
-def reset_settings() -> dict:
-    global _settings
-    with _lock:
-        _settings = RiskSettings()
-        _settings.save(config.RISK_CONFIG_PATH)
-        return _settings.to_dict()
+    db.merge(RiskConfiguration(id=1, settings=settings.to_dict()))
+    return settings
 
 
 def _village_dicts(db: Session) -> list[dict]:
@@ -98,10 +86,25 @@ def score_detection_record(
     )
 
 
+def score_report_incident(db: Session, incident: Incident, settings: RiskSettings) -> dict:
+    prior = db.scalars(select(Detection).where(
+        Detection.detected_at < incident.created_at,
+        Detection.is_simulated == incident.is_simulated,
+    )).all()
+    return score_detection(
+        species=incident.species, lat=incident.lat, lon=incident.lon, detected_at=incident.created_at,
+        villages=_village_dicts(db),
+        incidents=[item for item in _incident_dicts(db) if item["is_simulated"] == incident.is_simulated],
+        prior_detections=[{"species": d.species, "lat": d.lat, "lon": d.lon, "detected_at": d.detected_at}
+                          for d in prior],
+        settings=settings,
+    )
+
+
 def recalculate_all(
     db: Session, settings: RiskSettings | None = None, *, now: datetime | None = None, commit: bool = True
 ) -> dict:
-    settings = settings or get_settings()
+    settings = settings or get_settings(db)
     now = now or utcnow()
     villages = _village_dicts(db)
     incidents = _incident_dicts(db)
@@ -144,8 +147,10 @@ def recalculate_all(
     db.flush()
 
     verified_reports = db.scalars(select(Incident).where(
-        Incident.report_id.is_not(None), Incident.verified.is_(True)
-    )).all()
+        Incident.report_id.is_not(None), Incident.verified.is_(True), Incident.status == "verified"
+    ).order_by(Incident.report_id).with_for_update()).all()
+    owned_reports = set(db.scalars(select(SightingReport.id).where(SightingReport.citizen_id.is_not(None))))
+
     for incident in verified_reports:
         observations = [entry for entry in prior[incident.is_simulated]
                         if entry["detected_at"] < incident.created_at]
@@ -154,6 +159,13 @@ def recalculate_all(
             villages=villages, incidents=history[incident.is_simulated], prior_detections=observations, track_direction=None,
             settings=settings, now=now,
         )
+        if incident.report_id in owned_reports:
+            risk = incident.report_risk
+            incident.severity = risk["level"]
+            db.execute(update(Alert).where(
+                Alert.incident_id == incident.id, Alert.status.in_(("active", "acknowledged", "responding"))
+            ).values(severity=risk["level"], score=risk["score"], risk_basis=risk["basis"],
+                     reason=risk["reason"], priority_rank={"high": 2, "moderate": 3, "low": 4}[risk["level"]]))
     recent_cutoff = now - timedelta(days=14)
     recent_scores = [(d.lat, d.lon, d.risk_score) for d in detections if d.detected_at >= recent_cutoff]
     recent_scores.extend((i.lat, i.lon, i.report_risk["score"]) for i in verified_reports
@@ -180,7 +192,7 @@ def recalculate_all(
 
 
 def rescore_detection(db: Session, detection: Detection, settings: RiskSettings | None = None) -> dict:
-    settings = settings or get_settings()
+    settings = settings or get_settings(db)
     villages = _village_dicts(db)
     incidents = [i for i in _incident_dicts(db) if i["is_simulated"] == detection.is_simulated]
     prior_models = db.scalars(

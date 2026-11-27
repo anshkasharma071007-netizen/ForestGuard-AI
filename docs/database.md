@@ -25,6 +25,24 @@ DATABASE_URL="$owner_url" .venv/bin/alembic check
 
 For model changes, generate a revision against a development database at the previous head with `alembic revision --autogenerate -m "describe change"`. Review types, constraints, data transformations and downgrade behavior, exercise it on both database engines, then commit the revision. When running Alembic manually, run the initializer afterwards to grant runtime access to new application objects and check effective connectivity.
 
+## Phase 2 settings and historical repair
+
+Revision `0005` adds the `risk_configuration` table and resolution actor and notes to incidents. The existing unique foreign keys from incident to report and alert to incident continue to enforce one linked record at each step. The migration leaves historical report, incident and alert rows in place. On the first settings save, existing values from `demo_data/risk_config.json` or the configured `RISK_CONFIG_PATH` are carried into the database along with the changes. Future saves and resets use the database.
+
+After applying the migration with the owner account, use the runtime environment to preview historical corrections. The command lists candidates by report ID and action. It considers real authenticated citizen reports with preserved approval history. It can publish a missing alert for a verified, unresolved incident and repair clearly documented mismatches between incident and alert resolution. Records requiring judgment appear as `manual_review`. For an alert resolved in the old workflow, the repair copies the recorded timestamp, actor and note where available.
+
+```sh
+.venv/bin/dotenv -f .forest-guard-local/backend.env run -- \
+  .venv/bin/python -m tools.reconcile_citizen_incidents
+```
+
+Review the preview and take a database backup before applying. Run the following command only after explicit approval for that database. Re-run the preview afterwards to confirm the repairable counts are zero and review any remaining `manual_review` records.
+
+```sh
+.venv/bin/dotenv -f .forest-guard-local/backend.env run -- \
+  .venv/bin/python -m tools.reconcile_citizen_incidents --apply
+```
+
 ## Back up and transfer an existing SQLite database
 
 Quiesce the FastAPI writers for the final backup and keep them quiescent through cutover. This includes clients requesting detection detail, which recalculates a stored risk score. SQLite's backup API reads committed pages including the WAL. Media files are copied separately. Choose a fresh private directory outside the uploads tree.
@@ -73,7 +91,11 @@ For a full rollback, quiesce clients, retain PostgreSQL and current media, and r
 
 ```sh
 .venv/bin/python -m pytest -q
-FOREST_GUARD_TEST_POSTGRES_URL=postgresql+psycopg:///forest_guard_ai .venv/bin/python -m pytest -q
+createdb forest_guard_phase2_test
+FOREST_GUARD_TEST_POSTGRES_URL=postgresql+psycopg:///forest_guard_phase2_test .venv/bin/python -m pytest -q
+WORKFLOW_TEST_DATABASE_URL=postgresql+psycopg:///forest_guard_phase2_test .venv/bin/python -m backend.tests.report_workflow
 ```
 
 The default suite migrates a temporary SQLite database. The PostgreSQL run needs an owner with schema creation rights. It creates an isolated, randomly named schema, restricts the search path to that schema, and drops it on teardown. Both runs isolate uploads and enable seeding only for the test dataset.
+
+The browser workflow uses an isolated schema and upload directory, installed YOLO-World and CLIP weights, and a local Chromium-compatible browser. Set `CHROMIUM_PATH` if the existing script cannot find your browser. It runs the authority production build and Expo web export before exercising both clients.

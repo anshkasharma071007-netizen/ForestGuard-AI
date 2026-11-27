@@ -8,6 +8,7 @@ from geospatial.species import species_meta
 from sqlalchemy.orm import Session
 
 from backend.models import Alert, Camera, Detection, Guard, Incident, SightingReport, Track, Village
+from backend.services.incident_lifecycle import lifecycle_status
 
 
 def iso(value: datetime | None) -> str | None:
@@ -197,6 +198,8 @@ def serialize_alert(
 def serialize_incident(incident: Incident) -> dict:
     return {
         "id": incident.id,
+        "report_id": incident.report_id,
+        "risk": incident.report_risk,
         "category": incident.category,
         "description": incident.description,
         "lat": incident.lat,
@@ -211,6 +214,9 @@ def serialize_incident(incident: Incident) -> dict:
         "reported_by": incident.reported_by,
         "created_at": iso(incident.created_at),
         "resolved_at": iso(incident.resolved_at),
+        "resolved_by": incident.resolved_by,
+        "resolved_by_id": incident.resolved_by_id,
+        "resolution_note": incident.resolution_note,
         "image_url": media_url(incident.image_path),
         "is_simulated": incident.is_simulated,
         "is_public": incident.is_public,
@@ -235,6 +241,9 @@ def serialize_sighting(report: SightingReport, *, public: bool = False) -> dict:
         data.update({
             "lat": report.lat, "lon": report.lon, "contact": report.contact,
             "title": report.title,
+            "lifecycle_status": lifecycle_status(report, report.incident.status if report.incident else None),
+            "confirmed_species": report.incident.species if report.incident else None,
+            "confirmed_species_name": species_meta(report.incident.species)["name"] if report.incident else None,
             "reporter_name": report.reporter_name,
             "image_url": f"/api/reports/{report.id}/evidence" if report.image_path else None,
             "analysis_status": report.analysis_status, "analysis_results": report.analysis_results,

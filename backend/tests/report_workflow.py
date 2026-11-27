@@ -2,6 +2,7 @@
 import os
 import secrets
 import subprocess
+import sys
 import tempfile
 import threading
 import uuid
@@ -88,7 +89,7 @@ def api_checks(client, auth):
 
     assert current()["analysis_status"] == "queued"
     ai_config.AI_MODE = "demo"
-    assert process_next() and current()["analysis_status"] == "failed"
+    assert process_next() and current()["analysis_status"] == "unavailable"
     ai_config.AI_MODE = "auto"
     for _ in range(2):
         assert client.post(endpoint + "/retry", headers=auth).json()["analysis_status"] == "queued"
@@ -148,7 +149,7 @@ def run():
         os.environ.update(DATABASE_URL=url.render_as_string(hide_password=False), PGOPTIONS=f"-c search_path={schema}",
                           UPLOAD_DIR=str(temp / "uploads"), SECRET_KEY=secrets.token_hex(32),
                           SEED_ON_START="false", AI_MODE="auto", MPLCONFIGDIR=str(temp / "mpl"),
-                          APP_ENV="development", CITIZEN_DEV_OTP_ENABLED="true",
+                          APP_ENV="development", CITIZEN_DEV_OTP_ENABLED="true", DEMO_MODE="false",
                           YOLO_CONFIG_DIR=str(temp / "yolo"), YOLO_AUTOINSTALL="false", CORS_ORIGINS="http://127.0.0.1:18766")
         origin = "http://127.0.0.1:18765"
         website = temp / "officials"
@@ -173,10 +174,13 @@ def run():
                 reporter_name,status,created_at,is_simulated) VALUES ('FG-2020-4000','sighting','unidentified',
                 'Legacy report','Legacy observer','closed',now(),false)"""))
         command.upgrade(alembic, "head")
+        command.check(alembic)
         secret = secrets.token_urlsafe(24)
         with SessionLocal.begin() as db:
             user = User(name="Workflow reviewer", email="reviewer@example.invalid", role="guard", password_hash=hash_password(secret))
             db.add(user)
+            db.add(User(name="Workflow admin", email="admin@example.invalid", role="admin",
+                        password_hash=hash_password(secret)))
             db.add(Village(code="TEST", name="Workflow village", lat=21.76, lon=79.30, population=2200,
                 boundary_geojson={"type":"Polygon","coordinates":[[[79.29,21.75],[79.31,21.75],[79.31,21.77],[79.29,21.77],[79.29,21.75]]]}))
             db.add(Village(code="FAR", name="Remote test village", lat=20.0, lon=78.0,
@@ -185,6 +189,9 @@ def run():
             auth = {"Authorization": "Bearer " + create_token(user)}
         client = TestClient(app)
         stack.callback(client.close)
+        for path in ("/api/does-not-exist", "/media/does-not-exist.jpg", "/assets/does-not-exist.js"):
+            missing = client.get(path)
+            assert missing.status_code == 404 and "text/html" not in missing.headers.get("content-type", "")
         assert client.get("/api/community/reports/FG-2020-4000").json()["status"] == "closed"
         api_checks(client, auth)
         print("PostgreSQL migration, concurrent retries and reviews, validation, evidence access, real AI retry and GPS checks passed.", flush=True)
@@ -223,25 +230,41 @@ def run():
         stack.callback(http.shutdown)
         subprocess.run(["node", "frontend/scripts/test_report_workflow.mjs"], check=True,
                        env={**os.environ, "WORKFLOW_PASSWORD": secret})
-        field = client.get("/api/community/alerts?field_only=true&village_code=TEST").json()["items"]
-        assert len(field) == 1 and not field[0]["is_simulated"]
-        verified = client.get("/api/community/alerts?field_only=true&verified_only=true").json()["items"]
-        assert len(verified) == 1 and verified[0]["approximate_locations"] == [{"lat": 21.76, "lon": 79.3}]
-        assert not {"reporter_name", "contact", "lat", "lon", "image_url"}.intersection(verified[0])
-        assert not client.get("/api/community/alerts?field_only=true&village_code=FAR").json()["items"]
         reports = client.get("/api/reports", headers=auth).json()["items"]
-        browser_reports = [r for r in reports if r["reporter_name"] == "Browser observer"]
+        browser_reports = [r for r in reports if r["title"] == "Elephant near the settlement"]
         assert len(browser_reports) == 1
         report = browser_reports[0]
         assert report["risk"]["score"] >= get_settings().data["alert_threshold"]
+        assert report["species"] == "deer" and report["confirmed_species"] == "elephant"
         assert report["analysis_status"] == "completed" and report["analysis_results"][0]["species"] == "elephant"
         assert report["review_history"][-1]["reviewer_name"] == "Workflow reviewer"
         assert report["review_history"][-1]["note"] == "Confirmed in field"
         assert report["incident_id"] and report["status"] == "verified"
         repeat = client.patch(f"/api/reports/{report['id']}", headers=auth, json={"status":"verified"})
         assert repeat.json()["report"]["incident_id"] == report["incident_id"]
-        assert len(client.get("/api/community/alerts?field_only=true").json()["items"]) == 1
-        print(f"Verified village incident, score {report['risk']['score']}, one public advisory and both client displays.")
+        alerts = client.get("/api/operations/alerts?status=resolved", headers=auth).json()["items"]
+        resolved = next(item for item in alerts if item["id"] == report["incident_id"])
+        assert resolved["resolved_by"] == "Workflow reviewer" and resolved["resolution_note"] == "Patrol completed"
+        assert not client.get("/api/community/alerts?field_only=true").json()["items"]
+        shutdown()
+        subprocess.run([sys.executable, "-c", """
+import os
+import sys
+from fastapi.testclient import TestClient
+from backend.main import app
+
+with TestClient(app) as client:
+    login = client.post("/api/auth/login", json={
+        "email": "reviewer@example.invalid", "password": os.environ["WORKFLOW_PASSWORD"],
+    })
+    assert login.status_code == 200
+    headers = {"Authorization": "Bearer " + login.json()["token"]}
+    assert client.get("/api/risk/config", headers=headers).json()["settings"]["alert_threshold"] == 72
+    detail = client.get("/api/incidents/" + sys.argv[1], headers=headers).json()
+    assert detail["report"]["lifecycle_status"] == "resolved"
+    assert detail["alert"]["status"] == "resolved"
+""", str(resolved["id"])], env={**os.environ, "WORKFLOW_PASSWORD": secret}, check=True)
+        print("Real AI, PostgreSQL lifecycle, both browser clients and resolution history passed.")
 
 
 if __name__ == "__main__":

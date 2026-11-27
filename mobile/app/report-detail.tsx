@@ -36,13 +36,15 @@ export default function ReportDetail() {
             GPS: {report.coordinates.lat.toFixed(5)}, {report.coordinates.lon.toFixed(5)}
           </SupportingText>}
           {report.description && <SupportingText>{report.description}</SupportingText>}
+          {report.rejectionReason && <SupportingText>Rejection reason: {report.rejectionReason}</SupportingText>}
+          {report.confirmedSpecies && <SupportingText>Authority-confirmed species: {report.confirmedSpecies}</SupportingText>}
           {report.hasPhoto && (
             <>
               <SectionTitle title="Incident photo" />
               <IncidentPhoto key={report.reference_code} code={report.reference_code} />
               {report.suggestions.length > 0 && <SupportingText>AI suggestions: {[...new Set(report.suggestions)].join(', ')}</SupportingText>}
               {['queued', 'processing'].includes(report.analysis) && <SupportingText>Photo analysis pending.</SupportingText>}
-              {report.analysis === 'failed' && <SupportingText>Photo analysis unavailable. Your report is still available for authority review.</SupportingText>}
+              {['failed', 'unavailable'].includes(report.analysis) && <SupportingText>Photo analysis unavailable. Your report is still available for authority review.</SupportingText>}
             </>
           )}
         </View>

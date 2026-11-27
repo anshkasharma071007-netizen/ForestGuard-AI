@@ -1,18 +1,14 @@
 import { useRef, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
-  BarChart3,
   ClipboardList,
   ChevronRight,
-  Globe2,
   LayoutDashboard,
   LogOut,
   Map,
   Menu,
-  PawPrint,
-  Radio,
+  Settings,
   ShieldAlert,
-  Users,
   X,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -22,36 +18,22 @@ import ThemeToggle from './ThemeToggle'
 import { Logo } from './ui'
 
 const SECTIONS = [
-  {
-    label: 'Command',
-    items: [
-      { to: '/', label: 'Overview', icon: LayoutDashboard, end: true },
-      { to: '/monitoring', label: 'Live Monitoring', icon: Radio },
-      { to: '/map', label: 'GIS Intelligence Map', icon: Map },
-    ],
-  },
-  {
-    label: 'Intelligence',
-    items: [
-      { to: '/wildlife', label: 'Wildlife Intelligence', icon: PawPrint },
-      { to: '/reports', label: 'Incident Reports', icon: ClipboardList },
-      { to: '/risk', label: 'Risk & Alerts', icon: ShieldAlert },
-      { to: '/guard', label: 'Forest Guard Panel', icon: Users },
-    ],
-  },
-  {
-    label: 'Insight',
-    items: [{ to: '/analytics', label: 'Analytics & Reports', icon: BarChart3 }],
-  },
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/reports', label: 'Reports', icon: ClipboardList },
+  { to: '/map', label: 'Map', icon: Map },
+  { to: '/alerts', label: 'Alerts', icon: ShieldAlert },
+  { to: '/settings', label: 'Settings', icon: Settings },
 ]
 
 const TITLES = {
-  '/': 'Operations overview',
+  '/': 'Dashboard',
   '/monitoring': 'Live monitoring',
-  '/map': 'GIS intelligence',
+  '/map': 'Map',
   '/wildlife': 'Wildlife intelligence',
-  '/reports': 'Incident reports',
-  '/risk': 'Risk & alerts',
+  '/reports': 'Reports',
+  '/alerts': 'Alerts',
+  '/settings': 'Settings',
+  '/risk': 'Detection alerts',
   '/guard': 'Forest guard panel',
   '/analytics': 'Analytics & reports',
 }
@@ -75,62 +57,37 @@ function SidebarContent({ onNavigate, unread }) {
         </div>
       </div>
 
-      <nav className="sidebar-scroll flex-1 space-y-5 overflow-y-auto px-3">
-        {SECTIONS.map((section) => (
-          <div key={section.label}>
-            <div className="px-3 pb-1.5 text-[9px] font-semibold uppercase tracking-[0.24em] text-muted-22/60">
-              {section.label}
-            </div>
-            <div className="space-y-0.5">
-              {section.items.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  onClick={onNavigate}
-                  className={({ isActive }) =>
-                    `group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12.5px] font-medium transition-all ${isActive
-                      ? 'bg-white/[0.09] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
-                      : 'text-forest-100/65 hover:bg-white/[0.05] hover:text-white'
-                    }`
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      <span
-                        className={`absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r bg-lime transition-opacity ${isActive ? 'opacity-100' : 'opacity-0'
-                          }`}
-                      />
-                      <item.icon
-                        className={`h-[17px] w-[17px] transition-colors ${isActive ? 'text-lime' : 'text-forest-200/60 group-hover:text-forest-100'
-                          }`}
-                        strokeWidth={1.8}
-                      />
-                      <span className="flex-1">{item.label}{item.to === '/reports' && unread > 0 && ` (${unread})`}</span>
-                      {isActive && <ChevronRight className="h-3.5 w-3.5 text-forest-200/60" />}
-                    </>
-                  )}
-                </NavLink>
-              ))}
-            </div>
-          </div>
-        ))}
-
-        <div className="rounded-xl border border-white/10 bg-gradient-to-br from-forest-800 to-forest-900 p-3.5">
-          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-lime/90">
-            <Globe2 className="h-3.5 w-3.5" /> Community
-          </div>
-          <p className="mt-1.5 text-[11px] leading-relaxed text-forest-100/60">
-            Public safety advisories and sighting reports for buffer-zone villages.
-          </p>
-          <a
-            href="/community"
+      <nav aria-label="Authority navigation" className="sidebar-scroll flex-1 space-y-1 overflow-y-auto px-3">
+        {SECTIONS.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.end}
             onClick={onNavigate}
-            className="mt-2.5 inline-flex items-center gap-1 text-[11px] font-semibold text-lime hover:underline"
+            className={({ isActive }) =>
+              `group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[12.5px] font-medium transition-all ${isActive
+                ? 'bg-white/[0.09] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
+                : 'text-forest-100/65 hover:bg-white/[0.05] hover:text-white'
+              }`
+            }
           >
-            Open village portal <ChevronRight className="h-3 w-3" />
-          </a>
-        </div>
+            {({ isActive }) => (
+              <>
+                <span
+                  className={`absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r bg-lime transition-opacity ${isActive ? 'opacity-100' : 'opacity-0'
+                    }`}
+                />
+                <item.icon
+                  className={`h-[17px] w-[17px] transition-colors ${isActive ? 'text-lime' : 'text-forest-200/60 group-hover:text-forest-100'
+                    }`}
+                  strokeWidth={1.8}
+                />
+                <span className="flex-1">{item.label}{item.to === '/reports' && unread > 0 && ` (${unread})`}</span>
+                {isActive && <ChevronRight className="h-3.5 w-3.5 text-forest-200/60" />}
+              </>
+            )}
+          </NavLink>
+        ))}
       </nav>
 
       <div className="border-t border-white/10 p-3">
@@ -156,9 +113,6 @@ function SidebarContent({ onNavigate, unread }) {
           >
             <LogOut className="h-4 w-4" />
           </button>
-        </div>
-        <div className="px-2 pb-1 text-[9px] leading-relaxed text-muted-22/40">
-          Illustrative boundaries · Synthetic observations
         </div>
       </div>
     </div>
@@ -227,7 +181,7 @@ export default function Layout({ children }) {
             <div className="flex items-center gap-2.5">
               <div aria-live="polite" className="flex flex-wrap gap-2 text-xs">
                 {unread > 0 && <NavLink to="/reports" className="btn">{unread} unread reports</NavLink>}
-                {latestAlert?.id > initialAlert.current && <NavLink to="/risk" className="btn" title={latestAlert.summary}>New field alert #{latestAlert.id}</NavLink>}
+                {latestAlert?.id > initialAlert.current && <NavLink to={latestAlert.incident_id ? `/alerts?incident=${latestAlert.incident_id}` : '/risk'} className="btn" title={latestAlert.summary}>New field alert #{latestAlert.id}</NavLink>}
               </div>
               <LanguageSwitcher />
               <ThemeToggle />

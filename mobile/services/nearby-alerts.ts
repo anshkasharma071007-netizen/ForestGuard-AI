@@ -17,7 +17,10 @@ export function nearbyAlerts(feed: PublicAdvisories, location: SavedLocation, so
   const items = feed.items.map((item) => ({
     ...item, distanceKm: item.approximateLocations.length
       ? Math.min(...item.approximateLocations.map((point) => distanceKm(location, point))) : undefined,
-  })).filter((item) => location.type === 'village' || (item.distanceKm !== undefined && item.distanceKm <= nearbyKm));
+  })).filter((item) => (
+    (location.type === 'village' && item.villageNames.includes(location.village.name))
+    || (item.distanceKm !== undefined && item.distanceKm <= nearbyKm)
+  ));
   items.sort((a, b) => {
     const primary = sort === 'risk' ? (risk[b.severity as keyof typeof risk] ?? 0) - (risk[a.severity as keyof typeof risk] ?? 0)
       : sort === 'distance' ? (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity) : 0;

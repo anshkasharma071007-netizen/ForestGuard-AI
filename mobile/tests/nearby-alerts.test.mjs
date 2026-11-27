@@ -7,11 +7,11 @@ const village = { ...location, type: 'village', village: { code: 'V', name: 'Tes
 const feed = {
   windowDays: 21,
   items: [
-    { id: 1, severity: 'high', publishedAt: '2026-11-24T12:00:00Z', approximateLocations: [{ lat: 0, lon: 0.10 }] },
-    { id: 2, severity: 'low', publishedAt: '2026-11-26T12:00:00Z', approximateLocations: [{ lat: 0.15, lon: 0 }] },
-    { id: 3, severity: 'moderate', publishedAt: '2026-11-25T12:00:00Z', approximateLocations: [{ lat: 0, lon: 0.01 }] },
-    { id: 4, severity: 'high', publishedAt: '2026-11-26T16:00:00Z', approximateLocations: [{ lat: 1, lon: 1 }] },
-    { id: 5, severity: 'low', publishedAt: '2026-11-26T18:00:00Z', approximateLocations: [] },
+    { id: 1, severity: 'high', publishedAt: '2026-11-24T12:00:00Z', villageNames: [], approximateLocations: [{ lat: 0, lon: 0.10 }] },
+    { id: 2, severity: 'low', publishedAt: '2026-11-26T12:00:00Z', villageNames: [], approximateLocations: [{ lat: 0.15, lon: 0 }] },
+    { id: 3, severity: 'moderate', publishedAt: '2026-11-25T12:00:00Z', villageNames: [], approximateLocations: [{ lat: 0, lon: 0.01 }] },
+    { id: 4, severity: 'high', publishedAt: '2026-11-26T16:00:00Z', villageNames: [], approximateLocations: [{ lat: 1, lon: 1 }] },
+    { id: 5, severity: 'low', publishedAt: '2026-11-26T18:00:00Z', villageNames: ['Test village'], approximateLocations: [] },
   ],
 };
 
@@ -28,4 +28,5 @@ test('village requests retain alerts without comparable coordinates after known 
   const items = nearbyAlerts({ ...feed, items: feed.items.filter(({ id }) => id === 3 || id === 5) }, village, 'distance').items;
   assert.deepEqual(items.map(({ id }) => id), [3, 5]);
   assert.equal(items[1].distanceKm, undefined);
+  assert.deepEqual(nearbyAlerts(feed, village, 'distance').items.map(({ id }) => id), [3, 1, 2, 5]);
 });

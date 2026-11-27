@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   BellRing,
   CheckCircle2,
@@ -6,16 +6,12 @@ import {
   Clock3,
   Crosshair,
   Loader2,
-  RotateCcw,
-  Save,
   ShieldAlert,
   Siren,
-  SlidersHorizontal,
   Users,
 } from 'lucide-react'
 import api, { errorMessage, mediaUrl } from '../api/client'
 import { useApi } from '../hooks/useApi'
-import { useAuth } from '../context/AuthContext'
 import MapView from '../components/MapView'
 import { AlertRow } from '../components/cards'
 import {
@@ -48,48 +44,25 @@ const WORKFLOW = [
   'Response',
 ]
 
-const FIELD_META = [
-  ['alert_threshold', 'Alert trigger score', 0, 100, '1'],
-  ['alert_radius_km', 'Village alert radius (km)', 0.2, 25, '0.1'],
-  ['influence_radius_km', 'Risk influence radius (km)', 0.5, 30, '0.1'],
-  ['moderate', 'Moderate threshold', 0, 100, '1'],
-  ['high', 'High threshold', 0, 100, '1'],
-]
-
 export default function RiskAlerts() {
-  const { isAdmin } = useAuth()
   const { data, loading, error, reload } = useApi('/api/alerts?days=45&limit=200', { interval: 6000 })
   const zones = useApi('/api/risk/zones?days=21')
-  const config = useApi('/api/risk/config')
   const guards = useApi('/api/guards')
   const map = useApi('/api/map/layers?days=45')
   const [statusFilter, setStatusFilter] = useState('open')
   const [severity, setSeverity] = useState('')
   const [selectedAlert, setSelectedAlert] = useState(null)
-  const [form, setForm] = useState(null)
   const [note, setNote] = useState('')
   const [assignId, setAssignId] = useState('')
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState(null)
-  const [saveState, setSaveState] = useState(null)
 
   const detail = useApi(selectedAlert ? `/api/alerts/${selectedAlert.id}` : null, {
     enabled: Boolean(selectedAlert),
+    interval: 6000,
   })
 
-  useEffect(() => {
-    if (!config.data?.settings) return
-    const settings = config.data.settings
-    setForm({
-      alert_threshold: settings.alert_threshold,
-      alert_radius_km: settings.alert_radius_km,
-      influence_radius_km: settings.influence_radius_km,
-      moderate: settings.thresholds?.moderate ?? 35,
-      high: settings.thresholds?.high ?? 65,
-    })
-  }, [config.data])
-
-  const items = data?.items || []
+  const items = data?.items?.filter((alert) => alert.detection_id) || []
   const openStatuses = ['active', 'acknowledged', 'responding']
   const filtered = useMemo(() => {
     return items.filter((alert) => {
@@ -139,56 +112,16 @@ export default function RiskAlerts() {
     await act('assign', { guard_id: Number(assignId) })
   }
 
-  const saveConfig = async () => {
-    if (!form) return
-    setSaveState({ type: 'loading' })
-    try {
-      await api.patch('/api/risk/config', {
-        alert_threshold: Number(form.alert_threshold),
-        alert_radius_km: Number(form.alert_radius_km),
-        influence_radius_km: Number(form.influence_radius_km),
-        thresholds: { moderate: Number(form.moderate), high: Number(form.high) },
-      })
-      setSaveState({ type: 'ok', message: 'Configuration saved. All detections were re-scored.' })
-      config.reload()
-      zones.reload()
-      reload()
-      map.reload()
-    } catch (err) {
-      setSaveState({ type: 'error', message: errorMessage(err) })
-    }
-  }
-
-  const resetConfig = async () => {
-    setSaveState({ type: 'loading' })
-    try {
-      await api.post('/api/risk/config/reset')
-      setSaveState({ type: 'ok', message: 'Defaults restored and detections re-scored.' })
-      config.reload()
-      zones.reload()
-      reload()
-      map.reload()
-    } catch (err) {
-      setSaveState({ type: 'error', message: errorMessage(err) })
-    }
-  }
-
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Risk & alert operations"
-        title="Turn signals into timely, verified response"
-        description="Inspect indicative risk zones, configure the scoring engine, and run the full alert lifecycle from acknowledgement to field closure."
+        title="Automated detection alerts"
+        description="Inspect detection alerts and coordinate guard response."
         actions={
           <>
             <Badge tone="danger" dot>
               {openCount} open
             </Badge>
-            {isAdmin && (
-              <button type="button" className="btn-outline" onClick={resetConfig}>
-                <RotateCcw className="h-3.5 w-3.5" /> Reset defaults
-              </button>
-            )}
           </>
         }
       />
@@ -230,7 +163,7 @@ export default function RiskAlerts() {
       {error && <ErrorBox message={error} onRetry={reload} />}
 
       <section className="grid gap-4 xl:grid-cols-12">
-        <div className="card overflow-hidden xl:col-span-8">
+        <div className="card overflow-hidden xl:col-span-12">
           <div className="flex flex-col gap-2 border-b border-line-10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="eyebrow">Risk surface</div>
@@ -271,72 +204,6 @@ export default function RiskAlerts() {
           </div>
         </div>
 
-        <div className="card p-5 xl:col-span-4">
-          <SectionTitle
-            title="Risk engine configuration"
-            subtitle={isAdmin ? 'Admin — changes re-score the whole dataset' : 'Read-only for guard role'}
-            action={<SlidersHorizontal className="h-4 w-4 text-muted-16" />}
-          />
-          {config.loading && !config.data ? (
-            <Loading height="h-64" />
-          ) : config.error ? (
-            <ErrorBox message={config.error} onRetry={config.reload} />
-          ) : (
-            form && (
-              <div className="mt-3 space-y-2.5">
-                {FIELD_META.map(([key, label, min, max, step]) => (
-                  <div key={key}>
-                    <label className="mb-1 flex items-center justify-between text-[10px] font-medium text-secondary-8">
-                      {label}
-                      <span className="font-mono text-[9.5px] text-muted-16">
-                        {key === 'alert_radius_km' || key === 'influence_radius_km' ? 'km' : 'score'}
-                      </span>
-                    </label>
-                    <input
-                      type="number"
-                      className="field !py-1.5 !text-[12px]"
-                      value={form[key]}
-                      min={min}
-                      max={max}
-                      step={step}
-                      disabled={!isAdmin}
-                      onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))}
-                    />
-                  </div>
-                ))}
-                <div className="rounded-lg border border-line-10 bg-inset-13 px-2.5 py-2 text-[9px] leading-relaxed text-muted-5">
-                  Scores are computed from proximity (55%), recency (15%), recent activity (12%), verified incidents
-                  (10%) and movement evidence (8%), scaled by species risk weight.
-                </div>
-                {isAdmin && (
-                  <div className="flex gap-2">
-                    <button type="button" className="btn-primary flex-1 !py-2" onClick={saveConfig} disabled={saveState?.type === 'loading'}>
-                      {saveState?.type === 'loading' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                      Save & re-score
-                    </button>
-                    <button type="button" className="btn-outline !py-2" onClick={resetConfig} disabled={saveState?.type === 'loading'}>
-                      <RotateCcw className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                )}
-                {saveState?.message && (
-                  <div
-                    className={`rounded-lg px-2.5 py-2 text-[9.5px] leading-relaxed ${saveState.type === 'error'
-                        ? 'border border-danger-line-1 bg-danger-surface-3 text-danger-2'
-                        : 'border border-success-line-1 bg-success-surface-2 text-success-1'
-                      }`}
-                  >
-                    {saveState.message}
-                  </div>
-                )}
-                <div className="rounded-lg bg-forest-900 px-2.5 py-2 text-[9px] leading-relaxed text-forest-100/70">
-                  Changing thresholds affects both classification and alert generation. Existing alerts are not
-                  deleted; the engine deduplicates within 24 hours.
-                </div>
-              </div>
-            )
-          )}
-        </div>
       </section>
 
       <section className="card p-5">
@@ -460,18 +327,6 @@ export default function RiskAlerts() {
                 A verified camera sequence indicates direction toward a village. Still inferred, never GPS.
               </div>
             </div>
-          </div>
-          <div className="mt-3 space-y-2">
-            {config.data?.species?.map((species) => (
-              <MetricBar
-                key={species.key}
-                label={`${species.name} · ${species.risk_label}`}
-                value={Math.round(species.risk_weight * 100)}
-                max={100}
-                color={species.risk_weight >= 0.8 ? '#B83B2B' : species.risk_weight >= 0.5 ? '#D9A441' : '#2F7250'}
-                suffix=" / 100 weight"
-              />
-            ))}
           </div>
         </div>
       </section>

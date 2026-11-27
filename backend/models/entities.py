@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from sqlalchemy import (
+    CheckConstraint,
     JSON,
     Boolean,
     DateTime,
@@ -183,6 +184,9 @@ class Incident(Base):
     reported_by: Mapped[str] = mapped_column(String(120), default="Forest department")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime)
+    resolved_by: Mapped[str | None] = mapped_column(String(120))
+    resolved_by_id: Mapped[int | None] = mapped_column(Integer)
+    resolution_note: Mapped[str | None] = mapped_column(Text)
     image_path: Mapped[str | None] = mapped_column(String(255))
     is_simulated: Mapped[bool] = mapped_column(Boolean, default=True)
     is_public: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -267,3 +271,11 @@ class AlertEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     alert: Mapped[Alert] = relationship(back_populates="events")
+
+
+class RiskConfiguration(Base):
+    __tablename__ = "risk_configuration"
+    __table_args__ = (CheckConstraint("id = 1", name="ck_risk_configuration_singleton"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    settings: Mapped[dict] = mapped_column(JSON)

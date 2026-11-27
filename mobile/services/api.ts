@@ -30,7 +30,7 @@ export class ApiError extends Error {
   }
 }
 
-const statuses = ['pending', 'forwarded', 'verified', 'rejected', 'closed'] as const;
+const statuses = ['pending', 'forwarded', 'verified', 'rejected', 'closed', 'under_work', 'resolved'] as const;
 export type ReportStatus = typeof statuses[number];
 export function isReportStatus(value: unknown): value is ReportStatus {
   return statuses.some((status) => status === value);
@@ -180,6 +180,7 @@ export async function getCitizenReport(access: CitizenAccess, code: string, sign
   const record = await citizenRequest(access, `/reports/${encodeURIComponent(code)}`, { signal }, { notFound: 'Report unavailable.' });
   return { ...parseCitizenReport(record), category: requiredText(record.category), description: optionalText(record.description),
     species: requiredText(record.species_name), village: optionalText(record.village_name), coordinates: coordinates(record),
+    rejectionReason: optionalText(record.rejection_reason), confirmedSpecies: optionalText(record.confirmed_species_name),
     hasPhoto: record.has_photo === true, analysis: requiredText(record.analysis_status), suggestions: textList(record.suggested_species) };
 }
 
@@ -277,7 +278,7 @@ function validationMessage(value: unknown) {
 }
 
 function parseIdentity(record: Record<string, unknown>): ReportIdentity {
-  const { status } = record;
+  const status = record.lifecycle_status ?? record.status;
   if (!isReportStatus(status)) throw invalidResponse();
   return { reference_code: requiredText(record.reference_code), status };
 }

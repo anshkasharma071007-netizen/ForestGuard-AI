@@ -39,7 +39,7 @@ DEMO_IMAGE_DIR = os.path.join(ROOT, "demo_data", "detection_images")
 DEMO_WILDLIFE_DIR = os.path.join(ROOT, "demo_data", "wildlife_images")
 DETECTION_ASSETS = os.path.join(ROOT, "demo_data", "detection_assets.json")
 STUDY_AREA_PATH = os.path.join(ROOT, "geospatial", "geojson", "study_area.geojson")
-RISK_CONFIG_PATH = os.path.join(ROOT, "demo_data", "risk_config.json")
+RISK_CONFIG_PATH = os.getenv("RISK_CONFIG_PATH", os.path.join(ROOT, "demo_data", "risk_config.json"))
 
 MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "25"))
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}

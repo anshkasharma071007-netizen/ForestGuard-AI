@@ -40,7 +40,7 @@ The manual location picker reads the database village list. If the local databas
 | `GET /api/citizen/reports`, `POST /api/citizen/reports` | List owned reports and submit a report with an optional image. |
 | `GET /api/citizen/reports/{reference}` and `…/{reference}/evidence` | Read an owned report and its private photo. |
 | `POST /api/citizen/report-receipt` | Recover an owned receipt after an interrupted submission. |
-| `GET /api/community/alerts?field_only=true&verified_only=true` | Read active, verified field alerts using rounded affected-village coordinates where available. |
+| `GET /api/community/alerts?field_only=true&verified_only=true` | Read active, verified field alerts using a rounded submitted village center or a coarse GPS grid center. |
 | `GET /api/community/villages` and `/api/community/guidelines` | Load supported villages, species, and safety guidance. |
 
 See [reporting and public data](REPORTING_ASSUMPTIONS.md) for status mapping and alert sorting.
@@ -48,3 +48,9 @@ See [reporting and public data](REPORTING_ASSUMPTIONS.md) for status mapping and
 ## Font assets
 
 Inter and Fraunces were sourced from the Google Fonts repository's `ofl/inter` and `ofl/fraunces` directories and exported as static weights for consistent native rendering. The original SIL Open Font License notices are included beside the local font files. The leaf mark and app icons use the existing website artwork.
+
+## Phase 2 lifecycle
+
+My Reports and report details refresh every 10 seconds while active. They display the API's persisted lifecycle as Pending, Under Work, Rejected or Resolved. A rejection reason and an authority-confirmed species appear separately from original report fields. Nearby Alerts refreshes every 15 seconds while active and uses the existing distance check for both GPS and village profiles.
+
+For Mac and phone startup, follow the [existing checkout instructions](../docs/setup.md#existing-macos-checkout-and-physical-phone-testing). Native acceptance still covers SecureStore after a full restart, expired sessions, failed sign-out, photo isolation during account switching, GPS, camera and gallery.

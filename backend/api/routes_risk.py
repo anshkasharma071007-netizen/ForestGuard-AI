@@ -5,7 +5,7 @@ import io
 from collections import Counter, defaultdict
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -21,9 +21,8 @@ from backend.models import Alert, Camera, Detection, Guard, Incident, Track, Use
 from backend.schemas.api import RiskConfigPatch
 from backend.services.risk_service import (
     get_settings,
-    reset_settings,
     species_summary,
-    update_settings,
+    store_settings,
 )
 from backend.services.risk_service import recalculate_all
 
@@ -45,8 +44,8 @@ def _village_dicts(db: Session) -> list[dict]:
 
 
 @router.get("/risk/config")
-def risk_config(_: User = Depends(require_guard)) -> dict:
-    settings = get_settings()
+def risk_config(db: Session = Depends(get_db), _: User = Depends(require_guard)) -> dict:
+    settings = get_settings(db)
     return {
         "settings": settings.to_dict(),
         "species": species_summary(settings),
@@ -55,7 +54,7 @@ def risk_config(_: User = Depends(require_guard)) -> dict:
             "verified incidents and — only when a camera sequence supports it — inferred "
             "movement toward a village. Scores are prioritisation aids, not predictions."
         ),
-        "config_path": "demo_data/risk_config.json",
+        "storage": "database",
     }
 
 
@@ -66,20 +65,13 @@ def patch_risk_config(
     _: User = Depends(require_admin),
 ) -> dict:
     patch = {key: value for key, value in payload.model_dump(exclude_none=True).items()}
-    if "thresholds" in patch:
-        thresholds = patch["thresholds"]
-        moderate = float(thresholds.get("moderate", 35))
-        high = float(thresholds.get("high", 65))
-        if not (0 <= moderate < high <= 100):
-            from fastapi import HTTPException
-
-            raise HTTPException(
-                status_code=400, detail="Thresholds must satisfy 0 ≤ moderate < high ≤ 100."
-            )
-    settings = update_settings(patch)
-    summary = recalculate_all(db, get_settings(reload=True))
+    settings = store_settings(db, patch)
+    moderate, high = settings.thresholds["moderate"], settings.thresholds["high"]
+    if not (0 <= moderate < high <= 100):
+        raise HTTPException(400, "Thresholds must satisfy 0 ≤ moderate < high ≤ 100.")
+    summary = recalculate_all(db, settings)
     return {
-        "settings": settings,
+        "settings": settings.to_dict(),
         "recalculated": summary,
         "message": "Risk configuration updated and all detections re-scored.",
     }
@@ -89,10 +81,10 @@ def patch_risk_config(
 def reset_risk_config(
     db: Session = Depends(get_db), _: User = Depends(require_admin)
 ) -> dict:
-    settings = reset_settings()
-    summary = recalculate_all(db, get_settings(reload=True))
+    settings = store_settings(db)
+    summary = recalculate_all(db, settings)
     return {
-        "settings": settings,
+        "settings": settings.to_dict(),
         "recalculated": summary,
         "message": "Risk configuration restored to defaults and detections re-scored.",
     }
@@ -104,7 +96,7 @@ def recalculate_risk(
 ) -> dict:
     from backend.services.alerts import sync_alerts
 
-    settings = get_settings(reload=True)
+    settings = get_settings(db)
     summary = recalculate_all(db, settings)
     sync_alerts(db, settings, days=30)
     return {
@@ -120,7 +112,7 @@ def risk_zones(
     db: Session = Depends(get_db),
     _: User = Depends(require_guard),
 ) -> dict:
-    settings = get_settings()
+    settings = get_settings(db)
     since = utcnow() - timedelta(days=days)
     detections = db.scalars(
         select(Detection).where(Detection.detected_at >= since)

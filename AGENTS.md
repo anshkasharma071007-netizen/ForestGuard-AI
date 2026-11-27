@@ -1,6 +1,6 @@
 # Forest Guard AI
 
-Continue from `codex/mobile-profile-workflow`. The incident-reporting branch merged into `main` at `6f8e109` and citizen onboarding was added in `93a6c58`. Preserve branding, working features, records and Alembic history. Keep secrets, machine-specific addresses, databases, model weights and uploaded evidence in ignored local files. Keep operational data genuine. Use the explicit, labeled demo dataset only when needed and only in an empty database.
+Phase 2 continues on `codex/authority-incident-lifecycle` from Phase 1 commit `56c24c0`. The incident-reporting branch merged into `main` at `6f8e109` and citizen onboarding was added in `93a6c58`. Preserve branding, working features, records and Alembic history. Keep secrets, machine-specific addresses, databases, model weights and uploaded evidence in ignored local files. Keep operational data genuine. Use the explicit, labeled demo dataset only when needed and only in an empty database.
 
 ## Architecture and development
 
@@ -9,13 +9,15 @@ Continue from `codex/mobile-profile-workflow`. The incident-reporting branch mer
 - From the root, create `.venv` if needed and install `.venv/bin/python -m pip install -r requirements.txt`. `requirements-core.txt` is sufficient for `AI_MODE=demo`, which disables inference. `AI_MODE=auto` uses the installed Python inference stack, `yolov8s-worldv2.pt` and cached CLIP weights. `DEMO_MODE` controls demo labeling independently of `AI_MODE`.
 - Start local PostgreSQL and run `.venv/bin/python -m tools.init_database --admin-user <owner>`. The owner applies migrations and the API uses a restricted runtime role and private passfile. Keep existing settings and data. If the checkout already has a `.env` for a different database, use the initializer's connection settings in a separate ignored environment file and pass it to Uvicorn with `--env-file`. Keep `SEED_ON_START=false` and `DEMO_MODE=false` for real data. Use `.venv/bin/python -m tools.seed_demo` explicitly only if needed.
 - Start FastAPI with `.venv/bin/python -m uvicorn backend.main:app --reload --port 8000`. For a phone on a trusted development LAN, use `--host 0.0.0.0`. Install both clients with `npm ci` inside their directories, then run `npm run dev` in each (Vite on 5173, Expo on 8081).
-- Check Alembic head (`0004`), `/api/health` (`database: ok`), `.venv/bin/python -m pytest -q`, `npm run build` in `frontend/`, and `npm run typecheck` in `mobile/`. See [setup](docs/setup.md), [database operations](docs/database.md), and [mobile development](mobile/MOBILE_DEVELOPMENT.md).
+- Check Alembic head (`0005`), `/api/health` (`database: ok`), `.venv/bin/python -m pytest -q`, `npm run build` in `frontend/`, and `npm run typecheck` in `mobile/`. See [setup](docs/setup.md), [database operations](docs/database.md), and [mobile development](mobile/MOBILE_DEVELOPMENT.md).
 
 ## Current progress
 
-Citizen onboarding and profile persistence are implemented, including development-only OTP, GPS or village setup, SecureStore sessions on native and HttpOnly cookie sessions on web. The mobile tabs are Home, Map, and Profile. Home lists owned reports and verified public alerts. Citizen reports require a title, category, and explicit incident location. They retain optional photo analysis, deduplication, receipt recovery, and official review. Anonymous historical reports remain unowned. Native photo upload uses `expo-file-system`. The authority website still uses its existing workflow and alert eligibility rules.
+Citizen onboarding and profile persistence are implemented, including development-only OTP, GPS or village setup, SecureStore sessions on native and HttpOnly cookie sessions on web. The mobile tabs are Home, Map, and Profile. Home lists owned reports and verified public alerts. Citizen reports require a title, category, and explicit incident location. They retain optional photo analysis, deduplication, receipt recovery, and official review. Anonymous historical reports remain unowned. Native photo upload uses `expo-file-system`.
 
-Phase 1 adds strict Indian mobile authentication, canonical phone storage and concurrent-account protection. Migration `0004` preserves citizen IDs and report ownership. Conflicting historical accounts require manual review before their number can sign in. Mobile history comes from the authenticated API. Sign-out clears private screens immediately and removes local submission recovery keys. Sessions use SecureStore on native and HttpOnly cookies on web. Development OTP and demo mode are opt-in. Production requires an explicitly configured authority signing secret. Phase 1 passed backend suites on SQLite and PostgreSQL, the browser account-switching workflow, mobile type checking, and the authority production build. Physical-device verification is pending.
+Phase 1 adds strict Indian mobile authentication, canonical phone storage and concurrent-account protection. Migration `0004` preserves citizen IDs and report ownership. Conflicting historical accounts require manual review before their number can sign in. Mobile history comes from the authenticated API. Sign-out clears private screens immediately and removes local submission recovery keys. Sessions use SecureStore on native and HttpOnly cookies on web. Development OTP and demo mode are opt-in. Production requires an explicitly configured authority signing secret. Phase 1 passed backend suites on SQLite and PostgreSQL, the browser account-switching workflow, mobile type checking, and the authority production build. Citizen sign-in and report isolation across accounts were also checked on a physical phone before Phase 2.
+
+Phase 2 uses atomic report approval and incident resolution. Each approved, authenticated citizen report gets one incident and one alert regardless of score. Mobile and authority views derive Pending, Under Work, Rejected, and Resolved from saved review and incident state. Public locations use a submitted village center or a coarse GPS grid. Authority navigation is Dashboard, Reports, Map, Alerts, and Settings. Risk settings live in PostgreSQL and updates require the administrator role. Revision `0005` adds settings and resolution attribution. Historical repair is a separate dry-run-first command documented in [database operations](docs/database.md). Apply historical corrections only with explicit approval.
 
 ## Final functional specification
 
@@ -28,7 +30,7 @@ Phase 1 adds strict Indian mobile authentication, canonical phone storage and co
 | Status | Outcome |
 | --- | --- |
 | Pending | Awaiting authority review. |
-| Under work | Authority verifies the report and a public alert is issued. Every approved report is published, with risk determining severity. |
+| Under Work | Authority verifies the report and a public alert is issued. Every approved report is published, with risk determining severity. |
 | Rejected | Report is invalid and no public alert is published. |
 | Resolved | Incident is handled, the public alert closes, and reporter status updates. |
 
@@ -38,6 +40,5 @@ Phase 1 adds strict Indian mobile authentication, canonical phone storage and co
 
 ## Remaining development order
 
-1. Simplified authority website and final incident lifecycle, including alert publication and resolution synchronization.
-2. Shared interactive maps.
-3. Complete physical-device integration testing, including native SecureStore restart, invalid sessions, failed sign-out, account switching with a previously opened photo, GPS, camera, and gallery.
+1. Shared interactive maps and configurable radius.
+2. Complete physical-device integration testing, including native SecureStore restart, invalid sessions, failed sign-out, account switching with a previously opened photo, GPS, camera, and gallery.

@@ -28,9 +28,8 @@ export default function HomeScreen() {
   const active = useAppActive();
   const enabled = focused && active;
   const location = profile?.location;
-  const villageCode = location?.type === 'village' ? location.village.code : undefined;
   const fetchReports = useCallback((signal: AbortSignal) => getCitizenReports(access, signal), [access]);
-  const fetchAlerts = useCallback((signal: AbortSignal) => getPublicAlerts(signal, villageCode), [villageCode]);
+  const fetchAlerts = useCallback((signal: AbortSignal) => getPublicAlerts(signal), []);
   const reports = usePublicData(fetchReports, enabled, 10000);
   const alerts = usePublicData(fetchAlerts, enabled, 15000);
   const reportReload = reports.reload;

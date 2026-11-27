@@ -487,7 +487,7 @@ def _seed_empty_database(db: Session) -> dict:
 
     # --- tracks, risk, alerts --------------------------------------------
     rebuild_tracks(db, commit=False)
-    settings = get_settings(reload=True)
+    settings = get_settings(db)
     risk_summary = recalculate_all(db, settings, now=now, commit=False)
     alerts = sync_alerts(db, settings, days=30, commit=False)
 

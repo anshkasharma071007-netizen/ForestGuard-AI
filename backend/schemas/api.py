@@ -42,6 +42,7 @@ class IncidentUpdateRequest(BaseModel):
 
 
 class SightingStatusUpdate(BaseModel):
+    confirmed_species: str | None = Field(default=None, max_length=40)
     status: Literal["pending", "forwarded", "closed", "verified", "rejected"] | None = None
     note: str | None = Field(default=None, max_length=1000)
 

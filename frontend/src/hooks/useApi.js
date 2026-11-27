@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import api, { errorMessage } from '../api/client'
 
 export function useApi(path, { deps = [], enabled = true, interval = 0 } = {}) {
-  const [data, setData] = useState(null)
+  const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(Boolean(enabled && path))
   const [error, setError] = useState(null)
   const [nonce, setNonce] = useState(0)
+
+  const reload = useCallback(() => setNonce((value) => value + 1), [])
 
   useEffect(() => {
     if (!enabled || !path) {
@@ -18,10 +20,14 @@ export function useApi(path, { deps = [], enabled = true, interval = 0 } = {}) {
     let timer
     const controller = new AbortController()
     async function fetchData() {
+      if (interval && document.visibilityState === 'hidden') {
+        timer = setTimeout(fetchData, interval)
+        return
+      }
       try {
         const response = await api.get(path, { signal: controller.signal })
         if (active) {
-          setData(response.data)
+          setResult({ path, data: response.data })
           setError(null)
         }
       } catch (err) {
@@ -42,5 +48,5 @@ export function useApi(path, { deps = [], enabled = true, interval = 0 } = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path, enabled, interval, nonce, ...deps])
 
-  return { data, loading, error, reload: () => setNonce((value) => value + 1), setData }
+  return { data: result?.path === path && enabled ? result.data : null, loading, error, reload }
 }

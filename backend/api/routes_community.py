@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 from PIL import Image, UnidentifiedImageError
 from fastapi.responses import FileResponse
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import func, select, text
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.orm import Session
 
 from geospatial.species import SPECIES, SPECIES_ORDER, species_meta
@@ -25,6 +25,8 @@ from backend.database.session import get_db
 from backend.models import Alert, Incident, SightingReport, Village, utcnow
 from backend.models.entities import Citizen
 from backend.services.report_analysis import evidence_path
+from backend.services.alerts import public_summary
+from backend.services.incident_lifecycle import ACTIVE_ALERTS, lifecycle_status
 from backend.services.serializers import serialize_village, species_info
 
 router = APIRouter(prefix="/api/community", tags=["community"])
@@ -38,6 +40,16 @@ GENERAL_GUIDELINES = [
     "Report sightings through this portal or the forest helpline. Do not attempt to intervene.",
     "Never feed wildlife or leave crop, compost or food waste exposed at the forest edge.",
 ]
+
+
+def _active_public_alerts():
+    owned = select(SightingReport.id).where(SightingReport.id == Incident.report_id,
+                                           SightingReport.citizen_id.is_not(None)).exists()
+    query = (select(Alert).outerjoin(Incident, Alert.incident_id == Incident.id)
+             .where(Alert.status.in_(ACTIVE_ALERTS),
+                    or_(Alert.incident_id.is_(None),
+                        Incident.verified.is_(True) & (Incident.status == "verified"))))
+    return query, owned
 
 
 def _public_alert(db: Session, alert: Alert, *, approximate: bool = False) -> dict:
@@ -61,8 +73,21 @@ def _public_alert(db: Session, alert: Alert, *, approximate: bool = False) -> di
         "is_simulated": alert.is_simulated,
         "note": "Location detail is intentionally coarse. Contact your range office for field guidance.",
     }
-    if approximate:
-        # Use only rounded centers of affected villages, never incident or detection coordinates.
+    incident = db.get(Incident, alert.incident_id) if alert.incident_id else None
+    report = db.get(SightingReport, incident.report_id) if incident and incident.report_id else None
+    if report and report.citizen_id is not None:
+        public_village = incident.village
+        names = [public_village.name] if public_village else []
+        payload["village_names"] = names
+        payload["area_label"] = public_area_label([public_village.code]) if public_village else "Approximate incident area"
+        payload["summary"] = public_summary(alert.species, alert.severity, names)
+        if approximate:
+            # Use the submitted village center or a GPS grid center roughly 11 km apart.
+            payload["approximate_locations"] = [
+                {"lat": round(public_village.lat, 2), "lon": round(public_village.lon, 2)} if public_village
+                else {"lat": round(incident.lat, 1), "lon": round(incident.lon, 1)}
+            ]
+    elif approximate:
         payload["approximate_locations"] = [
             {"lat": round(village.lat, 2), "lon": round(village.lon, 2)} for village in villages
             if -90 <= village.lat <= 90 and -180 <= village.lon <= 180
@@ -79,17 +104,13 @@ def public_alerts(
     village_code: str | None = None,
     db: Session = Depends(get_db),
 ) -> dict:
-    query = (select(Alert)
-        .where(
-            Alert.created_at >= utcnow() - timedelta(days=days),
-            Alert.status.in_(["active", "acknowledged", "responding"]),
-        )
-        .order_by(Alert.created_at.desc())
-    )
+    query, owned = _active_public_alerts()
+    query = query.where(or_(owned, Alert.created_at >= utcnow() - timedelta(days=days)))
+    query = query.order_by(Alert.created_at.desc(), Alert.id.desc())
     if field_only:
         query = query.where(Alert.is_simulated.is_(False))
     if verified_only:
-        query = query.join(Incident, Alert.incident_id == Incident.id).where(Incident.verified.is_(True))
+        query = query.where(Incident.verified.is_(True))
     if village_code:
         village_id = db.scalar(select(Village.id).where(Village.code == village_code))
         if village_id is None:
@@ -114,10 +135,8 @@ def public_alerts(
 
 @router.get("/summary")
 def community_summary(db: Session = Depends(get_db)) -> dict:
-    active = db.scalars(
-        select(Alert).where(Alert.status.in_(["active", "acknowledged", "responding"]))
-        .order_by(Alert.status, Alert.id)
-    ).all()
+    query, _ = _active_public_alerts()
+    active = db.scalars(query.order_by(Alert.status, Alert.id)).all()
     villages = db.scalars(select(Village).order_by(Village.name)).all()
     reports = db.scalar(select(func.count(SightingReport.id))) or 0
     high = [alert for alert in active if alert.severity == "high"]
@@ -144,6 +163,8 @@ def _receipt(report: SightingReport) -> dict:
     return {
         "reference_code": report.reference_code,
         "status": status,
+        **({"lifecycle_status": lifecycle_status(report, report.incident.status if report.incident else None)}
+           if report.citizen_id is not None else {}),
         "message": (
             "Report received. Your range office will review it. If there is an immediate danger "
             "to life, call 112 or the forest helpline (1926)."
@@ -345,7 +366,9 @@ def _citizen_report_status(report: SightingReport, incident_status: str | None) 
 
 def _citizen_summary(report: SightingReport, incident_status: str | None) -> dict:
     return {"title": report.title, "reference_code": report.reference_code,
-            "status": _citizen_report_status(report, incident_status), "created_at": report.created_at.isoformat() + "Z"}
+            "status": _citizen_report_status(report, incident_status),
+            "lifecycle_status": lifecycle_status(report, incident_status),
+            "created_at": report.created_at.isoformat() + "Z"}
 
 
 @citizen_router.get("/reports")
@@ -367,8 +390,12 @@ def _owned_report(db: Session, reference_code: str, citizen: Citizen) -> Sightin
 @citizen_router.get("/reports/{reference_code}")
 def citizen_report(reference_code: str, citizen: Citizen = Depends(onboarded_citizen), db: Session = Depends(get_db)):
     report = _owned_report(db, reference_code, citizen)
+    rejection = next((event.get("note") for event in reversed(report.review_history or [])
+                      if event.get("status") == "rejected"), None)
     return {**_citizen_summary(report, report.incident.status if report.incident else None),
             "category": report.category, "species_name": species_meta(report.species)["name"],
+            "rejection_reason": rejection if report.status == "rejected" else None,
+            "confirmed_species_name": species_meta(report.incident.species)["name"] if report.incident else None,
             "description": report.description, "village_name": report.village.name if report.village else None,
             "lat": report.lat, "lon": report.lon, "has_photo": bool(report.image_path),
             "analysis_status": report.analysis_status,

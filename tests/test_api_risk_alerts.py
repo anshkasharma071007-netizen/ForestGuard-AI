@@ -41,6 +41,11 @@ def test_risk_config_rbac_and_admin_update(client, admin_headers, guard_headers,
     assert patched.status_code == 200
     assert patched.json()["settings"]["alert_threshold"] == pytest.approx(58.0)
 
+    second = client.patch("/api/risk/config", json={"alert_threshold": 59}, headers=admin_headers)
+    assert second.status_code == 200
+    assert client.get("/api/risk/config", headers=guard_headers).json()["settings"]["alert_threshold"] == 59
+    assert not (tmp_path / "risk_config.json").exists()
+
     restored = client.post("/api/risk/config/reset", headers=admin_headers)
     assert restored.status_code == 200
     assert restored.json()["settings"]["alert_threshold"] == pytest.approx(60.0)

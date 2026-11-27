@@ -126,14 +126,14 @@ def test_private_reports_review_and_status(client, admin_headers, dev_otp):
     assert not client.get("/api/community/alerts?field_only=true&verified_only=true").json()["items"]
     official = f"/api/reports/{review['id']}"
     assert client.patch(official, headers=citizen, json={"status": "verified"}).status_code == 401
-    assert client.patch(official, headers=admin_headers, json={"status": "forwarded"}).status_code == 200
-    assert client.get(f"{path}/{code}", headers=citizen).json()["status"] == "forwarded"
+    assert client.patch(official, headers=admin_headers, json={"status": "forwarded"}).status_code == 409
+    assert client.get(f"{path}/{code}", headers=citizen).json()["lifecycle_status"] == "pending"
     decision = client.patch(official, headers=admin_headers, json={"status": "verified"})
     assert decision.status_code == 200, decision.text
-    assert client.get(f"{path}/{code}", headers=citizen).json()["status"] == "verified"
+    assert client.get(f"{path}/{code}", headers=citizen).json()["lifecycle_status"] == "under_work"
     incident = decision.json()["report"]["incident_id"]
     assert client.patch(f"/api/incidents/{incident}", headers=admin_headers, json={"status": "resolved"}).status_code == 200
-    assert client.get(f"{path}/{code}", headers=citizen).json()["status"] == "closed"
+    assert client.get(f"{path}/{code}", headers=citizen).json()["lifecycle_status"] == "resolved"
 
     photo = io.BytesIO()
     Image.new("RGB", (8, 8)).save(photo, "PNG")

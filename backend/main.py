@@ -18,6 +18,7 @@ from backend.api import (
     routes_community,
     routes_core,
     routes_guard,
+    routes_operations,
     routes_risk,
 )
 from backend.database.session import SessionLocal
@@ -93,6 +94,7 @@ app.include_router(routes_core.router)
 app.include_router(routes_risk.router)
 app.include_router(routes_alerts.router)
 app.include_router(routes_guard.router)
+app.include_router(routes_operations.router)
 app.include_router(routes_community.router)
 app.include_router(routes_citizen.router)
 app.include_router(routes_community.citizen_router)
@@ -106,19 +108,13 @@ class PublicMedia(StaticFiles):
         return full_path, stat
 
 
-app.mount("/media", PublicMedia(directory=config.UPLOAD_DIR), name="media")
-
 class WebsiteFiles(StaticFiles):
     async def get_response(self, path, scope):
         # These entry points are handled by React Router, including after official sign-in.
-        if path in {"reports", "login"}:
+        if path in {"dashboard", "reports", "map", "alerts", "settings", "login", "community",
+                    "monitoring", "wildlife", "risk", "guard", "analytics"}:
             path = "index.html"
         return await super().get_response(path, scope)
-
-
-frontend_dir = os.path.join(config.ROOT, "frontend", "dist")
-if os.path.isdir(frontend_dir):
-    app.mount("/", WebsiteFiles(directory=frontend_dir, html=True), name="frontend")
 
 
 @app.get("/api")
@@ -130,3 +126,10 @@ def api_root() -> dict:
         "health": "/api/health",
         "demo_mode": config.DEMO_MODE,
     }
+
+
+app.mount("/media", PublicMedia(directory=config.UPLOAD_DIR), name="media")
+
+frontend_dir = os.path.join(config.ROOT, "frontend", "dist")
+if os.path.isdir(frontend_dir):
+    app.mount("/", WebsiteFiles(directory=frontend_dir, html=True), name="frontend")
