@@ -136,6 +136,8 @@ def seed_database(db: Session) -> dict:
     """Seed an empty database in one transaction using a fresh session."""
     from backend.services.authority_demo import demo_role_for_credentials
 
+    if config.DB_MODE == "cloud":
+        return {"seeded": False, "reason": "Operational demo seeding is available only in local mode."}
     if config.APP_ENV != "development":
         return {"seeded": False, "reason": "Operational demo seeding requires APP_ENV=development."}
     if not config.authority_demo_accounts_allowed() and (

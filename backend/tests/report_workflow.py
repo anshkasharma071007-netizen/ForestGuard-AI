@@ -14,7 +14,8 @@ from pathlib import Path
 from time import monotonic, sleep
 
 from sqlalchemy import create_engine, text
-from sqlalchemy.engine import make_url
+
+from backend.tests.database import local_test_database_url, use_isolated_profile
 
 ROOT = Path(__file__).resolve().parents[2]
 PHOTO = ROOT / "frontend/public/images/elephant.jpg"
@@ -132,9 +133,7 @@ def api_checks(client, auth):
 
 
 def run():
-    url = make_url(os.environ["WORKFLOW_TEST_DATABASE_URL"])
-    if url.get_backend_name() != "postgresql" or "test" not in (url.database or ""):
-        raise ValueError("Use a dedicated PostgreSQL test database")
+    url = local_test_database_url(os.environ["WORKFLOW_TEST_DATABASE_URL"])
     schema = "workflow_" + uuid.uuid4().hex
     admin = create_engine(url)
     with ExitStack() as stack:
@@ -146,6 +145,7 @@ def run():
                 conn.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
         stack.callback(cleanup)
         temp = Path(stack.enter_context(tempfile.TemporaryDirectory()))
+        use_isolated_profile(temp)
         os.environ.update(DATABASE_URL=url.render_as_string(hide_password=False), PGOPTIONS=f"-c search_path={schema}",
                           UPLOAD_DIR=str(temp / "uploads"), SECRET_KEY=secrets.token_hex(32),
                           SEED_ON_START="false", AI_MODE="auto", MPLCONFIGDIR=str(temp / "mpl"),

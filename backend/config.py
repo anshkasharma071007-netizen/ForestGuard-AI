@@ -1,12 +1,46 @@
 from __future__ import annotations
 
 import os
+import re
 import secrets
+from pathlib import Path
 
 from dotenv import load_dotenv
+from sqlalchemy.engine import URL
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-load_dotenv(os.path.join(ROOT, ".env"))
+DB_MODE = os.getenv("FOREST_GUARD_DB_MODE", "local").strip().lower()
+if DB_MODE not in {"local", "cloud"}:
+    raise RuntimeError("Set FOREST_GUARD_DB_MODE to local or cloud before starting the backend.")
+
+_env_file = os.getenv("FOREST_GUARD_ENV_FILE")
+_profile = Path(_env_file) if _env_file else Path(ROOT) / (".env.cloud" if DB_MODE == "cloud" else ".env")
+if _env_file and not _profile.is_file():
+    raise RuntimeError(f"The selected {DB_MODE} environment file does not exist: {_profile}")
+load_dotenv(_profile, interpolate=DB_MODE == "local")
+
+
+def cloud_database_url() -> URL:
+    host = os.getenv("CLOUD_DATABASE_HOST", "").strip()
+    user = os.getenv("CLOUD_DATABASE_USER", "").strip()
+    password = os.getenv("CLOUD_DATABASE_PASSWORD")
+    certificate = os.getenv("CLOUD_DATABASE_SSL_ROOT_CERT", "").strip()
+    if not re.fullmatch(r"[a-z0-9-]+\.pooler\.supabase\.com", host):
+        raise RuntimeError("Set CLOUD_DATABASE_HOST to the Supabase session pooler hostname.")
+    if not re.fullmatch(r"forest_guard_app\.[a-z0-9]{20}", user):
+        raise RuntimeError("Set CLOUD_DATABASE_USER to forest_guard_app.<project-ref>.")
+    if not password:
+        raise RuntimeError("Set CLOUD_DATABASE_PASSWORD using the private cloud environment.")
+    if not certificate or not Path(certificate).is_file():
+        raise RuntimeError("Set CLOUD_DATABASE_SSL_ROOT_CERT to the downloaded Supabase CA certificate.")
+    if any(os.getenv(key) for key in ("PGSERVICE", "PGHOSTADDR", "PGOPTIONS")):
+        raise RuntimeError("Unset PGSERVICE, PGHOSTADDR and PGOPTIONS before using cloud mode.")
+    return URL.create(
+        "postgresql+psycopg", username=user, password=password, host=host, port=5432, database="postgres",
+        query={"sslmode": "verify-full", "sslrootcert": str(Path(certificate).resolve()),
+               "gssencmode": "disable", "keepalives_idle": "30", "keepalives_interval": "10",
+               "keepalives_count": "3"},
+    )
 
 DEMO_MODE = os.getenv("DEMO_MODE", "false").strip().lower() in {"1", "true", "yes", "on"}
 APP_ENV = os.getenv("APP_ENV", "production").strip().lower()
@@ -36,11 +70,13 @@ def validate_authority_secret():
     ):
         raise RuntimeError("Set SECRET_KEY to a securely generated random value of at least 32 characters.")
 
-DATABASE_URL = os.getenv(
+DATABASE_URL = cloud_database_url() if DB_MODE == "cloud" else os.getenv(
     "DATABASE_URL", "postgresql+psycopg://forest_guard_app@127.0.0.1:5432/forest_guard_ai"
 )
+LOCAL_DATABASE_ROLE = os.getenv("LOCAL_DATABASE_ROLE", "forest_guard_app")
 
-UPLOAD_DIR = os.getenv("UPLOAD_DIR", os.path.join(ROOT, "backend", "uploads"))
+_upload_path = ".forest-guard-local/cloud-uploads" if DB_MODE == "cloud" else "backend/uploads"
+UPLOAD_DIR = os.getenv("UPLOAD_DIR") or str(Path(ROOT) / _upload_path)
 DEMO_IMAGE_DIR = os.path.join(ROOT, "demo_data", "detection_images")
 DEMO_WILDLIFE_DIR = os.path.join(ROOT, "demo_data", "wildlife_images")
 DETECTION_ASSETS = os.path.join(ROOT, "demo_data", "detection_assets.json")

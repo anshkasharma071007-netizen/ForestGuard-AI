@@ -21,7 +21,7 @@ from backend.api import (
     routes_operations,
     routes_risk,
 )
-from backend.database.session import SessionLocal
+from backend.database.session import SessionLocal, validate_runtime_database
 from backend.services.authority_demo import provision_authority_demo_accounts
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -49,8 +49,11 @@ def _seed_if_needed() -> dict:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     config.validate_authority_secret()
+    with SessionLocal() as db:
+        validate_runtime_database(db)
     app.state.seed_result = None
-    if config.DEMO_MODE and os.getenv("SEED_ON_START", "false").strip().lower() in {"1", "true", "yes", "on"}:
+    if (config.DB_MODE == "local" and config.DEMO_MODE
+            and os.getenv("SEED_ON_START", "false").strip().lower() in {"1", "true", "yes", "on"}):
         app.state.seed_result = _seed_if_needed()
     app.state.authority_demo_roles = set()
     if config.authority_demo_accounts_allowed():

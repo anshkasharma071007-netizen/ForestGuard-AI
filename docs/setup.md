@@ -14,6 +14,8 @@ and diagram scripts in `frontend/scripts/`.
 
 ## 1. Backend and local database
 
+For a Supabase-backed API or to switch profiles on an existing checkout, follow [local and Supabase profiles](database.md#local-and-supabase-profiles).
+
 Run these commands from a fresh clone. Start your installed PostgreSQL server and use its local provisioning login. The login needs permission to create databases and roles on first setup and must own the database for updates. The initializer creates an empty, migrated database, generates a runtime password and creates a private `.env` when one is absent.
 
 ### macOS

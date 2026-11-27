@@ -9,19 +9,19 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine
-from sqlalchemy.engine import make_url
 from sqlalchemy.schema import CreateSchema, DropSchema
+
+from backend.tests.database import local_test_database_url, use_isolated_profile
 
 _temp = tempfile.TemporaryDirectory(prefix="forest-guard-tests-")
 _TEST_DIR = Path(_temp.name)
+use_isolated_profile(_TEST_DIR)
 os.environ["DATABASE_URL"] = f"sqlite:///{(_TEST_DIR / 'test.db').as_posix()}"
 # The optional PG run creates its own schema with no public search-path fallback.
 _pg_url = os.environ.get("FOREST_GUARD_TEST_POSTGRES_URL")
 _schema = f"fg_test_{uuid4().hex}"
 if _pg_url:
-    url = make_url(_pg_url)
-    if url.get_backend_name() != "postgresql":
-        raise ValueError("FOREST_GUARD_TEST_POSTGRES_URL must select PostgreSQL")
+    url = local_test_database_url(_pg_url)
     os.environ["DATABASE_URL"] = url.update_query_dict(
         {"options": f"-csearch_path={_schema}"}
     ).render_as_string(hide_password=False)

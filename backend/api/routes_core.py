@@ -95,8 +95,8 @@ def health(db: Session = Depends(get_db)) -> dict:
     try:
         db.execute(select(1))
         database = "ok"
-    except Exception as exc:  # pragma: no cover - diagnostic endpoint
-        database = f"error: {exc}"
+    except Exception:  # pragma: no cover - diagnostic endpoint
+        database = "error"
     return {
         "status": "ok" if database == "ok" else "degraded",
         "database": database,
@@ -485,7 +485,9 @@ async def upload_media(
         camera = db.scalar(select(Camera).where(Camera.code == camera_code))
 
     try:
-        result = ai_detector.analyze_media(target_path, "video" if is_video else "image")
+        result = ai_detector.analyze_media(
+            target_path, "video" if is_video else "image", upload_dir=config.UPLOAD_DIR
+        )
     except ai_detector.AIUnavailableError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except ValueError as exc:

@@ -62,6 +62,8 @@ def bundled_demo_villages() -> list[Village]:
 
 
 def provision_demo_villages(db: Session) -> dict[str, str]:
+    if config.DB_MODE == "cloud":
+        raise ValueError("Demo village provisioning is available only in local mode.")
     if config.APP_ENV != "development" or not config.DEMO_VILLAGES_ENABLED:
         raise ValueError("Set APP_ENV=development and DEMO_VILLAGES_ENABLED=true to provision demo villages.")
     with db.begin():

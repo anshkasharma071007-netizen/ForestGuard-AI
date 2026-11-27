@@ -244,7 +244,7 @@ class WildlifeEngine:
             ],
         }
 
-    def analyze_video(self, path: str, *, max_frames: int = 5) -> dict:
+    def analyze_video(self, path: str, *, max_frames: int = 5, upload_dir: str | None = None) -> dict:
         """Sample frames across a video; explicitly not continuous tracking."""
         import cv2
 
@@ -258,7 +258,7 @@ class WildlifeEngine:
         indices = sorted(
             {max(0, min(frame_count - 1, int(frame_count * i / max_frames))) for i in range(max_frames)}
         )
-        frame_dir = os.path.join(config.UPLOAD_DIR, "frames", uuid.uuid4().hex)
+        frame_dir = os.path.join(upload_dir or config.UPLOAD_DIR, "frames", uuid.uuid4().hex)
         os.makedirs(frame_dir, exist_ok=True)
 
         collected: dict[str, dict] = {}
@@ -275,6 +275,7 @@ class WildlifeEngine:
                 cv2.imwrite(frame_path, frame)
                 result = self.analyze_image(
                     frame_path,
+                    output_dir=os.path.join(upload_dir, "annotated") if upload_dir else None,
                     footer=f"FOREST GUARD AI · video frame {frame_index} · sampled, not continuous tracking",
                 )
                 timestamp = round(frame_index / fps, 1)
@@ -370,8 +371,8 @@ def engine_status() -> dict:
         return {"mode": "error", "loaded": False, "message": f"AI engine could not start: {exc}"}
 
 
-def analyze_media(path: str, media_type: str) -> dict:
+def analyze_media(path: str, media_type: str, *, upload_dir: str | None = None) -> dict:
     engine = get_engine()
     if media_type == "video":
-        return engine.analyze_video(path)
-    return engine.analyze_image(path)
+        return engine.analyze_video(path, upload_dir=upload_dir)
+    return engine.analyze_image(path, output_dir=os.path.join(upload_dir, "annotated") if upload_dir else None)

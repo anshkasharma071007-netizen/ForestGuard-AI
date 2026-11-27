@@ -14,16 +14,14 @@ from time import monotonic, sleep
 from uuid import uuid4
 
 from sqlalchemy import create_engine
-from sqlalchemy.engine import make_url
 from sqlalchemy.schema import CreateSchema, DropSchema
 
+from backend.tests.database import local_test_database_url, use_isolated_profile
 from backend.tests.report_workflow import MobileWebHandler
 
 
 def run():
-    url = make_url(os.environ["WORKFLOW_TEST_DATABASE_URL"])
-    if url.get_backend_name() != "postgresql" or "test" not in (url.database or ""):
-        raise ValueError("Use a dedicated PostgreSQL test database.")
+    url = local_test_database_url(os.environ["WORKFLOW_TEST_DATABASE_URL"])
     schema = f"village_browser_{uuid4().hex}"
     owner = create_engine(url)
     authority_origin = "http://127.0.0.1:18865"
@@ -39,6 +37,7 @@ def run():
 
         cleanup.callback(drop_schema)
         temp = Path(cleanup.enter_context(tempfile.TemporaryDirectory()))
+        use_isolated_profile(temp)
         secret = secrets.token_urlsafe(24)
         os.environ.update(
             DATABASE_URL=url.render_as_string(hide_password=False), PGOPTIONS=f"-c search_path={schema}",
