@@ -18,7 +18,10 @@ from sqlalchemy.orm import Session
 from backend import config
 from backend.api.deps import security
 from backend.database.session import get_db
-from backend.models.entities import Citizen, CitizenSession, Village, utcnow
+from backend.models.entities import Citizen, CitizenSession, utcnow
+from backend.services.serializers import village_identity
+from backend.services.villages import resolve_village, village_center
+from geospatial.mapping import valid_coordinates
 
 COOKIE = "forest_guard_citizen"
 SESSION_SECONDS = 30 * 24 * 60 * 60
@@ -42,13 +45,15 @@ class Verification(PhoneInput):
 
 class Location(BaseModel):
     village_code: str | None = Field(default=None, min_length=1, max_length=20)
+    village_id: int | None = Field(default=None, gt=0)
     lat: float | None = Field(default=None, ge=-90, le=90, allow_inf_nan=False)
     lon: float | None = Field(default=None, ge=-180, le=180, allow_inf_nan=False)
 
     @model_validator(mode="after")
     def select_one_location(self):
         has_coordinates = self.lat is not None and self.lon is not None
-        if (self.lat is None) != (self.lon is None) or (self.village_code is not None) == has_coordinates:
+        selectors = sum(value is not None for value in (self.village_id, self.village_code))
+        if (self.lat is None) != (self.lon is None) or selectors + int(has_coordinates) != 1:
             raise ValueError("Choose a village or provide both GPS coordinates.")
         return self
 
@@ -72,11 +77,10 @@ def _normalize_phone(value: str) -> str:
 
 def _profile(citizen: Citizen) -> dict:
     location = None
-    if citizen.village:
-        village = citizen.village
-        location = {"type": "village", "village": {"code": village.code, "name": village.name, "district": village.district},
-                    "lat": round(village.lat, 2), "lon": round(village.lon, 2)}
-    elif citizen.lat is not None and citizen.lon is not None:
+    if citizen.village and valid_coordinates(citizen.village.lat, citizen.village.lon):
+        location = {"type": "village", "village": village_identity(citizen.village),
+                    **village_center(citizen.village, public=True)}
+    elif valid_coordinates(citizen.lat, citizen.lon):
         location = {"type": "gps", "lat": citizen.lat, "lon": citizen.lon}
     return {"id": citizen.id, "phone": citizen.phone, "name": citizen.name, "email": citizen.email, "location": location}
 
@@ -123,7 +127,8 @@ def get_citizen(session: CitizenSession = Depends(_session)) -> Citizen:
 
 
 def onboarded_citizen(citizen: Citizen = Depends(get_citizen)) -> Citizen:
-    if citizen.village_id is None and (citizen.lat is None or citizen.lon is None):
+    if not (valid_coordinates(citizen.lat, citizen.lon) or (citizen.village and
+            valid_coordinates(citizen.village.lat, citizen.village.lon))):
         raise HTTPException(403, "Save a profile location before using reports.")
     return citizen
 
@@ -183,11 +188,9 @@ def profile(citizen: Citizen = Depends(get_citizen)):
 @router.put("/profile")
 def update_profile(payload: ProfileUpdate, citizen: Citizen = Depends(get_citizen), db: Session = Depends(get_db)):
     location = payload.location
-    village = None
-    if location.village_code is not None:
-        village = db.scalar(select(Village).where(Village.code == location.village_code))
-        if not village:
-            raise HTTPException(400, "Choose a supported village.")
+    village = resolve_village(db, village_id=location.village_id, village_code=location.village_code)
+    if village is not None and not valid_coordinates(village.lat, village.lon):
+        raise HTTPException(400, "This village has no usable location. Choose another village or use GPS.")
     citizen.name = payload.name
     citizen.email = payload.email
     citizen.village = village

@@ -37,7 +37,7 @@ const NAV = [
 const EMPTY_FORM = {
   category: 'sighting',
   species: 'unidentified',
-  village_code: '',
+  village_id: '',
   reporter_name: '',
   contact: '',
   description: '',
@@ -108,7 +108,7 @@ export default function CommunityPortal() {
       body.append('description', form.description.trim())
       body.append('reporter_name', form.reporter_name.trim())
       if (form.contact.trim()) body.append('contact', form.contact.trim())
-      if (form.village_code) body.append('village_code', form.village_code)
+      if (form.village_id) body.append('village_id', form.village_id)
       if (photo) body.append('image', photo)
       const response = await api.post('/api/community/reports', body)
       submission.current = null
@@ -397,12 +397,12 @@ export default function CommunityPortal() {
                     <select
                       id="report-village" required
                       className="field"
-                      value={form.village_code}
-                      onChange={(event) => update('village_code', event.target.value)}
+                      value={form.village_id}
+                      onChange={(event) => update('village_id', event.target.value)}
                     >
                       <option value="">Prefer not to say</option>
                       {villages.data?.items?.map((village) => (
-                        <option key={village.code} value={village.code}>
+                        <option key={village.id} value={village.id} disabled={village.lat == null || village.lon == null}>
                           {village.name} · {village.district}
                         </option>
                       ))}

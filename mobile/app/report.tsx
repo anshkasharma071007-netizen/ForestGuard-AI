@@ -119,12 +119,14 @@ export default function ReportScreen() {
       return;
     }
     const incidentLocation = locationInput(location);
+    // Keep the local retry fingerprint compatible with village drafts created before the API accepted IDs.
+    const draftLocation = location.type === 'village' ? { village_code: location.village.code } : incidentLocation;
 
     submissionInProgress.current = true;
     setSubmitting(true);
     try {
       const draft = JSON.stringify([title.trim(), category, species.species.id, speciesNote, description.trim(),
-        incidentLocation, photo?.assetId, photo?.fileName, photo?.fileSize,
+        draftLocation, photo?.assetId, photo?.fileName, photo?.fileSize,
         photo?.file?.lastModified, photo?.assetId || photo?.fileName ? undefined : photo?.uri]);
       const formData = new FormData();
       formData.append('title', title.trim());

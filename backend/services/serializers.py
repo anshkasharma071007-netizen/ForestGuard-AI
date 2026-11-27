@@ -4,13 +4,13 @@ import math
 from datetime import datetime, timezone
 from typing import Any
 
-from geospatial.mapping import valid_coordinates
 from geospatial.species import species_meta
 
 from sqlalchemy.orm import Session
 
 from backend.models import Alert, Camera, Detection, Guard, Incident, SightingReport, Track, Village
 from backend.services.incident_lifecycle import lifecycle_status
+from backend.services.villages import is_demo_village, village_center
 
 
 def finite_distance(value: float | None) -> float | None:
@@ -75,12 +75,19 @@ def serialize_camera(camera: Camera, *, public: bool = False) -> dict:
     return data
 
 
-def serialize_village(village: Village, *, public: bool = False) -> dict:
-    data = {
+def village_identity(village: Village) -> dict:
+    return {
         "id": village.id,
         "code": village.code,
         "name": village.name,
         "district": village.district,
+        "is_demo": is_demo_village(village),
+    }
+
+
+def serialize_village(village: Village, *, public: bool = False) -> dict:
+    data = {
+        **village_identity(village),
         "population": village.population,
         "households": village.households,
         "risk_level": village.risk_level,
@@ -89,8 +96,7 @@ def serialize_village(village: Village, *, public: bool = False) -> dict:
         "note": village.note,
     }
     if not public:
-        location = valid_coordinates(village.lat, village.lon)
-        data.update({"lat": village.lat if location else None, "lon": village.lon if location else None})
+        data.update(village_center(village))
     return data
 
 

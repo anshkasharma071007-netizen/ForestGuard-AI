@@ -30,7 +30,7 @@ export default function Overview() {
           <ul className="mt-3 divide-y divide-line-6">{data.pending.map((report) =>
             <li key={report.id} className="py-3">
               <Link className="font-semibold text-ink hover:underline" to={`/reports?report=${report.id}`}>{report.title}</Link>
-              <div className="text-xs text-muted-3">{titleCase(report.category)} · {formatDateTime(report.created_at)}</div>
+              <div className="text-xs text-muted-3">{[titleCase(report.category), report.village_name, formatDateTime(report.created_at)].filter(Boolean).join(' · ')}</div>
             </li>)}</ul>
         </section>
         <section className="card p-5">

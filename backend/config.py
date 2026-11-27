@@ -10,6 +10,7 @@ load_dotenv(os.path.join(ROOT, ".env"))
 
 DEMO_MODE = os.getenv("DEMO_MODE", "false").strip().lower() in {"1", "true", "yes", "on"}
 APP_ENV = os.getenv("APP_ENV", "production").strip().lower()
+DEMO_VILLAGES_ENABLED = os.getenv("DEMO_VILLAGES_ENABLED", "false").strip().lower() == "true"
 CITIZEN_DEV_OTP_ENABLED = os.getenv("CITIZEN_DEV_OTP_ENABLED", "false").strip().lower() == "true"
 AUTHORITY_DEMO_ACCOUNTS_ENABLED = os.getenv("AUTHORITY_DEMO_ACCOUNTS_ENABLED", "false").strip().lower() == "true"
 CORS_ORIGINS = [origin.strip() for origin in os.getenv(

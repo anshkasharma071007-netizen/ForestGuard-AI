@@ -208,7 +208,11 @@ export default function MapView({
           })
             .bindTooltip(`${village.name} · ${level} exposure`, { sticky: true })
             .addTo(overlay)
-          const center = L.polygon(ring).getBounds().getCenter()
+        }
+        const center = Number.isFinite(village.lat) && Number.isFinite(village.lon)
+          ? [village.lat, village.lon]
+          : ring.length ? L.polygon(ring).getBounds().getCenter() : null
+        if (center) {
           L.marker(center, {
             icon: L.divIcon({
               className: 'fg-marker-wrap',
@@ -216,11 +220,10 @@ export default function MapView({
               iconSize: [70, 16],
               iconAnchor: [35, 8],
             }),
-            interactive: false,
-            keyboard: false,
-          }).addTo(overlay)
+            title: `Village · ${village.name}`,
+          }).bindTooltip(escapeHtml(`${village.name} · ${village.code} · ${level} exposure`)).addTo(overlay)
         }
-        if (layers.alertCoverage && village.lat && village.lon) {
+        if (layers.alertCoverage && Number.isFinite(village.lat) && Number.isFinite(village.lon)) {
           L.circle([village.lat, village.lon], {
             radius: (data?.risk?.alert_radius_km || 3.5) * 1000,
             color: '#B85C38',

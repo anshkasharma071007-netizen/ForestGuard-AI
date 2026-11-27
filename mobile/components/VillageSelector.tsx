@@ -33,7 +33,8 @@ export function VillageSelector({ selected, onSelect, disabled = false, label = 
           {state.kind === 'ready' && (state.data.length === 0
             ? <Feedback title="No villages are listed" />
             : state.data.map((village) => (
-              <SelectionRow key={village.code} label={village.name} detail={village.district} selected={village.code === selected?.code}
+              <SelectionRow key={village.id} label={village.name} detail={village.center ? village.district : 'Location unavailable'} disabled={disabled || !village.center}
+                selected={village.id === selected?.id}
                 onPress={() => { if (!disabled) { onSelect(village); setExpanded(false); } }} />
             )))}
         </View>

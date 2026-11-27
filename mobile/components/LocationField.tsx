@@ -12,7 +12,7 @@ import { spacing } from '@/theme';
 export type LocationChoice = { type: 'gps'; lat: number; lon: number } | { type: 'village'; village: Village };
 
 export function locationInput(value: LocationChoice): LocationInput {
-  return value.type === 'gps' ? { lat: value.lat, lon: value.lon } : { village_code: value.village.code };
+  return value.type === 'gps' ? { lat: value.lat, lon: value.lon } : { village_id: value.village.id };
 }
 
 const options = [

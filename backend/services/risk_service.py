@@ -13,6 +13,7 @@ from geospatial.species import species_meta
 from backend import config
 from backend.models import Alert, Detection, Incident, SightingReport, Track, Village
 from backend.models.entities import RiskConfiguration
+from backend.services.villages import village_risk_inputs
 
 def get_settings(db: Session | None = None) -> RiskSettings:
     stored = db.get(RiskConfiguration, 1) if db is not None else None
@@ -30,21 +31,6 @@ def store_settings(db: Session, patch: dict | None = None) -> RiskSettings:
         settings.update(patch)
     db.merge(RiskConfiguration(id=1, settings=settings.to_dict()))
     return settings
-
-
-def _village_dicts(db: Session) -> list[dict]:
-    villages = db.scalars(select(Village)).all()
-    return [
-        {
-            "id": village.id,
-            "name": village.name,
-            "lat": village.lat,
-            "lon": village.lon,
-            "population": village.population,
-            "boundary_ring": polygon_ring(village.boundary_geojson),
-        }
-        for village in villages
-    ]
 
 
 def _incident_dicts(db: Session) -> list[dict]:
@@ -93,7 +79,7 @@ def score_report_incident(db: Session, incident: Incident, settings: RiskSetting
     )).all()
     return score_detection(
         species=incident.species, lat=incident.lat, lon=incident.lon, detected_at=incident.created_at,
-        villages=_village_dicts(db),
+        villages=village_risk_inputs(db),
         incidents=[item for item in _incident_dicts(db) if item["is_simulated"] == incident.is_simulated],
         prior_detections=[{"species": d.species, "lat": d.lat, "lon": d.lon, "detected_at": d.detected_at}
                           for d in prior],
@@ -106,7 +92,7 @@ def recalculate_all(
 ) -> dict:
     settings = settings or get_settings(db)
     now = now or utcnow()
-    villages = _village_dicts(db)
+    villages = village_risk_inputs(db)
     incidents = _incident_dicts(db)
     tracks = {track.id: track.direction for track in db.scalars(select(Track)).all()}
     detections = db.scalars(select(Detection).order_by(Detection.detected_at)).all()
@@ -193,7 +179,7 @@ def recalculate_all(
 
 def rescore_detection(db: Session, detection: Detection, settings: RiskSettings | None = None) -> dict:
     settings = settings or get_settings(db)
-    villages = _village_dicts(db)
+    villages = village_risk_inputs(db)
     incidents = [i for i in _incident_dicts(db) if i["is_simulated"] == detection.is_simulated]
     prior_models = db.scalars(
         select(Detection)

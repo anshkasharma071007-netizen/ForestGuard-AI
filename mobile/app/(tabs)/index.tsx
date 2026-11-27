@@ -62,7 +62,7 @@ export default function HomeScreen() {
             })} style={({ pressed }) => ({ gap: spacing.xs, padding: spacing.md, borderRadius: radius.card,
               backgroundColor: pressed ? colors.successTint : colors.card })}>
               <Text style={[typeScale.card, { color: colors.primaryText }]}>{report.title}</Text>
-              <SupportingText>{new Date(report.createdAt).toLocaleString()}</SupportingText>
+              <SupportingText>{[report.village, new Date(report.createdAt).toLocaleString()].filter(Boolean).join(' · ')}</SupportingText>
               <View style={{ alignSelf: 'flex-start' }}><ReportStatusPill status={report.status} /></View>
             </Pressable>
           )) : <Feedback title="No reports yet" detail="Reports you submit will appear here." />)}

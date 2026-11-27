@@ -37,10 +37,10 @@ export function isReportStatus(value: unknown): value is ReportStatus {
 }
 type ReportIdentity = { reference_code: string; status: ReportStatus };
 export type ReportSubmissionResponse = ReportIdentity & { message: string };
-export type Village = { code: string; name: string; district?: string };
+export type Village = { id: number; code: string; name: string; district?: string; isDemo: boolean; center?: Coordinates };
 export type Coordinates = { lat: number; lon: number };
 export type SavedLocation = ({ type: 'gps' } | { type: 'village'; village: Village }) & Coordinates;
-export type LocationInput = Coordinates | { village_code: string };
+export type LocationInput = Coordinates | { village_id: number };
 export type CitizenProfile = { id: number; name: string; email: string | null; phone: string; location: SavedLocation | null };
 export type CitizenAccess = {
   token?: string;
@@ -48,13 +48,14 @@ export type CitizenAccess = {
   signal?: AbortSignal;
   expire: () => void;
 };
-export type CitizenReport = ReportIdentity & { title: string; createdAt: string };
+export type CitizenReport = ReportIdentity & { title: string; createdAt: string; village?: string };
 export type Advisory = {
   id: number;
   severity: string;
   speciesName: string;
   area: string;
   villageNames: string[];
+  villageIds: number[];
   summary?: string;
   advice?: string;
   publishedAt: string;
@@ -78,15 +79,11 @@ export async function getBackendHealth(signal?: AbortSignal): Promise<BackendHea
 
 export async function getCommunityVillages(signal?: AbortSignal): Promise<Village[]> {
   const { items } = await request('/api/community/villages', { signal });
-  return list(items).map((item) => ({
-    code: requiredText(item.code),
-    name: requiredText(item.name),
-    district: optionalText(item.district),
-  }));
+  return list(items).map(parseVillage);
 }
 
-export async function getPublicAlerts(signal?: AbortSignal, villageCode?: string): Promise<PublicAdvisories> {
-  const { items, window_days } = await request(`/api/community/alerts?limit=50&field_only=true&verified_only=true${villageCode ? '&village_code=' + encodeURIComponent(villageCode) : ''}`, { signal });
+export async function getPublicAlerts(signal?: AbortSignal, villageId?: number): Promise<PublicAdvisories> {
+  const { items, window_days } = await request(`/api/community/alerts?limit=50&field_only=true&verified_only=true${villageId ? '&village_id=' + encodeURIComponent(villageId) : ''}`, { signal });
   if (typeof window_days !== 'number' || !Number.isInteger(window_days) || window_days < 1) throw invalidResponse();
   const results = list(items);
   if (results.some((item) => typeof item.is_simulated !== 'boolean')) throw invalidResponse();
@@ -103,6 +100,7 @@ export async function getPublicAlerts(signal?: AbortSignal, villageCode?: string
         speciesName: requiredText(species_name),
         area: requiredText(area_label),
         villageNames: textList(village_names),
+        villageIds: Array.isArray(item.village_ids) ? item.village_ids.filter(Number.isInteger) : [],
         summary: optionalText(summary),
         advice: optionalText(advice),
         publishedAt,
@@ -179,7 +177,7 @@ export async function getCitizenReports(access: CitizenAccess, signal?: AbortSig
 export async function getCitizenReport(access: CitizenAccess, code: string, signal?: AbortSignal) {
   const record = await citizenRequest(access, `/reports/${encodeURIComponent(code)}`, { signal }, { notFound: 'Report unavailable.' });
   return { ...parseCitizenReport(record), category: requiredText(record.category), description: optionalText(record.description),
-    species: requiredText(record.species_name), village: optionalText(record.village_name), coordinates: coordinates(record),
+    species: requiredText(record.species_name), coordinates: coordinates(record),
     rejectionReason: optionalText(record.rejection_reason), confirmedSpecies: optionalText(record.confirmed_species_name),
     hasPhoto: record.has_photo === true, analysis: requiredText(record.analysis_status), suggestions: textList(record.suggested_species) };
 }
@@ -287,6 +285,14 @@ function coordinates({ lat, lon }: Record<string, unknown>): Coordinates | undef
   if (typeof lat === 'number' && typeof lon === 'number' && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) return { lat, lon };
 }
 
+function parseVillage(record: Record<string, unknown>): Village {
+  if (typeof record.id !== 'number' || !Number.isInteger(record.id) || record.id < 1) throw invalidResponse();
+  return {
+    id: record.id, code: requiredText(record.code), name: requiredText(record.name),
+    district: optionalText(record.district), isDemo: record.is_demo === true, center: coordinates(record),
+  };
+}
+
 function parseProfile(record: Record<string, unknown>): CitizenProfile {
   const { id, name, email, phone, location } = record;
   if (typeof id !== 'number' || !Number.isInteger(id)) throw invalidResponse();
@@ -298,7 +304,7 @@ function parseProfile(record: Record<string, unknown>): CitizenProfile {
     if (data.type === 'gps') saved = { type: 'gps', ...point };
     else if (data.type === 'village') {
       const village = object(data.village);
-      saved = { type: 'village', ...point, village: { code: requiredText(village.code), name: requiredText(village.name), district: optionalText(village.district) } };
+      saved = { type: 'village', ...point, village: { ...parseVillage(village), center: point } };
     } else throw invalidResponse();
   }
   return { id, name: requiredText(name), phone: requiredText(phone), email: optionalText(email) ?? null, location: saved };
@@ -307,7 +313,7 @@ function parseProfile(record: Record<string, unknown>): CitizenProfile {
 function parseCitizenReport(record: Record<string, unknown>): CitizenReport {
   const createdAt = optionalDate(record.created_at);
   if (!createdAt) throw invalidResponse();
-  return { ...parseIdentity(record), title: requiredText(record.title), createdAt };
+  return { ...parseIdentity(record), title: requiredText(record.title), createdAt, village: optionalText(record.village_name) };
 }
 
 function object(value: unknown): Record<string, unknown> {

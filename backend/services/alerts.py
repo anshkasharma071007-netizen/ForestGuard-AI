@@ -6,29 +6,15 @@ from math import isfinite
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from geospatial.mapping import haversine_km, polygon_ring
+from geospatial.mapping import haversine_km
 from geospatial.risk_analysis import RiskSettings, villages_within_radius
 from geospatial.species import species_meta
 
 from backend.models import Alert, AlertEvent, Detection, Guard, Incident, Village, utcnow
+from backend.services.villages import village_risk_inputs
 
 SEVERITY_HIGH = 65.0
 SEVERITY_CRITICAL = 80.0
-
-
-def village_dicts(db: Session) -> list[dict]:
-    villages = db.scalars(select(Village)).all()
-    return [
-        {
-            "id": village.id,
-            "name": village.name,
-            "lat": village.lat,
-            "lon": village.lon,
-            "population": village.population,
-            "boundary_ring": polygon_ring(village.boundary_geojson),
-        }
-        for village in villages
-    ]
 
 
 def _nearest_guard(db: Session, lat: float, lon: float) -> Guard | None:
@@ -70,12 +56,12 @@ def maybe_create_alert(
     if incident and (not detection.verified or not detection.report_id or detection.status != "verified"):
         return None
     if publish_reviewed_report:
-        villages = [v for v in village_dicts(db) if v["id"] == detection.village_id]
+        villages = [v for v in village_risk_inputs(db) if v["id"] == detection.village_id]
     else:
         if risk["score"] < float(settings.data["alert_threshold"]):
             return None
         villages = villages_within_radius(
-            detection.lat, detection.lon, village_dicts(db), float(settings.data["alert_radius_km"])
+            detection.lat, detection.lon, village_risk_inputs(db), float(settings.data["alert_radius_km"])
         )
         if not villages:
             return None

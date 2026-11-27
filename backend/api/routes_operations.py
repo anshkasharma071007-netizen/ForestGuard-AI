@@ -65,8 +65,10 @@ def dashboard(db: Session = Depends(get_db), _: User = Depends(require_guard)):
             "high": sum(count for status, severity, count in counts if status == "verified" and severity == "high"),
             "resolved": sum(count for status, _, count in counts if status == "resolved"),
         },
-        "pending": [{"id": r.id, "title": r.title, "category": r.category, "created_at": iso(r.created_at)}
-                    for r in db.scalars(pending.order_by(SightingReport.created_at.desc()).limit(6))],
+        "pending": [{"id": r.id, "title": r.title, "category": r.category, "created_at": iso(r.created_at),
+                     "village_id": r.village_id, "village_name": r.village.name if r.village else None}
+                    for r in db.scalars(pending.options(selectinload(SightingReport.village))
+                                        .order_by(SightingReport.created_at.desc()).limit(6))],
         "alerts": [_incident_item(row) for row in db.execute(
             INCIDENTS.where(Incident.status == "verified", Alert.status.in_(ACTIVE_ALERTS))
             .options(selectinload(Incident.village))

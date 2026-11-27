@@ -36,6 +36,16 @@ def test_seed_skips_database_with_users_but_no_detections(empty_seed_database):
     assert not uploads.exists()
 
 
+def test_operational_demo_is_unavailable_in_production(empty_seed_database, monkeypatch):
+    database, uploads = empty_seed_database
+    monkeypatch.setattr(seed.config, "APP_ENV", "production")
+    with Session(database) as session:
+        assert seed.seed_database(session)["seeded"] is False
+        for table in Base.metadata.sorted_tables:
+            assert session.execute(table.select().limit(1)).first() is None
+    assert not uploads.exists()
+
+
 def test_failed_seed_rolls_back_and_can_be_retried(empty_seed_database, monkeypatch):
     database, _ = empty_seed_database
 

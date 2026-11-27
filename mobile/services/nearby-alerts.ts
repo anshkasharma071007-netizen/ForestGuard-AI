@@ -18,7 +18,7 @@ export function nearbyAlerts(feed: PublicAdvisories, location: SavedLocation, so
     ...item, distanceKm: item.approximateLocations.length
       ? Math.min(...item.approximateLocations.map((point) => distanceKm(location, point))) : undefined,
   })).filter((item) => (
-    (location.type === 'village' && item.villageNames.includes(location.village.name))
+    (location.type === 'village' && item.villageIds.includes(location.village.id))
     || (item.distanceKm !== undefined && item.distanceKm <= nearbyKm)
   ));
   items.sort((a, b) => {

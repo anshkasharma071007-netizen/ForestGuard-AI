@@ -84,12 +84,12 @@ export function NavigationRow({ label, icon: Icon, onPress, disabled = false }: 
   );
 }
 
-export function SelectionRow({ label, detail, selected = false, onPress }: {
-  label: string; detail?: string; selected?: boolean; onPress: () => void;
+export function SelectionRow({ label, detail, selected = false, disabled = false, onPress }: {
+  label: string; detail?: string; selected?: boolean; disabled?: boolean; onPress: () => void;
 }) {
   const { colors } = useTheme();
   return (
-    <Pressable accessibilityRole="radio" aria-checked={selected} accessibilityState={{ checked: selected }} onPress={onPress}
+    <Pressable accessibilityRole="radio" aria-checked={selected} accessibilityState={{ checked: selected, disabled }} disabled={disabled} onPress={onPress}
       style={({ pressed }) => [styles.nav, { borderColor: colors.border, backgroundColor: pressed || selected ? colors.successTint : undefined }]}>
       <View style={styles.flex}>
         <Text style={[typeScale.body, { color: colors.primaryText }]}>{label}</Text>

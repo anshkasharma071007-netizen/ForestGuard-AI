@@ -151,3 +151,101 @@ def test_gps_lifecycle_with_zero_villages(empty_village_api, monkeypatch):
         assert alert.incident_id == incident_id and alert.status == "resolved"
         assert db.get(Detection, detection_id).observed_distance_km is None
         assert db.scalar(select(func.count()).select_from(Village)) == 0
+
+
+def test_demo_villages_share_registry_and_preserve_records(empty_village_api, monkeypatch):
+    from backend.models import Camera, Guard
+    from backend.models.entities import Citizen
+    from backend.services.villages import provision_demo_villages
+
+    api, engine, authority = empty_village_api
+    monkeypatch.setattr(config, "DEMO_VILLAGES_ENABLED", False)
+    with Session(engine) as db, pytest.raises(ValueError, match="DEMO_VILLAGES_ENABLED=true"):
+        provision_demo_villages(db)
+    monkeypatch.setattr(config, "DEMO_VILLAGES_ENABLED", True)
+    with monkeypatch.context() as patch, Session(engine) as db:
+        patch.setattr(config, "APP_ENV", "production")
+        with pytest.raises(ValueError, match="APP_ENV=development"):
+            provision_demo_villages(db)
+
+    verification = api.post("/api/citizen/verify", json={
+        "name": "Village test observer", "phone": "9876500192", "code": "1234",
+    }).json()
+    citizen = {"Authorization": "Bearer " + verification["token"]}
+    gps = {"lat": 21.735, "lon": 79.35}
+    assert api.put("/api/citizen/profile", headers=citizen, json={
+        "name": "Village test observer", "location": gps,
+    }).status_code == 200
+    form = {"title": "Before villages", "category": "sighting", "submission_key": str(uuid4())}
+    before = api.post("/api/citizen/reports", headers=citizen, data={**form, **gps}).json()
+
+    with Session(engine) as db:
+        assert set(provision_demo_villages(db).values()) == {"created"}
+        assert set(provision_demo_villages(db).values()) == {"already provisioned"}
+
+    public = api.get("/api/community/villages").json()["items"]
+    official = api.get("/api/villages", headers=authority).json()["items"]
+    expected = {"V001", "V002", "V003", "V004", "V005"}
+    assert {v["code"] for v in public} == expected
+    keys = ("id", "code", "name", "is_demo", "lat", "lon")
+    def identity(items):
+        return {tuple(v[key] for key in keys) for v in items}
+
+    assert identity(public) == identity(official)
+    assert all(v["is_demo"] and v["name"].endswith("(Demo)") for v in public)
+    layers = api.get("/api/map/layers?operational=true", headers=authority).json()
+    assert identity(layers["villages"]) == identity(public)
+    assert not layers["incidents"]
+    assert all(f["properties"]["layer"] != "village" for f in layers["study_area"]["features"])
+
+    report_path = f"/api/citizen/reports/{before['reference_code']}"
+    assert api.get(report_path, headers=citizen).json()["village_id"] is None
+    assert api.get("/api/citizen/profile", headers=citizen).json()["location"]["type"] == "gps"
+    with Session(engine) as db:
+        assert db.scalar(select(func.count()).select_from(Citizen)) == 1
+        assert db.scalar(select(func.count()).select_from(SightingReport)) == 1
+        for model in (Incident, Alert, Detection, Camera, Guard):
+            assert db.scalar(select(func.count()).select_from(model)) == 0
+
+    chosen = next(v for v in public if v["code"] == "V002")
+    changed = api.put("/api/citizen/profile", headers=citizen, json={
+        "name": "Village test observer", "location": {"village_id": chosen["id"]},
+    }).json()["location"]
+    assert changed["village"]["id"] == chosen["id"]
+    assert (changed["lat"], changed["lon"]) == (chosen["lat"], chosen["lon"])
+    assert api.post("/api/citizen/reports", headers=citizen, data=form).status_code == 400
+    submitted = api.post("/api/citizen/reports", headers=citizen, data={
+        "title": "Separate incident location", "category": "sighting",
+        "submission_key": str(uuid4()), "village_id": next(v["id"] for v in public if v["code"] == "V003"),
+    })
+    assert submitted.status_code == 201
+    report = next(r for r in api.get("/api/reports", headers=authority).json()["items"]
+                  if r["reference_code"] == submitted.json()["reference_code"])
+    assert report["village_name"] == "Haritgaon (Demo)" and report["village_id"] != chosen["id"]
+    approved = api.patch(f"/api/reports/{report['id']}", headers=authority, json={"status": "verified"})
+    assert approved.status_code == 200
+    risk = approved.json()["report"]["risk"]
+    assert risk["distance_km"] == 0 and risk["nearest_village_id"] == report["village_id"]
+    assert math.isfinite(risk["score"])
+    advisories = api.get("/api/community/alerts", params={
+        "village_id": report["village_id"], "verified_only": True, "field_only": True,
+    }).json()["items"]
+    assert len(advisories) == 1
+    assert advisories[0]["village_ids"] == [report["village_id"]] and advisories[0]["has_demo_geography"]
+
+
+def test_demo_villages_preserve_conflicting_genuine_metadata(empty_village_api, monkeypatch):
+    from backend.services.villages import provision_demo_villages
+
+    _, engine, _ = empty_village_api
+    monkeypatch.setattr(config, "DEMO_VILLAGES_ENABLED", True)
+    with Session(engine) as db, db.begin():
+        existing = Village(code="V001", name="Existing village", lat=21.7, lon=79.3, boundary_geojson={})
+        db.add(existing)
+        db.flush()
+        existing_id = existing.id
+    with Session(engine) as db:
+        results = provision_demo_villages(db)
+        assert results["V001"] == "existing code preserved"
+        assert list(results.values()).count("created") == 4
+        assert db.get(Village, existing_id).name == "Existing village"

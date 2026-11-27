@@ -43,7 +43,7 @@ const LAYER_GROUPS = [
     title: 'Habitat & settlements',
     items: [
       { key: 'forest', label: 'Forest boundaries', icon: TreePine },
-      { key: 'villages', label: 'Village boundaries', icon: Users },
+      { key: 'villages', label: 'Village locations and boundaries', icon: Users },
       { key: 'alertCoverage', label: 'Alert coverage radius', icon: ShieldAlert },
     ],
   },

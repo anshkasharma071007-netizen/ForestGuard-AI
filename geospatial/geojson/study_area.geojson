@@ -188,15 +188,16 @@
         ]
       },
       "properties": {
-        "id": "V-TUR",
+        "id": "V001",
         "layer": "village",
-        "name": "Turia",
+        "name": "Anandpur (Demo)",
         "population": 420,
         "households": 96,
         "lat": 21.7065,
         "lon": 79.34,
-        "note": "Southern buffer village near the Turia gate; livestock rearing and tourism livelihoods.",
-        "disclaimer": "Approximate village location and generalised boundary for demonstration."
+        "is_demo": true,
+        "district": "Illustrative Pench area",
+        "note": "Fictional demonstration village with illustrative coordinates and boundary."
       }
     },
     {
@@ -257,15 +258,16 @@
         ]
       },
       "properties": {
-        "id": "V-KOH",
+        "id": "V002",
         "layer": "village",
-        "name": "Kohka",
+        "name": "Vanpur (Demo)",
         "population": 680,
         "households": 151,
         "lat": 21.688,
         "lon": 79.315,
-        "note": "Agriculture-dominated settlement along the south-western buffer.",
-        "disclaimer": "Approximate village location and generalised boundary for demonstration."
+        "is_demo": true,
+        "district": "Illustrative Pench area",
+        "note": "Fictional demonstration village with illustrative coordinates and boundary."
       }
     },
     {
@@ -326,15 +328,16 @@
         ]
       },
       "properties": {
-        "id": "V-AWA",
+        "id": "V003",
         "layer": "village",
-        "name": "Awarghani",
+        "name": "Haritgaon (Demo)",
         "population": 350,
         "households": 82,
         "lat": 21.752,
         "lon": 79.289,
-        "note": "Western buffer hamlet with a seasonal stream and cattle paths into the forest.",
-        "disclaimer": "Approximate village location and generalised boundary for demonstration."
+        "is_demo": true,
+        "district": "Illustrative Pench area",
+        "note": "Fictional demonstration village with illustrative coordinates and boundary."
       }
     },
     {
@@ -395,15 +398,16 @@
         ]
       },
       "properties": {
-        "id": "V-SIL",
+        "id": "V004",
         "layer": "village",
-        "name": "Sillari",
+        "name": "Shantipur (Demo)",
         "population": 540,
         "households": 121,
         "lat": 21.789,
         "lon": 79.414,
-        "note": "Eastern settlement close to a known elephant movement corridor.",
-        "disclaimer": "Approximate village location and generalised boundary for demonstration."
+        "is_demo": true,
+        "district": "Illustrative Pench area",
+        "note": "Fictional demonstration village with illustrative coordinates and boundary."
       }
     },
     {
@@ -464,15 +468,16 @@
         ]
       },
       "properties": {
-        "id": "V-PIP",
+        "id": "V005",
         "layer": "village",
-        "name": "Piparia",
+        "name": "Devgaon (Demo)",
         "population": 760,
         "households": 168,
         "lat": 21.672,
         "lon": 79.38,
-        "note": "Southern agricultural village adjoining the landscape boundary.",
-        "disclaimer": "Approximate village location and generalised boundary for demonstration."
+        "is_demo": true,
+        "district": "Illustrative Pench area",
+        "note": "Fictional demonstration village with illustrative coordinates and boundary."
       }
     }
   ]

@@ -38,7 +38,7 @@ brew services start postgresql@17  # only if PostgreSQL is stopped
 DATABASE_URL=postgresql+psycopg:///forest_guard_ai .venv/bin/alembic current
 APP_ENV=development AUTHORITY_DEMO_ACCOUNTS_ENABLED=true CITIZEN_DEV_OTP_ENABLED=true \
   AI_MODE=auto DEMO_MODE=false SEED_ON_START=false \
-  .venv/bin/python -m uvicorn backend.main:app --reload --reload-dir backend --host 0.0.0.0 --port 8000 \
+  .venv/bin/python -m uvicorn backend.main:app --reload --reload-dir backend --reload-dir geospatial --host 0.0.0.0 --port 8000 \
   --env-file .forest-guard-local/backend.env
 ```
 
@@ -83,7 +83,7 @@ From the repository root, start the current backend with authority demos and cit
 ```sh
 APP_ENV=development AUTHORITY_DEMO_ACCOUNTS_ENABLED=true CITIZEN_DEV_OTP_ENABLED=true \
   AI_MODE=auto DEMO_MODE=false SEED_ON_START=false \
-  .venv/bin/python -m uvicorn backend.main:app --reload --reload-dir backend --host 127.0.0.1 --port 8000 \
+  .venv/bin/python -m uvicorn backend.main:app --reload --reload-dir backend --reload-dir geospatial --host 127.0.0.1 --port 8000 \
   --env-file .forest-guard-local/backend.env
 ```
 
@@ -114,7 +114,7 @@ With `AI_MODE=demo`, standalone detection uploads return HTTP 503. Citizen photo
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
@@ -139,7 +139,8 @@ Copy `.env.example` to `.env` and edit as needed. `.env` is git-ignored. The dat
 | `DEMO_MODE` | `false` | Enables demo labeling and allows opt-in startup seeding |
 | `SECRET_KEY` | Required outside development | Signs authority tokens. Generate a private random value of at least 32 characters |
 | `DATABASE_URL` | `postgresql+psycopg://forest_guard_app@127.0.0.1:5432/forest_guard_ai` | Runtime login. Tests override it |
-| `SEED_ON_START` | `false` | Startup seeding requires both this flag and `DEMO_MODE=true`. Use the explicit seed command for setup |
+| `SEED_ON_START` | `false` | Operational startup seeding also requires `APP_ENV=development` and `DEMO_MODE=true` |
+| `DEMO_VILLAGES_ENABLED` | `false` | Explicit opt-in for `tools.seed_villages` alongside `APP_ENV=development`. Startup does not provision villages |
 | `APP_ENV` | `production` | Set `development` only for local development sessions |
 | `CITIZEN_DEV_OTP_ENABLED` | `false` | Set `true` together with `APP_ENV=development` to allow the local OTP `1234` |
 | `AUTHORITY_DEMO_ACCOUNTS_ENABLED` | `false` | Set `true` together with `APP_ENV=development` to provision and enable the authority demo sign-ins |
@@ -157,7 +158,26 @@ Copy `.env.example` to `.env` and edit as needed. `.env` is git-ignored. The dat
 
 ## 4. Demonstration data
 
-Run `python -m tools.seed_demo` with the backend virtual environment and your local settings to opt in to synthetic data. Set `DEMO_MODE=true` in that demo environment to display demo labeling. It seeds only when all application tables are empty. Repeating the command on a populated database skips seeding. A seed failure rolls back the database changes. Demo image copies can remain in `backend/uploads/demo` and are reused on retry.
+### Village-only development geography
+
+Run the same command on each developer's Mac after applying the checkout's migrations and configuring the private backend environment. For example:
+
+```sh
+APP_ENV=development DEMO_VILLAGES_ENABLED=true DEMO_MODE=false SEED_ON_START=false \
+  .venv/bin/python -m tools.seed_villages --env-file .forest-guard-local/backend.env
+```
+
+This opt-in command accepts PostgreSQL over a local socket or a loopback server connection. It adds five fictional geography records with stable codes `V001` through `V005`. The numeric row IDs are assigned by each database and remain stable across reruns. Existing names and codes are preserved, including collisions. Village-only provisioning leaves operational tables intact. The same bundled geography is available through the separate empty-database operational seed.
+
+The citizen app reads `/api/community/villages` and authority screens use PostgreSQL through the authenticated API. Demo coordinates are illustrative. The public API rounds genuine village centers, and public GPS incidents use a coarser grid. GPS report approval works with an empty registry.
+
+For Expo, set `EXPO_PUBLIC_API_URL=http://127.0.0.1:8000` for a local web or simulator session. On a physical phone, set it to this Mac's LAN origin and run the backend command above with `--host 0.0.0.0`. Start Expo with `cd mobile && npm ci && npm run dev`. For a cross-origin Expo web session, add its exact origin to the private backend CORS settings.
+
+To run the focused browser test from the repo root, set `WORKFLOW_TEST_DATABASE_URL` to a dedicated PostgreSQL test database and run `.venv/bin/python -m backend.tests.village_browser`. The test provisions villages only after verifying GPS approval through the browser with an empty registry.
+
+### Full operational demo dataset
+
+Run `APP_ENV=development DEMO_MODE=true .venv/bin/python -m tools.seed_demo` with the backend virtual environment and your local database settings to opt in to synthetic operational data. Set `DEMO_MODE=true` in that demo environment to display demo labeling. It seeds only when all application tables are empty. Repeating the command on a populated database skips seeding. A seed failure rolls back the database changes. Demo image copies can remain in `backend/uploads/demo` and are reused on retry.
 
 Administrators can restore risk defaults in **Settings → Risk configuration → Restore defaults**, or run the API operation below.
 
@@ -174,6 +194,7 @@ curl -X POST http://127.0.0.1:8000/api/risk/config/reset -H "Authorization: Bear
 | Grey map tiles | OSM tiles require internet. The app uses a single `tile.openstreetmap.org` host; a proxy or offline tile cache is needed in restricted networks |
 | `database is locked` | Another uvicorn process holds the SQLite write lock. Stop duplicates; WAL handles read concurrency only |
 | Login fails after changing env | Demo users are seeded once. Changing seed credentials does not change an existing account |
+| Approval returns 500 with `Infinity` in the PostgreSQL traceback | Check for an older process on port 8000. Stop it and start the current checkout with both reload directories from the development command above |
 | Frontend calls 404 | Backend not running, or `vite.config.js` proxy target changed. Confirm `http://127.0.0.1:8000/api/health` |
 | Screenshot script cannot launch browser | It uses `C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe`; adjust the path in `frontend/scripts/capture_screenshots.mjs` |
 

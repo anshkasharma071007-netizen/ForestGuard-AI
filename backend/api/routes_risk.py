@@ -9,7 +9,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from geospatial.mapping import polygon_ring
 from geospatial.risk_analysis import build_risk_zones, village_exposure
 from geospatial.species import SPECIES_ORDER, species_meta
 
@@ -17,7 +16,7 @@ from backend import config
 from backend.api.deps import require_admin, require_guard
 from backend.api.utils import study_bbox
 from backend.database.session import get_db
-from backend.models import Alert, Camera, Detection, Guard, Incident, Track, User, Village, utcnow
+from backend.models import Alert, Camera, Detection, Guard, Incident, Track, User, utcnow
 from backend.schemas.api import RiskConfigPatch
 from backend.services.risk_service import (
     get_settings,
@@ -26,22 +25,9 @@ from backend.services.risk_service import (
 )
 from backend.services.risk_service import recalculate_all
 from backend.services.serializers import finite_distance
+from backend.services.villages import village_risk_inputs
 
 router = APIRouter(prefix="/api", tags=["risk"])
-
-
-def _village_dicts(db: Session) -> list[dict]:
-    return [
-        {
-            "id": village.id,
-            "name": village.name,
-            "lat": village.lat,
-            "lon": village.lon,
-            "population": village.population,
-            "boundary_ring": polygon_ring(village.boundary_geojson),
-        }
-        for village in db.scalars(select(Village)).all()
-    ]
 
 
 @router.get("/risk/config")
@@ -118,7 +104,7 @@ def risk_zones(
     detections = db.scalars(
         select(Detection).where(Detection.detected_at >= since)
     ).all()
-    villages = _village_dicts(db)
+    villages = village_risk_inputs(db)
     zones = build_risk_zones(
         [
             {
