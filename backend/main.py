@@ -14,12 +14,15 @@ from backend import config
 from backend.api import (
     routes_alerts,
     routes_auth,
+    routes_citizen,
     routes_community,
     routes_core,
     routes_guard,
+    routes_operations,
     routes_risk,
 )
 from backend.database.session import SessionLocal
+from backend.services.authority_demo import provision_authority_demo_accounts
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("forest-guard-ai")
@@ -45,9 +48,18 @@ def _seed_if_needed() -> dict:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    config.validate_authority_secret()
     app.state.seed_result = None
-    if os.getenv("SEED_ON_START", "false").strip().lower() in {"1", "true", "yes", "on"}:
+    if config.DEMO_MODE and os.getenv("SEED_ON_START", "false").strip().lower() in {"1", "true", "yes", "on"}:
         app.state.seed_result = _seed_if_needed()
+    app.state.authority_demo_roles = set()
+    if config.authority_demo_accounts_allowed():
+        with SessionLocal() as db:
+            accounts = provision_authority_demo_accounts(db)
+        for role, result in accounts.items():
+            logger.info("Authority demo %s: %s", role, result)
+            if result in {"created", "already provisioned"}:
+                app.state.authority_demo_roles.add(role)
     from backend.services.report_analysis import run_worker
     stop = Event()
     worker = Thread(target=run_worker, args=(stop,), daemon=True, name="report-analysis")
@@ -69,24 +81,32 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-origins = os.getenv(
-    "CORS_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:3000,http://localhost:8081,http://127.0.0.1:8081",
-).split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[origin.strip() for origin in origins if origin.strip()],
+    allow_origins=config.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def private_citizen_responses(request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/api/citizen/"):
+        response.headers["Cache-Control"] = "private, no-store"
+    return response
+
 
 app.include_router(routes_auth.router)
 app.include_router(routes_core.router)
 app.include_router(routes_risk.router)
 app.include_router(routes_alerts.router)
 app.include_router(routes_guard.router)
+app.include_router(routes_operations.router)
 app.include_router(routes_community.router)
+app.include_router(routes_citizen.router)
+app.include_router(routes_community.citizen_router)
 
 class PublicMedia(StaticFiles):
     def lookup_path(self, path):
@@ -97,19 +117,13 @@ class PublicMedia(StaticFiles):
         return full_path, stat
 
 
-app.mount("/media", PublicMedia(directory=config.UPLOAD_DIR), name="media")
-
 class WebsiteFiles(StaticFiles):
     async def get_response(self, path, scope):
         # These entry points are handled by React Router, including after official sign-in.
-        if path in {"reports", "login"}:
+        if path in {"dashboard", "reports", "map", "alerts", "settings", "login", "community",
+                    "monitoring", "wildlife", "risk", "guard", "analytics"}:
             path = "index.html"
         return await super().get_response(path, scope)
-
-
-frontend_dir = os.path.join(config.ROOT, "frontend", "dist")
-if os.path.isdir(frontend_dir):
-    app.mount("/", WebsiteFiles(directory=frontend_dir, html=True), name="frontend")
 
 
 @app.get("/api")
@@ -121,3 +135,10 @@ def api_root() -> dict:
         "health": "/api/health",
         "demo_mode": config.DEMO_MODE,
     }
+
+
+app.mount("/media", PublicMedia(directory=config.UPLOAD_DIR), name="media")
+
+frontend_dir = os.path.join(config.ROOT, "frontend", "dist")
+if os.path.isdir(frontend_dir):
+    app.mount("/", WebsiteFiles(directory=frontend_dir, html=True), name="frontend")

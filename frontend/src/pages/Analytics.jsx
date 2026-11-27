@@ -87,7 +87,7 @@ export default function Analytics() {
       <PageHeader
         eyebrow="Analytics & reports"
         title="Evidence you can review, export and defend"
-        description="Detection trends, species composition, explainable risk drivers and response performance over a selectable window — with CSV and JSON exports for offline review."
+        description="Detection trends, animal composition, explainable risk drivers and response performance over a selectable window — with CSV and JSON exports for offline review."
         actions={
           <>
             <div className="flex overflow-hidden rounded-lg border border-control-line-3 bg-raised">
@@ -176,7 +176,7 @@ export default function Analytics() {
             <section className="grid gap-4 xl:grid-cols-12">
               <div className="card p-5 xl:col-span-7">
                 <SectionTitle
-                  title="Species composition"
+                  title="Animal composition"
                   subtitle="Validated classes, counts and average risk"
                   action={<span className="font-mono text-[10px] text-muted-13">{totalSignals} records</span>}
                 />
@@ -184,7 +184,7 @@ export default function Analytics() {
                   <table className="data-table min-w-[520px]">
                     <thead>
                       <tr>
-                        <th>Species</th>
+                        <th>Animal</th>
                         <th>Records</th>
                         <th>Share</th>
                         <th>Avg. risk</th>
@@ -234,12 +234,12 @@ export default function Analytics() {
                   </table>
                 </div>
                 <div className="mt-2 text-[9px] text-muted-16">
-                  “Earlier records” counts the same species before the selected window; it is a baseline count, not a
+                  “Earlier records” counts the same animal class before the selected window; it is a baseline count, not a
                   population estimate or growth rate.
                 </div>
               </div>
               <div className="card p-5 xl:col-span-5">
-                <SectionTitle title="Species distribution" subtitle="Records by validated class" />
+                <SectionTitle title="Animal distribution" subtitle="Records by validated class" />
                 <div className="mt-3">
                   <SpeciesBars data={speciesRows} height={252} />
                 </div>
@@ -279,7 +279,7 @@ export default function Analytics() {
 
             <section className="grid gap-4 xl:grid-cols-12">
               <div className="card p-5 xl:col-span-7">
-                <SectionTitle title="Diel activity" subtitle="Detection time-of-day across all species" />
+                <SectionTitle title="Diel activity" subtitle="Detection time-of-day across all animals" />
                 <div className="mt-3">
                   <HourBars data={data.hours} height={206} />
                 </div>
@@ -445,7 +445,7 @@ export default function Analytics() {
                     ) : (
                       <>
                         In the {data.window_days}-day monitoring window, {totals.detections} wildlife detections were
-                        recorded across {data.species.length} validated species. {totals.high_risk} records were classified
+                        recorded across {data.species.length} recognized animal classes. {totals.high_risk} records were classified
                         high risk and {totals.alerts} alerts were generated, of which {totals.open_alerts} remain open.{' '}
                         {totals.tracked_sequences} camera-sequence tracks were inferred. The busiest zone was{' '}
                         <span className="font-semibold text-ink">{data.zones[0]?.name || 'unavailable'}</span> with{' '}
@@ -460,7 +460,7 @@ export default function Analytics() {
                 <div className="rounded-xl border border-line-10 bg-raised/60 p-4">
                   <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-16">Export contents</div>
                   <ul className="mt-2 space-y-1.5 text-[10px] leading-relaxed text-secondary-15">
-                    <li>Detection CSV: timestamp, species, confidence, camera, coordinates, score, basis and source.</li>
+                    <li>Detection CSV: timestamp, animal, confidence, camera, coordinates, score, basis and source.</li>
                     <li>JSON summary: aggregates, charts series, incidents and response metrics.</li>
                     <li>No credentials or private datasets are included.</li>
                   </ul>

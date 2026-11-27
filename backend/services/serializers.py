@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from datetime import datetime, timezone
 from typing import Any
 
@@ -8,6 +9,27 @@ from geospatial.species import species_meta
 from sqlalchemy.orm import Session
 
 from backend.models import Alert, Camera, Detection, Guard, Incident, SightingReport, Track, Village
+from backend.services.incident_lifecycle import lifecycle_status
+from backend.services.villages import is_demo_village, village_center
+
+
+def finite_distance(value: float | None) -> float | None:
+    return value if value is not None and math.isfinite(value) else None
+
+
+def _report_risk(risk: dict | None) -> dict | None:
+    # Earlier SQLite deployments could retain Infinity in a report's JSON.
+    if not risk or risk.get("distance_km") is None or finite_distance(risk["distance_km"]) is not None:
+        return risk
+    return {
+        **risk,
+        "distance_km": None,
+        "basis_label": "Activity without village proximity",
+        "components": [
+            {**entry, "detail": "Unavailable"} if entry["key"] == "proximity" else entry
+            for entry in risk.get("components", [])
+        ],
+    }
 
 
 def iso(value: datetime | None) -> str | None:
@@ -53,12 +75,19 @@ def serialize_camera(camera: Camera, *, public: bool = False) -> dict:
     return data
 
 
-def serialize_village(village: Village, *, public: bool = False) -> dict:
-    data = {
+def village_identity(village: Village) -> dict:
+    return {
         "id": village.id,
         "code": village.code,
         "name": village.name,
         "district": village.district,
+        "is_demo": is_demo_village(village),
+    }
+
+
+def serialize_village(village: Village, *, public: bool = False) -> dict:
+    data = {
+        **village_identity(village),
         "population": village.population,
         "households": village.households,
         "risk_level": village.risk_level,
@@ -67,7 +96,7 @@ def serialize_village(village: Village, *, public: bool = False) -> dict:
         "note": village.note,
     }
     if not public:
-        data.update({"lat": village.lat, "lon": village.lon})
+        data.update(village_center(village))
     return data
 
 
@@ -112,7 +141,7 @@ def serialize_detection(det: Detection, *, include_bbox: bool = True) -> dict:
         "risk_basis": det.risk_basis,
         "nearest_village": det.nearest_village.name if det.nearest_village else None,
         "nearest_village_id": det.nearest_village_id,
-        "distance_km": det.observed_distance_km,
+        "distance_km": finite_distance(det.observed_distance_km),
         "notes": det.notes,
         "track_direction": det.track.direction if det.track else None,
     }
@@ -197,6 +226,8 @@ def serialize_alert(
 def serialize_incident(incident: Incident) -> dict:
     return {
         "id": incident.id,
+        "report_id": incident.report_id,
+        "risk": _report_risk(incident.report_risk),
         "category": incident.category,
         "description": incident.description,
         "lat": incident.lat,
@@ -211,6 +242,10 @@ def serialize_incident(incident: Incident) -> dict:
         "reported_by": incident.reported_by,
         "created_at": iso(incident.created_at),
         "resolved_at": iso(incident.resolved_at),
+        "resolved_by": incident.resolved_by,
+        "resolved_by_id": incident.resolved_by_id,
+        "resolution_note": incident.resolution_note,
+        "citizen_resolution_note": incident.citizen_resolution_note,
         "image_url": media_url(incident.image_path),
         "is_simulated": incident.is_simulated,
         "is_public": incident.is_public,
@@ -234,12 +269,21 @@ def serialize_sighting(report: SightingReport, *, public: bool = False) -> dict:
     if not public:
         data.update({
             "lat": report.lat, "lon": report.lon, "contact": report.contact,
+            "title": report.title,
+            "lifecycle_status": lifecycle_status(report, report.incident.status if report.incident else None),
+            "confirmed_species": report.incident.species if report.incident else None,
+            "confirmed_species_name": species_meta(report.incident.species)["name"] if report.incident else None,
             "reporter_name": report.reporter_name,
+            "is_citizen_submission": report.citizen_id is not None,
             "image_url": f"/api/reports/{report.id}/evidence" if report.image_path else None,
             "analysis_status": report.analysis_status, "analysis_results": report.analysis_results,
+            "analysis_finished_at": iso(report.analysis_finished_at),
             "review_history": report.review_history or [],
             "incident_id": report.incident.id if report.incident else None,
-            "risk": report.incident.report_risk if report.incident else None,
+            "resolved_at": iso(report.incident.resolved_at) if report.incident else None,
+            "resolved_by": report.incident.resolved_by if report.incident else None,
+            "resolution_note": report.incident.resolution_note if report.incident else None,
+            "risk": _report_risk(report.incident.report_risk) if report.incident else None,
         })
     return data
 

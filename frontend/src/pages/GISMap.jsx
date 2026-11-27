@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   Camera,
   Crosshair,
@@ -35,6 +35,7 @@ const SPECIES = [
   ['sloth_bear', 'Sloth bear'],
   ['wild_boar', 'Wild boar'],
   ['deer', 'Deer'],
+  ['unidentified', 'Unknown'],
 ]
 
 const LAYER_GROUPS = [
@@ -42,7 +43,7 @@ const LAYER_GROUPS = [
     title: 'Habitat & settlements',
     items: [
       { key: 'forest', label: 'Forest boundaries', icon: TreePine },
-      { key: 'villages', label: 'Village boundaries', icon: Users },
+      { key: 'villages', label: 'Village locations and boundaries', icon: Users },
       { key: 'alertCoverage', label: 'Alert coverage radius', icon: ShieldAlert },
     ],
   },
@@ -68,12 +69,12 @@ const DEFAULT_LAYERS = {
   forest: true,
   villages: true,
   alertCoverage: false,
-  riskZones: true,
-  tracks: true,
-  detections: true,
-  cameras: true,
+  riskZones: false,
+  tracks: false,
+  detections: false,
+  cameras: false,
   incidents: true,
-  guards: true,
+  guards: false,
 }
 
 export default function GISMapPage() {
@@ -83,6 +84,7 @@ export default function GISMapPage() {
   const [days, setDays] = useState(45)
   const [layers, setLayers] = useState(DEFAULT_LAYERS)
   const [selected, setSelected] = useState(null)
+  const [focus, setFocus] = useState(null)
   const [panelOpen, setPanelOpen] = useState(true)
 
   const query = useMemo(() => {
@@ -90,10 +92,11 @@ export default function GISMapPage() {
     species.forEach((value) => params.append('species', value))
     risk.forEach((value) => params.append('risk', value))
     params.set('days', String(days))
+    params.set('operational', 'true')
     return params.toString()
   }, [species, risk, days])
 
-  const { data, loading, error, reload } = useApi(`/api/map/layers?${query}`)
+  const { data, loading, error, reload } = useApi(`/api/map/layers?${query}`, { interval: 6000 })
   const requestedDetection = searchParams.get('detection')
   const detail = useApi(selected ? `/api/detections/${selected.id}` : null, {
     enabled: Boolean(selected),
@@ -103,7 +106,10 @@ export default function GISMapPage() {
     if (!data?.detections?.length) return
     if (requestedDetection) {
       const found = data.detections.find((item) => String(item.id) === requestedDetection)
-      if (found) setSelected(found)
+      if (found) {
+        setSelected(found)
+        setLayers((current) => current.detections ? current : { ...current, detections: true })
+      }
     }
   }, [data, requestedDetection])
 
@@ -127,7 +133,7 @@ export default function GISMapPage() {
     <div className="space-y-4">
       <PageHeader
         eyebrow="Geospatial intelligence"
-        title="The landscape, layer by layer"
+        title="Incident map"
         description="Forest and village boundaries, camera stations, wildlife detections, incidents, guard positions and indicative risk zones — on one interactive map."
         actions={
           <>
@@ -143,7 +149,7 @@ export default function GISMapPage() {
 
       <div className="card flex flex-wrap items-center gap-3 px-4 py-3">
         <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-9">
-          <Filter className="h-3.5 w-3.5" /> Species
+          <Filter className="h-3.5 w-3.5" /> Animal
         </div>
         <div className="flex flex-wrap gap-1.5">
           {SPECIES.map(([key, label]) => {
@@ -218,6 +224,23 @@ export default function GISMapPage() {
         </div>
       </div>
 
+      {data && <div className="card flex flex-wrap items-center gap-3 px-4 py-3">
+        <label className="field-label flex items-center gap-3">Active incidents
+          <select className="field" defaultValue="" onChange={(event) => {
+            const incident = data.incidents.find(item => String(item.id) === event.target.value)
+            if (!incident) return
+            setLayers(current => ({ ...current, incidents: true }))
+            setFocus([incident.lat, incident.lon])
+          }}>
+            <option value="">{data.incidents.length ? 'Center map on an incident' : 'No active incidents match'}</option>
+            {data.incidents.map(incident => <option key={incident.id} value={incident.id}>
+              {incident.title || incident.species_name || 'Incident'} · {titleCase(incident.severity)} risk
+            </option>)}
+          </select>
+        </label>
+        <Link to="/alerts" className="btn-outline">Open alerts</Link>
+      </div>}
+
       {error && <ErrorBox message={error} onRetry={reload} />}
 
       <div className="relative overflow-hidden rounded-2xl border border-control-line-3 shadow-card">
@@ -226,6 +249,7 @@ export default function GISMapPage() {
             data={data}
             layers={layers}
             height="660px"
+            focus={focus}
             selectedDetectionId={selected?.id}
             onSelectDetection={setSelected}
             className="rounded-none border-0"
@@ -352,11 +376,11 @@ export default function GISMapPage() {
               <div className="mt-3 grid grid-cols-2 gap-2">
                 {[
                   ['Confidence', confidencePercent(detailDetection?.confidence)],
-                  ['Species conf.', confidencePercent(detailDetection?.species_confidence)],
+                  ['AI confidence', confidencePercent(detailDetection?.species_confidence)],
                   ['Station', detailDetection?.camera_code || 'Uploaded'],
                   ['Observed', formatDateTime(detailDetection?.detected_at)],
-                  ['Nearest village', detailDetection?.nearest_village || '—'],
-                  ['Distance', detailDetection?.distance_km != null ? `${detailDetection.distance_km} km` : '—'],
+                  ['Nearest village', detailDetection?.nearest_village || 'Unavailable'],
+                  ['Distance', Number.isFinite(detailDetection?.distance_km) ? `${detailDetection.distance_km} km` : 'Unavailable'],
                 ].map(([label, value]) => (
                   <div key={label} className="rounded-lg bg-inset-2 px-2.5 py-2">
                     <div className="text-[8px] uppercase tracking-[0.12em] text-muted-16">{label}</div>

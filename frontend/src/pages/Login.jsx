@@ -1,20 +1,45 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, Loader2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 import ThemeToggle from '../components/ThemeToggle'
 import { Logo } from '../components/ui'
-import { errorMessage } from '../api/client'
+import api, { errorMessage } from '../api/client'
+
+const demoOptions = [['admin', 'Range Officer'], ['guard', 'Forest Guard']]
+const localPreview = import.meta.env.DEV || ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)
 
 export default function Login() {
   const { token, login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const [email, setEmail] = useState('admin@forestguard.ai')
-  const [password, setPassword] = useState('forest123')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [demo, setDemo] = useState({ status: 'loading', accounts: {} })
+  const [demoAttempt, setDemoAttempt] = useState(0)
   const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (token) return undefined
+    const controller = new AbortController()
+    api.get('/api/auth/demo-accounts', { signal: controller.signal, timeout: 5000 })
+      .then(({ data }) => {
+        if (controller.signal.aborted) return
+        if (typeof data?.enabled !== 'boolean' || !data.accounts || typeof data.accounts !== 'object') {
+          setDemo({ status: 'unavailable', accounts: {} })
+          return
+        }
+        setDemo(data.enabled
+          ? { status: 'enabled', accounts: data.accounts }
+          : { status: 'disabled', accounts: {} })
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setDemo({ status: 'unavailable', accounts: {} })
+      })
+    return () => controller.abort()
+  }, [token, demoAttempt])
 
   if (token) return <Navigate to="/" replace />
 
@@ -32,15 +57,18 @@ export default function Login() {
     }
   }
 
-  const fill = (role) => {
-    if (role === 'admin') {
-      setEmail('admin@forestguard.ai')
-      setPassword('forest123')
-    } else {
-      setEmail('guard@forestguard.ai')
-      setPassword('guard123')
-    }
+  const fill = (account) => {
+    setEmail(account.email)
+    setPassword(account.password)
+    setError(null)
   }
+
+  const retryDemoAccounts = () => {
+    setDemo({ status: 'loading', accounts: {} })
+    setDemoAttempt((attempt) => attempt + 1)
+  }
+  const showDemo = demo.status === 'enabled' || (localPreview && demo.status !== 'disabled')
+  const missingDemoAccount = demoOptions.some(([role]) => !demo.accounts[role])
 
   return (
     <div className="grid min-h-dvh bg-sand md:grid-cols-[0.85fr_1fr] lg:grid-cols-[1.08fr_1fr]">
@@ -122,17 +150,30 @@ export default function Login() {
               </button>
             </form>
 
-            <div className="mt-5 border-t border-control-line-7 pt-3 [@media(max-height:650px)]:mt-3 [@media(max-height:650px)]:pt-2">
-              <p className="mb-2 text-xs font-medium text-success-8">Use a demo account</p>
-              <div className="grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => fill('admin')} className="btn-outline px-2 text-xs">
-                  Range officer
-                </button>
-                <button type="button" onClick={() => fill('guard')} className="btn-outline px-2 text-xs">
-                  Forest guard
-                </button>
-              </div>
-            </div>
+            {showDemo && (
+              <section aria-labelledby="demo-heading" className="mt-5 border-t border-control-line-7 pt-3 [@media(max-height:650px)]:mt-3 [@media(max-height:650px)]:pt-2">
+                <h2 id="demo-heading" className="mb-2 text-xs font-medium text-success-8">Use a demo account</h2>
+                <div className="grid grid-cols-2 gap-2">
+                  {demoOptions.map(([role, name]) => (
+                    <button key={role} type="button" onClick={() => fill(demo.accounts[role])} disabled={submitting || !demo.accounts[role]} className="btn-outline px-2 text-xs">
+                      {name}
+                    </button>
+                  ))}
+                </div>
+                <div role="status" className="text-xs text-muted-3">
+                  {demo.status === 'loading' && <p className="mt-2">Checking demo account availability…</p>}
+                  {demo.status === 'unavailable' && (
+                    <p className="mt-2">
+                      Demo accounts are unavailable. Check that the local backend is running with authority demo accounts enabled, then{' '}
+                      <button type="button" onClick={retryDemoAccounts} className="font-semibold text-success-8 underline">retry</button>.
+                    </p>
+                  )}
+                  {demo.status === 'enabled' && missingDemoAccount && (
+                    <p className="mt-2">Some demo accounts are unavailable. Check the backend startup log for details.</p>
+                  )}
+                </div>
+              </section>
+            )}
           </section>
 
           <Link to="/community" className="mx-auto inline-flex items-center gap-1.5 py-1 text-sm font-semibold text-success-8 hover:underline">

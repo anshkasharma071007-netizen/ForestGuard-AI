@@ -1,33 +1,20 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from math import isfinite
 
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from geospatial.mapping import haversine_km, polygon_ring
+from geospatial.mapping import haversine_km
 from geospatial.risk_analysis import RiskSettings, villages_within_radius
 from geospatial.species import species_meta
 
 from backend.models import Alert, AlertEvent, Detection, Guard, Incident, Village, utcnow
+from backend.services.villages import village_risk_inputs
 
 SEVERITY_HIGH = 65.0
 SEVERITY_CRITICAL = 80.0
-
-
-def village_dicts(db: Session) -> list[dict]:
-    villages = db.scalars(select(Village)).all()
-    return [
-        {
-            "id": village.id,
-            "name": village.name,
-            "lat": village.lat,
-            "lon": village.lon,
-            "population": village.population,
-            "boundary_ring": polygon_ring(village.boundary_geojson),
-        }
-        for village in villages
-    ]
 
 
 def _nearest_guard(db: Session, lat: float, lon: float) -> Guard | None:
@@ -45,9 +32,9 @@ def _severity(score: float) -> tuple[str, int]:
     return "moderate", 3
 
 
-def _public_summary(species: str, severity: str, village_names: list[str]) -> str:
+def public_summary(species: str, severity: str, village_names: list[str]) -> str:
     meta = species_meta(species)
-    where = ", ".join(village_names[:2]) if village_names else "a buffer-zone settlement"
+    where = ", ".join(village_names[:2]) if village_names else "the approximate location shown"
     level = "High-priority" if severity == "high" else "Precautionary"
     return (
         f"{level} advisory: {meta['name']} activity reported near {where}. "
@@ -63,34 +50,40 @@ def maybe_create_alert(
     settings: RiskSettings,
     *,
     actor: str = "Risk engine",
+    publish_reviewed_report: bool = False,
 ) -> Alert | None:
     incident = isinstance(detection, Incident)
-    if incident and (not detection.verified or not detection.report_id):
+    if incident and (not detection.verified or not detection.report_id or detection.status != "verified"):
         return None
-    if risk["score"] < float(settings.data["alert_threshold"]):
-        return None
-    villages = villages_within_radius(
-        detection.lat, detection.lon, village_dicts(db), float(settings.data["alert_radius_km"])
-    )
-    if not villages:
-        return None
-    # Serialize the duplicate check and insert across concurrent API workers.
-    if db.get_bind().dialect.name == "postgresql":
-        db.execute(text("SELECT pg_advisory_xact_lock(71239410)"))
+    if publish_reviewed_report:
+        villages = [v for v in village_risk_inputs(db) if v["id"] == detection.village_id]
+    else:
+        if risk["score"] < float(settings.data["alert_threshold"]):
+            return None
+        villages = villages_within_radius(
+            detection.lat, detection.lon, village_risk_inputs(db), float(settings.data["alert_radius_km"])
+        )
+        if not villages:
+            return None
+        if db.get_bind().dialect.name == "postgresql":
+            db.execute(text("SELECT pg_advisory_xact_lock(71239410)"))
     source = Alert.incident_id if incident else Alert.detection_id
     if db.scalar(select(Alert.id).where(source == detection.id).limit(1)):
         return None
-    observed_at = detection.created_at if incident else detection.detected_at
-    created_at = utcnow() if incident else observed_at + timedelta(minutes=2)
-    recent = db.scalars(select(Alert).where(
-        Alert.species == detection.species, Alert.is_simulated == detection.is_simulated,
-        Alert.created_at >= created_at - timedelta(hours=24), Alert.status != "resolved",
-    ))
-    village_ids = {v["id"] for v in villages}
-    if any(village_ids.intersection(alert.village_ids or []) for alert in recent):
-        return None
+    created_at = utcnow() if incident else detection.detected_at + timedelta(minutes=2)
+    if not publish_reviewed_report:
+        recent = db.scalars(select(Alert).where(
+            Alert.species == detection.species, Alert.is_simulated == detection.is_simulated,
+            Alert.created_at >= created_at - timedelta(hours=24), Alert.status != "resolved",
+        ))
+        village_ids = {v["id"] for v in villages}
+        if any(village_ids.intersection(alert.village_ids or []) for alert in recent):
+            return None
 
     severity, priority = _severity(risk["score"])
+    if publish_reviewed_report:
+        severity = risk["level"]
+        priority = {"high": 2, "moderate": 3, "low": 4}[severity]
     village_names = [v["name"] for v in villages]
     alert = Alert(
         detection_id=None if incident else detection.id,
@@ -104,7 +97,7 @@ def maybe_create_alert(
         radius_km=float(settings.data["alert_radius_km"]),
         status="active",
         priority_rank=priority,
-        public_summary=_public_summary(detection.species, severity, village_names),
+        public_summary=public_summary(detection.species, severity, village_names),
         is_simulated=detection.is_simulated,
         created_at=created_at,
     )
@@ -156,13 +149,6 @@ def sync_alerts(db: Session, settings: RiskSettings, *, days: int = 30, commit: 
         alert = maybe_create_alert(db, det, risk, settings)
         if alert:
             created.append(alert)
-    for incident in db.scalars(select(Incident).where(
-        Incident.report_id.is_not(None), Incident.verified.is_(True), Incident.created_at >= since
-    )):
-        if incident.report_risk:
-            alert = maybe_create_alert(db, incident, incident.report_risk, settings)
-            if alert:
-                created.append(alert)
     if commit:
         db.commit()
     else:
@@ -174,8 +160,9 @@ def _reason_for(detection: Detection) -> str:
     meta = species_meta(detection.species)
     village = detection.nearest_village.name if detection.nearest_village else "the nearest village"
     distance = detection.observed_distance_km
-    distance_text = f"{distance:.1f} km" if distance is not None else "an unspecified distance"
+    if distance is None or not isfinite(distance):
+        return f"{meta['name']} detected. Nearest-village distance is unavailable."
     return (
-        f"{meta['name']} detection {distance_text} from {village} boundary. "
+        f"{meta['name']} detection {distance:.1f} km from {village} boundary. "
         "Open the detection record for the full, explainable risk breakdown."
     )

@@ -30,20 +30,20 @@ from backend.models import (
     SightingReport,
     Track,
     User,
-    Village,
 )
 from backend.services.alerts import sync_alerts
 from backend.services.risk_service import get_settings, recalculate_all
 from backend.services.tracking import rebuild_tracks
+from backend.services.villages import bundled_demo_villages
 
 RNG_SEED = 20261110
 
 CAMERAS = [
-    ("CAM-PEN-01", "Turia buffer station", "Southern buffer", 21.7068, 79.3370, "online"),
-    ("CAM-PEN-02", "Kohka edge station", "South-western buffer", 21.6925, 79.3185, "online"),
-    ("CAM-PEN-03", "Awarghani west station", "Western buffer", 21.7530, 79.2930, "online"),
-    ("CAM-PEN-04", "Sillari corridor station", "Eastern buffer", 21.7870, 79.4090, "online"),
-    ("CAM-PEN-05", "Piparia south station", "Southern buffer", 21.6760, 79.3780, "online"),
+    ("CAM-PEN-01", "Anandpur buffer station", "Southern buffer", 21.7068, 79.3370, "online"),
+    ("CAM-PEN-02", "Vanpur edge station", "South-western buffer", 21.6925, 79.3185, "online"),
+    ("CAM-PEN-03", "Haritgaon west station", "Western buffer", 21.7530, 79.2930, "online"),
+    ("CAM-PEN-04", "Shantipur corridor station", "Eastern buffer", 21.7870, 79.4090, "online"),
+    ("CAM-PEN-05", "Devgaon south station", "Southern buffer", 21.6760, 79.3780, "online"),
     ("CAM-PEN-06", "Central meadow station", "Core habitat", 21.7360, 79.3560, "online"),
     ("CAM-PEN-07", "Core north station", "Core habitat", 21.7920, 79.3600, "online"),
     ("CAM-PEN-08", "Core north-west station", "Core habitat", 21.7710, 79.3290, "online"),
@@ -54,11 +54,11 @@ CAMERAS = [
 ]
 
 GUARDS = [
-    ("G-101", "Ramesh Verma", "+91 90000 10101", "Turia range", 21.7075, 79.3385, "on_patrol"),
-    ("G-102", "Sunita Patil", "+91 90000 10102", "Kohka range", 21.6905, 79.3180, "available"),
-    ("G-103", "Arif Khan", "+91 90000 10103", "Sillari range", 21.7855, 79.4070, "on_patrol"),
-    ("G-104", "Mahesh Uikey", "+91 90000 10104", "Awarghani range", 21.7505, 79.2920, "available"),
-    ("G-105", "Kavita Bisen", "+91 90000 10105", "Piparia range", 21.6750, 79.3770, "off_duty"),
+    ("G-101", "Ramesh Verma", "+91 90000 10101", "Anandpur range", 21.7075, 79.3385, "on_patrol"),
+    ("G-102", "Sunita Patil", "+91 90000 10102", "Vanpur range", 21.6905, 79.3180, "available"),
+    ("G-103", "Arif Khan", "+91 90000 10103", "Shantipur range", 21.7855, 79.4070, "on_patrol"),
+    ("G-104", "Mahesh Uikey", "+91 90000 10104", "Haritgaon range", 21.7505, 79.2920, "available"),
+    ("G-105", "Kavita Bisen", "+91 90000 10105", "Devgaon range", 21.6750, 79.3770, "off_duty"),
     ("G-106", "Nadeem Sheikh", "+91 90000 10106", "Central range", 21.7330, 79.3520, "on_patrol"),
 ]
 
@@ -88,13 +88,6 @@ RAW_IMAGES = {
     "wild_boar": "boar.jpg",
     "sloth_bear": "bear.jpg",
 }
-
-
-def _load_study_area() -> tuple[dict, list[dict]]:
-    with open(config.STUDY_AREA_PATH, "r", encoding="utf-8") as fh:
-        study = json.load(fh)
-    villages = [f for f in study["features"] if f["properties"].get("layer") == "village"]
-    return study, villages
 
 
 def _copy_asset(source: str, target: str) -> None:
@@ -141,6 +134,15 @@ def _asset_paths(asset: dict) -> tuple[str, str]:
 
 def seed_database(db: Session) -> dict:
     """Seed an empty database in one transaction using a fresh session."""
+    from backend.services.authority_demo import demo_role_for_credentials
+
+    if config.APP_ENV != "development":
+        return {"seeded": False, "reason": "Operational demo seeding requires APP_ENV=development."}
+    if not config.authority_demo_accounts_allowed() and (
+        demo_role_for_credentials(config.DEMO_ADMIN_EMAIL, config.DEMO_ADMIN_PASSWORD)
+        or demo_role_for_credentials(config.DEMO_GUARD_EMAIL, config.DEMO_GUARD_PASSWORD)
+    ):
+        return {"seeded": False, "reason": "The configured authority credentials require explicit development opt-in."}
     with db.begin():
         connection = db.connection()
         tables = Base.metadata.sorted_tables
@@ -158,7 +160,6 @@ def seed_database(db: Session) -> dict:
 def _seed_empty_database(db: Session) -> dict:
     rng = random.Random(RNG_SEED)
     now = utcnow().replace(microsecond=0)
-    study, village_features = _load_study_area()
     with open(config.DETECTION_ASSETS, "r", encoding="utf-8") as fh:
         manifest = json.load(fh)
     assets = _copy_assets(manifest)
@@ -182,23 +183,8 @@ def _seed_empty_database(db: Session) -> dict:
     db.flush()
 
     # --- villages --------------------------------------------------------
-    villages: list[Village] = []
-    for feature in village_features:
-        props = feature["properties"]
-        village = Village(
-            code=props["id"],
-            name=props["name"],
-            district="Seoni",
-            lat=float(props["lat"]),
-            lon=float(props["lon"]),
-            population=int(props.get("population", 0)),
-            households=int(props.get("households", 0)),
-            boundary_geojson=feature,
-            note=props.get("note"),
-            risk_level="low",
-        )
-        db.add(village)
-        villages.append(village)
+    villages = bundled_demo_villages()
+    db.add_all(villages)
     db.flush()
     village_by_code = {village.code: village for village in villages}
 
@@ -246,81 +232,81 @@ def _seed_empty_database(db: Session) -> dict:
     incident_specs = [
         (
             "livestock_depredation",
-            "A goat was killed at the northern edge of Turia during the night. Pugmarks were recorded by the village watcher.",
+            "A goat was killed at the northern edge of Anandpur during the night. Pugmarks were recorded by the village watcher.",
             21.7095,
             79.3415,
-            "V-TUR",
+            "V001",
             "leopard",
             "high",
             "verified",
             True,
             3,
-            "Turia village committee",
+            "Anandpur village committee",
         ),
         (
             "crop_damage",
-            "Elephant herd entered a paddy field on the eastern edge of Kohka and damaged approximately one acre before being deterred by lights.",
+            "Elephant herd entered a paddy field on the eastern edge of Vanpur and damaged approximately one acre before being deterred by lights.",
             21.6920,
             79.3210,
-            "V-KOH",
+            "V002",
             "elephant",
             "moderate",
             "verified",
             True,
             7,
-            "Kohka patwari",
+            "Vanpur patwari",
         ),
         (
             "human_injury",
             "A farm worker sustained minor injuries while attempting to move an elephant herd away from stored grain. Treated at the primary health centre.",
             21.7895,
             79.4110,
-            "V-SIL",
+            "V004",
             "elephant",
             "high",
             "resolved",
             True,
             18,
-            "Sillari health worker",
+            "Shantipur health worker",
         ),
         (
             "crop_damage",
-            "Night-time rooting reported in a maize field near Awarghani. No clear species evidence was recorded.",
+            "Night-time rooting reported in a maize field near Haritgaon. No clear species evidence was recorded.",
             21.7545,
             79.2915,
-            "V-AWA",
+            "V003",
             "wild_boar",
             "low",
             "dismissed",
             False,
             25,
-            "Awarghani resident",
+            "Haritgaon resident",
         ),
         (
             "sighting",
-            "Tiger sighting reported by a tourist vehicle on the Turia approach road; no photograph or track evidence supplied.",
+            "Tiger sighting reported by a tourist vehicle on the Anandpur approach road; no photograph or track evidence supplied.",
             21.7120,
             79.3390,
-            "V-TUR",
+            "V001",
             "tiger",
             "moderate",
             "open",
             False,
             1,
-            "Turia gate logbook",
+            "Anandpur gate logbook",
         ),
         (
             "livestock_depredation",
-            "Two sheep reported missing from a pen on the eastern side of Piparia. Scat collected for verification.",
+            "Two sheep reported missing from a pen on the eastern side of Devgaon. Scat collected for verification.",
             21.6745,
             79.3835,
-            "V-PIP",
+            "V005",
             "leopard",
             "moderate",
             "resolved",
             True,
             12,
-            "Piparia village committee",
+            "Devgaon village committee",
         ),
     ]
     for category, description, lat, lon, code, species, severity, status, verified, days, reporter in incident_specs:
@@ -352,7 +338,7 @@ def _seed_empty_database(db: Session) -> dict:
             "Pugmarks seen beside the canal road after sunset. No direct sighting.",
             21.7140,
             79.3388,
-            "V-TUR",
+            "V001",
             "Lakhan Yadav",
             "+91 90000 20184",
             "pending",
@@ -364,7 +350,7 @@ def _seed_empty_database(db: Session) -> dict:
             "A herd of about nine elephants moved east of the village towards the forest boundary.",
             21.7920,
             79.4180,
-            "V-SIL",
+            "V004",
             "Meena Bai",
             "+91 90000 20179",
             "forwarded",
@@ -376,7 +362,7 @@ def _seed_empty_database(db: Session) -> dict:
             "Leopard crossed the field track early in the morning and moved towards the ridge.",
             21.6755,
             79.3810,
-            "V-PIP",
+            "V005",
             "Rafiq Khan",
             "+91 90000 20161",
             "closed",
@@ -487,7 +473,7 @@ def _seed_empty_database(db: Session) -> dict:
 
     # --- tracks, risk, alerts --------------------------------------------
     rebuild_tracks(db, commit=False)
-    settings = get_settings(reload=True)
+    settings = get_settings(db)
     risk_summary = recalculate_all(db, settings, now=now, commit=False)
     alerts = sync_alerts(db, settings, days=30, commit=False)
 

@@ -596,7 +596,7 @@ export default function GuardPanel() {
                     ['Detected', formatDateTime(record.detection.detected_at)],
                     [
                       'Distance',
-                      record.detection.distance_km != null ? `${record.detection.distance_km} km` : '—',
+                      Number.isFinite(record.detection.distance_km) ? `${record.detection.distance_km} km` : 'Unavailable',
                     ],
                   ].map(([label, value]) => (
                     <div key={label} className="rounded-lg bg-inset-2 px-2.5 py-2">

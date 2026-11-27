@@ -33,17 +33,26 @@ class AlertAssignRequest(BaseModel):
 
 class AlertResolveRequest(BaseModel):
     note: str | None = Field(default=None, max_length=1000)
+    citizen_note: str | None = Field(default=None, max_length=1000)
 
 
 class IncidentUpdateRequest(BaseModel):
     status: Literal["open", "verified", "resolved", "dismissed"] | None = None
     verified: bool | None = None
     note: str | None = Field(default=None, max_length=1000)
+    citizen_note: str | None = Field(default=None, max_length=1000)
 
 
-class SightingStatusUpdate(BaseModel):
+class ReportRiskPreview(BaseModel):
+    confirmed_species: str | None = Field(default=None, max_length=40)
+
+
+class SightingStatusUpdate(ReportRiskPreview):
     status: Literal["pending", "forwarded", "closed", "verified", "rejected"] | None = None
     note: str | None = Field(default=None, max_length=1000)
+    citizen_note: str | None = Field(default=None, max_length=1000)
+    risk_level: Literal["low", "moderate", "high"] | None = None
+    risk_reason: str | None = Field(default=None, max_length=1000)
 
 
 class CommunityReportResponse(BaseModel):

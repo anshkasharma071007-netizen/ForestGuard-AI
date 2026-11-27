@@ -107,8 +107,8 @@ export default function Wildlife() {
     <div className="space-y-6">
       <PageHeader
         eyebrow="Wildlife intelligence"
-        title="Species, signals and inferred movement"
-        description="Detection history, species-wise activity and camera-sequence tracking — with explicit confidence and method limitations."
+        title="Animals, signals and inferred movement"
+        description="Detection history, activity by animal and camera-sequence tracking — with explicit confidence and method limitations."
         actions={
           <Badge tone="neutral">
             <Radar className="h-3 w-3" /> 30-day window
@@ -118,13 +118,13 @@ export default function Wildlife() {
 
       {analytics.error && <ErrorBox message={analytics.error} onRetry={analytics.reload} />}
       {analytics.loading && !analytics.data ? (
-        <Loading label="Loading species intelligence…" height="h-64" />
+        <Loading label="Loading animal activity…" height="h-64" />
       ) : (
         analytics.data && (
           <>
             <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <StatCard
-                label="Species observed"
+                label="Animal classes observed"
                 value={`${totals.species} / 6`}
                 hint="Validated classes in the 30-day window"
                 icon={PawPrint}
@@ -155,8 +155,8 @@ export default function Wildlife() {
 
             <section>
               <SectionTitle
-                title="Species roster"
-                subtitle="Recorded detections by identified species"
+                title="Recognized animals"
+                subtitle="Recorded detections by animal"
                 action={<Badge tone="neutral">click to filter history</Badge>}
                 className="mb-3"
               />
@@ -198,14 +198,14 @@ export default function Wildlife() {
                     </button>
                   )
                 })}
-                {!speciesRows.length && <div className="col-span-full text-[12px] text-muted-8">No species activity in this window.</div>}
+                {!speciesRows.length && <div className="col-span-full text-[12px] text-muted-8">No animal activity in this period.</div>}
               </div>
             </section>
 
             <section className="grid gap-4 xl:grid-cols-12">
               <div className="card p-5 xl:col-span-7">
                 <SectionTitle
-                  title="Species distribution"
+                  title="Animal distribution"
                   subtitle="30-day records by validated class"
                   action={<span className="font-mono text-[10px] text-muted-13">{totalSpeciesSignals} records</span>}
                 />
@@ -214,7 +214,7 @@ export default function Wildlife() {
                 </div>
               </div>
               <div className="card p-5 xl:col-span-5">
-                <SectionTitle title="Diel activity" subtitle="Detection time-of-day, all species" />
+                <SectionTitle title="Diel activity" subtitle="Detection time-of-day, all animals" />
                 <div className="mt-3">
                   <HourBars data={analytics.data.hours} height={206} />
                 </div>
@@ -227,7 +227,7 @@ export default function Wildlife() {
             <section className="card p-5">
               <SectionTitle
                 title="Detection history"
-                subtitle="Filter by species and risk class; open the GIS layer for geospatial context"
+                subtitle="Filter by animal and risk class; open the GIS layer for geospatial context"
                 action={
                   <div className="flex flex-wrap items-center gap-1.5">
                     <button
@@ -263,7 +263,7 @@ export default function Wildlife() {
               />
               {species && (
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="text-[10px] text-muted-9">Species filter:</span>
+                  <span className="text-[10px] text-muted-9">Animal filter</span>
                   <SpeciesTag species={species} name={speciesRows.find((row) => row.key === species)?.name || titleCase(species)} />
                   <button type="button" className="text-[9.5px] text-success-7 hover:underline" onClick={() => handleSpecies(species)}>
                     remove
@@ -336,7 +336,7 @@ export default function Wildlife() {
                         <EmptyState
                           icon={Footprints}
                           title="No tracking evidence"
-                          description="A track is created only when at least three detections of the same species link across multiple cameras within 24-hour gaps."
+                          description="A track is created only when at least three detections of the same animal class link across multiple cameras within 24-hour gaps."
                         />
                       )}
                     </div>
@@ -370,7 +370,7 @@ export default function Wildlife() {
                   {selectedTrack && (
                     <div className="mt-3 grid gap-2 sm:grid-cols-4">
                       {[
-                        ['Species', selectedTrack.species_name],
+                        ['Animal', selectedTrack.species_name],
                         ['Direction', directionLabel(selectedTrack.direction)],
                         ['Distance', `${selectedTrack.distance_km} km`],
                         ['Camera points', selectedTrack.point_count],
@@ -401,7 +401,7 @@ export default function Wildlife() {
                   </div>
                   <h3 className="mt-2 font-display text-[21px] text-brand-light">What a “track” means here</h3>
                   <p className="mt-2 text-[11px] leading-relaxed text-forest-100/65">
-                    A track links sequential detections of the same species that are close in space and time. It
+                    A track links sequential detections of the same animal class that are close in space and time. It
                     estimates a path and a direction relative to the nearest village boundary. It does not identify an
                     individual animal, and it is not GPS telemetry. Direction is withheld when a sequence is
                     ambiguous.

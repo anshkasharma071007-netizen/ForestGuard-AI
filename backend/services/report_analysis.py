@@ -6,7 +6,7 @@ from threading import Event
 
 from sqlalchemy import and_, or_, select, update
 
-from ai_engine.detector import get_engine
+from ai_engine.detector import AIUnavailableError, get_engine
 from backend import config
 from backend.database.session import SessionLocal
 from backend.models import SightingReport, utcnow
@@ -41,12 +41,15 @@ def process_next() -> bool:
         path = evidence_path(job.image_path)
         result = get_engine().analyze_image(str(path), save_annotated=False)
         values = dict(analysis_status="completed", analysis_results=result["detections"])
+    except AIUnavailableError:
+        log.warning("Photo analysis engine unavailable for report %d", job.id)
+        values = dict(analysis_status="unavailable")
     except Exception:
         log.exception("Photo analysis failed for report %d", job.id)
         values = dict(analysis_status="failed")
     with SessionLocal.begin() as db:
         db.execute(update(SightingReport).where(SightingReport.id == job.id,
-                   SightingReport.analysis_started_at == started).values(**values))
+                   SightingReport.analysis_started_at == started).values(analysis_finished_at=utcnow(), **values))
     return True
 
 

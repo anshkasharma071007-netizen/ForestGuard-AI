@@ -1,71 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { uuid } from 'expo';
 import { Platform } from 'react-native';
-import { isReportStatus, recoverReceipt, type ReportStatus, type ReportStatusResponse } from './api';
+import { recoverCitizenReceipt, type CitizenAccess } from './api';
 
-const STORAGE_KEY = 'forest-guard-ai.report-references';
-
-export type StoredReport = {
-  referenceCode: string;
-  status: ReportStatus;
-  // Legacy records store the date the reference was first saved on this device.
-  submittedAt: string;
-  createdAt?: string;
-  statusCheckedAt?: string;
-};
-
-export async function loadStoredReports(): Promise<StoredReport[]> {
-  const value = await AsyncStorage.getItem(STORAGE_KEY);
-  if (!value) return [];
-
-  try {
-    const parsed: unknown = JSON.parse(value);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isStoredReport);
-  } catch {
-    return [];
-  }
-}
-
-let pendingWrite = Promise.resolve();
-
-export function saveStoredReport(report: StoredReport): Promise<void> {
-  return saveStoredReports([report]);
-}
-
-export function saveStoredReports(reports: readonly StoredReport[]): Promise<void> {
-  const write = pendingWrite.then(async () => {
-    const existing = await loadStoredReports();
-    const updated = new Set(reports.map(({ referenceCode }) => referenceCode));
-    const next = [...reports, ...existing.filter(({ referenceCode }) => !updated.has(referenceCode))];
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  });
-  pendingWrite = write.catch(() => undefined);
-  return write;
-}
-
-export function checkedReport(response: ReportStatusResponse, previous?: StoredReport): StoredReport {
-  const now = new Date().toISOString();
-  return {
-    referenceCode: response.reference_code,
-    status: response.status,
-    submittedAt: previous?.submittedAt ?? now,
-    createdAt: response.created_at ?? previous?.createdAt,
-    statusCheckedAt: now,
-  };
-}
-
-function isStoredReport(value: unknown): value is StoredReport {
-  if (!value || typeof value !== 'object') return false;
-  const record = value as Record<string, unknown>;
-  return typeof record.referenceCode === 'string' && typeof record.submittedAt === 'string'
-    && (record.createdAt === undefined || typeof record.createdAt === 'string')
-    && (record.statusCheckedAt === undefined || typeof record.statusCheckedAt === 'string')
-    && isReportStatus(record.status);
-}
-
-// Save only a salted draft fingerprint and retry key before putting bytes on the network.
-const pendingPrefix = STORAGE_KEY + '.pending.';
+const legacyKey = 'forest-guard-ai.report-references';
+const citizenPrefix = (id: number) => `forest-guard.citizen-drafts.${id}.`;
 
 function newKey() {
   if (Platform.OS !== 'web' || typeof crypto.randomUUID === 'function') return uuid.v4();
@@ -76,28 +15,57 @@ function newKey() {
   return [hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16), hex.slice(16, 20), hex.slice(20)].join('-');
 }
 
-export async function submissionKey(draft: string) {
-  for (const storageKey of (await AsyncStorage.getAllKeys()).filter((k) => k.startsWith(pendingPrefix))) {
-    const key = storageKey.slice(pendingPrefix.length);
-    if (await AsyncStorage.getItem(storageKey) === uuid.v5(draft, key)) return key;
-  }
-  const key = newKey();
-  await AsyncStorage.setItem(pendingPrefix + key, uuid.v5(draft, key));
-  return key;
+let pendingWrite = Promise.resolve();
+
+function write<T>(operation: () => Promise<T>): Promise<T> {
+  const next = pendingWrite.then(operation);
+  pendingWrite = next.then(() => undefined, () => undefined);
+  return next;
 }
 
-export function finishSubmission(key: string) {
-  return AsyncStorage.removeItem(pendingPrefix + key);
+// Store only a salted fingerprint and a retry key, scoped to the active citizen.
+export function submissionKey(draft: string, citizenId: number, signal: AbortSignal) {
+  return write(async () => {
+    if (signal.aborted) throw new Error('Sign in again to submit a report.');
+    const prefix = citizenPrefix(citizenId);
+    for (const storageKey of (await AsyncStorage.getAllKeys()).filter((k) => k.startsWith(prefix))) {
+      const key = storageKey.slice(prefix.length);
+      if (await AsyncStorage.getItem(storageKey) === uuid.v5(draft, key)) return key;
+    }
+    if (signal.aborted) throw new Error('Sign in again to submit a report.');
+    const key = newKey();
+    await AsyncStorage.setItem(prefix + key, uuid.v5(draft, key));
+    return key;
+  });
 }
 
-export async function recoverSubmissions() {
-  const keys = (await AsyncStorage.getAllKeys()).filter((k) => k.startsWith(pendingPrefix));
+export function finishSubmission(key: string, citizenId: number) {
+  return AsyncStorage.removeItem(citizenPrefix(citizenId) + key);
+}
+
+export function clearCitizenSubmissions(citizenId: number) {
+  return write(async () => {
+    const keys = (await AsyncStorage.getAllKeys()).filter((key) => key.startsWith(citizenPrefix(citizenId)));
+    if (keys.length) await AsyncStorage.multiRemove(keys);
+  });
+}
+
+export async function clearLegacyReferences() {
+  const keys = (await AsyncStorage.getAllKeys()).filter((key) => key === legacyKey || key.startsWith(legacyKey + '.pending.'));
+  if (keys.length) await AsyncStorage.multiRemove(keys);
+}
+
+export async function recoverCitizenSubmissions(access: CitizenAccess, citizenId: number, signal: AbortSignal) {
+  const prefix = citizenPrefix(citizenId);
+  const keys = (await AsyncStorage.getAllKeys()).filter((key) => key.startsWith(prefix));
+  let recovered = false;
   for (const storageKey of keys) {
-    const key = storageKey.slice(pendingPrefix.length);
+    if (signal.aborted || access.signal?.aborted) break;
     try {
-      const receipt = await recoverReceipt(key);
-      await saveStoredReport({ referenceCode: receipt.reference_code, status: receipt.status, submittedAt: new Date().toISOString() });
-      await finishSubmission(key);
-    } catch { /* Keep ambiguous attempts for the next connection. */ }
+      await recoverCitizenReceipt(access, storageKey.slice(prefix.length), signal);
+      recovered = true;
+      await AsyncStorage.removeItem(storageKey);
+    } catch { /* Leave ambiguous attempts available for a later connection. */ }
   }
+  return recovered;
 }

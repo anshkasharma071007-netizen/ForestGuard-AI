@@ -74,7 +74,7 @@ def test_community_report_round_trip(client):
             "species": "leopard",
             "description": "Leopard seen at dusk near the cattle shed, moving away from homes.",
             "reporter_name": "Automated Test Reporter",
-            "village_code": "V-TUR",
+            "village_code": "V001",
             "contact": "test@example.com",
         },
     )
@@ -89,7 +89,7 @@ def test_community_report_round_trip(client):
     report = status.json()
     assert report["reference_code"] == reference
     assert report["species_name"] == "Indian leopard"
-    assert report["village_name"] == "Turia"
+    assert report["village_name"] == "Anandpur (Demo)"
     assert report["status"] == "pending"
     assert "queued" in report["status_note"].lower()
 

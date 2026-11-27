@@ -14,10 +14,10 @@ export function IdentificationResult({ state, catalog, activeId, onSelect }: {
   if (state.kind === 'idle') return null;
   const messages = {
     analyzing: 'Analyzing photo…',
-    detected: 'Review the suggestions and confirm the species below.',
-    uncertain: 'Identification is uncertain. Choose a species yourself or use Unknown.',
+    detected: 'Check the AI predictions before selecting an animal.',
+    uncertain: 'Identification is uncertain. Select an animal or choose Unknown.',
     'no-detection': 'No animal was detected. You can still submit your report.',
-    error: 'The photo could not be analyzed. You can still choose the species.',
+    error: 'Image analysis failed. You can still select an animal.',
   };
   const result = 'result' in state ? state.result : undefined;
 
@@ -29,7 +29,7 @@ export function IdentificationResult({ state, catalog, activeId, onSelect }: {
         <Text style={{ ...typeScale.body, color: colors.secondaryText, flex: 1 }}>{messages[state.kind]}</Text>
       </View>
       {result?.animals.map((animal, index) => {
-        const label = animal.certainty === 'unsupported' ? 'Species outside the report catalog'
+        const label = animal.certainty === 'unsupported' ? 'Animal outside the report list'
           : catalog.find(({ id }) => id === animal.speciesId)?.label ?? 'Unidentified animal';
         const selected = activeId === animal.id;
         const score = animal.score !== undefined && Number.isFinite(animal.score) && animal.score >= 0 && animal.score <= 1

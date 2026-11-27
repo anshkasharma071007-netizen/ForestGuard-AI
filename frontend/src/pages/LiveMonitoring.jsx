@@ -31,7 +31,7 @@ import { confidencePercent, formatDateTime, speciesImage } from '../utils/format
 const STAGES = [
   'Uploading media…',
   'Localising animals with YOLO-World…',
-  'Classifying species with CLIP…',
+  'Identifying animals with CLIP…',
   'Scoring risk and storing records…',
 ]
 
@@ -123,7 +123,7 @@ export default function LiveMonitoring() {
       <PageHeader
         eyebrow="Field inputs · AI inference"
         title="From camera frame to risk signal"
-        description="Upload a camera-trap image or short video for real two-stage inference: open-vocabulary localisation followed by zero-shot species classification."
+        description="Upload a camera-trap image or short video for real two-stage inference: open-vocabulary localisation followed by zero-shot animal classification."
         actions={
           <Badge tone={engineReady ? 'forest' : engine ? 'warning' : 'neutral'} dot>
             {engineReady ? `AI engine ready · ${engine.device}` : engine ? engine.mode : 'Checking engine'}
@@ -234,7 +234,7 @@ export default function LiveMonitoring() {
 
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-[10px] leading-relaxed text-muted-9">
-              Species labels are only applied above a calibrated confidence floor. Low-confidence crops are
+              Animal labels are only applied above a calibrated confidence floor. Low-confidence crops are
               recorded as <span className="font-semibold">unidentified</span>.
             </div>
             <button type="button" className="btn-primary shrink-0" onClick={analyze} disabled={analyzing || !file}>
@@ -299,7 +299,7 @@ export default function LiveMonitoring() {
                 <div className="rounded-lg border border-line-10 px-3 py-2">
                   <div className="text-[9px] uppercase tracking-[0.14em] text-muted-16">Stage 2</div>
                   <div className="mt-0.5 text-[10.5px] font-medium leading-relaxed text-secondary-3">
-                    {engine.classifier || 'CLIP zero-shot species classifier'}
+                    {engine.classifier?.replace(/\bspecies\b/i, 'animal') || 'CLIP zero-shot animal classifier'}
                   </div>
                 </div>
                 {engine.message && (
@@ -327,8 +327,8 @@ export default function LiveMonitoring() {
               </span>
             </div>
             <div className="mt-3 text-[9.5px] leading-relaxed text-muted-9">
-              The classifier is zero-shot: it can mislabel visually similar species. Always treat detections as
-              decision support, not species certainty.
+              The classifier is zero-shot: it can mislabel similar-looking animals. Always treat detections as
+              decision support, not a confirmed identification.
             </div>
           </section>
 
@@ -415,7 +415,7 @@ export default function LiveMonitoring() {
                       </div>
                       <div className="mt-2 grid grid-cols-2 gap-2 text-[9.5px] text-muted-5">
                         <div>
-                          Species confidence
+                          AI confidence
                           <div className="font-mono text-[10.5px] font-semibold text-ink">
                             {confidencePercent(detection.species_confidence)}
                           </div>
@@ -519,7 +519,7 @@ export default function LiveMonitoring() {
             {[
               ['Images', 'One localisation and classification pass. An annotated copy is stored.'],
               ['Video', 'Up to five frames are sampled. This is not continuous tracking.'],
-              ['Confidence', 'Species labels require a calibrated CLIP floor; otherwise unidentified.'],
+              ['Confidence', 'Animal labels require a calibrated CLIP floor; otherwise unidentified.'],
               ['Tracking', 'Inferred only from sequential camera records, never from GPS.'],
               ['Privacy', 'Exact camera and detection positions stay behind guard authentication.'],
             ].map(([title, detail]) => (

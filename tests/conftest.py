@@ -29,6 +29,7 @@ os.environ["UPLOAD_DIR"] = str(_TEST_DIR / "uploads")
 os.environ["AI_MODE"] = "demo"
 os.environ["SEED_ON_START"] = "true"
 os.environ["DEMO_MODE"] = "true"
+os.environ["APP_ENV"] = "development"
 os.environ["SECRET_KEY"] = "test-secret-key-not-for-production"
 
 from fastapi.testclient import TestClient  # noqa: E402

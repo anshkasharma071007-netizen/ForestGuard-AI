@@ -72,12 +72,12 @@ const HI = {
   'All species': 'सभी प्रजातियाँ',
   'All detections': 'सभी डिटेक्शन',
   'All severities': 'सभी गंभीरता स्तर',
-  'Species': 'प्रजाति',
-  'Species (best estimate)': 'प्रजाति (सर्वोत्तम अनुमान)',
-  'Species composition': 'प्रजाति संरचना',
-  'Species distribution': 'प्रजाति वितरण',
-  'Species observed': 'देखी गई प्रजातियाँ',
-  'Species roster': 'प्रजाति सूची',
+  'Animal': 'जानवर',
+  'Animal (best estimate)': 'प्रजाति (सर्वोत्तम अनुमान)',
+  'Animal composition': 'प्रजाति संरचना',
+  'Animal distribution': 'प्रजाति वितरण',
+  'Animal classes observed': 'देखी गई प्रजातियाँ',
+  'Recognized animals': 'प्रजाति सूची',
   'Species detected': 'पहचानी गई प्रजातियाँ',
   'Risk': 'जोखिम',
   'Risk zones': 'जोखिम क्षेत्र',
@@ -311,8 +311,8 @@ const HI = {
   'scores': 'स्कोर',
   'Zone brief': 'क्षेत्र सारांश',
   'Diel activity': 'दैनिक गतिविधि',
-  'Detection time-of-day, all species': 'दिन के समय के अनुसार डिटेक्शन, सभी प्रजातियाँ',
-  'Detection time-of-day across all species': 'सभी प्रजातियों में दिन के समय के अनुसार डिटेक्शन',
+  'Detection time-of-day, all animals': 'दिन के समय के अनुसार डिटेक्शन, सभी प्रजातियाँ',
+  'Detection time-of-day across all animals': 'सभी प्रजातियों में दिन के समय के अनुसार डिटेक्शन',
   'From camera frame to risk signal': 'कैमरा फ़्रेम से जोखिम संकेत तक',
   'Inference engine': 'इन्फ़रेंस इंजन',
   'AI engine ready · cpu': 'AI इंजन तैयार · CPU',
@@ -325,10 +325,10 @@ const HI = {
   'Stage 1': 'चरण 1',
   'Stage 2': 'चरण 2',
   'What this module does and does not do': 'यह मॉड्यूल क्या करता है और क्या नहीं',
-  'Species labels require a calibrated CLIP floor; otherwise unidentified.':
+  'Animal labels require a calibrated CLIP floor; otherwise unidentified.':
     'प्रजाति लेबल के लिए कैलिब्रेटेड CLIP सीमा आवश्यक है; अन्यथा अपहचाना।',
   'Only these labels are emitted': 'केवल ये लेबल जारी होते हैं',
-  'Species labels are only applied above a calibrated confidence floor. Low-confidence crops are recorded as':
+  'Animal labels are only applied above a calibrated confidence floor. Low-confidence crops are recorded as':
     'प्रजाति लेबल केवल कैलिब्रेटेड विश्वास सीमा से ऊपर लागू होते हैं। कम-विश्वास क्रॉप दर्ज होते हैं',
   'Camera-trap coordinates or live surveillance feeds': 'कैमरा-ट्रैप निर्देशांक या लाइव निगरानी फ़ीड',
   'Exact detection locations or individual animal identities': 'सटीक डिटेक्शन स्थान या व्यक्तिगत पशु पहचान',
@@ -494,13 +494,13 @@ const HI = {
 
   // ---------- Detections & records ----------
   'Detection records grouped by operational zone': 'ऑपरेशनल क्षेत्र के अनुसार डिटेक्शन रिकॉर्ड',
-  'Detection history, species-wise activity and camera-sequence tracking — with explicit confidence and method limitations.':
+  'Detection history, activity by animal and camera-sequence tracking — with explicit confidence and method limitations.':
     'डिटेक्शन इतिहास, प्रजाति-वार गतिविधि और कैमरा-क्रम ट्रैकिंग — स्पष्ट विश्वास और विधि सीमाओं के साथ।',
-  'Filter by species and risk class; open the GIS layer for geospatial context':
+  'Filter by animal and risk class; open the GIS layer for geospatial context':
     'प्रजाति और जोखिम वर्ग से फ़िल्टर करें; भू-स्थानिक संदर्भ के लिए जीआईएस लेयर खोलें',
-  'Species, signals and inferred movement': 'प्रजातियाँ, संकेत और अनुमानित गति',
+  'Animals, signals and inferred movement': 'प्रजातियाँ, संकेत और अनुमानित गति',
   'What a “track” means here': 'यहाँ “ट्रैक” का क्या अर्थ है',
-  'A track links sequential detections of the same species that are close in space and time. It estimates a path and a direction relative to the nearest village boundary. It does not identify an individual animal, and it is not GPS telemetry. Direction is withheld when a sequence is ambiguous.':
+  'A track links sequential detections of the same animal class that are close in space and time. It estimates a path and a direction relative to the nearest village boundary. It does not identify an individual animal, and it is not GPS telemetry. Direction is withheld when a sequence is ambiguous.':
     'ट्रैक एक ही प्रजाति के उन क्रमिक डिटेक्शनों को जोड़ता है जो स्थान और समय में निकट हैं। यह निकटतम गाँव की सीमा के सापेक्ष पथ और दिशा का अनुमान देता है। यह किसी व्यक्तिगत पशु की पहचान नहीं करता और जीपीएस टेलीमेट्री नहीं है। अस्पष्ट क्रम होने पर दिशा नहीं दिखाई जाती।',
   'Dashed lines only appear where three or more sequential camera observations are close in space and time. No GPS or individual ID is implied.':
     'बिंदुकित रेखाएँ केवल वहीं दिखती हैं जहाँ तीन या अधिक क्रमिक कैमरा अवलोकन स्थान और समय में निकट हों। कोई जीपीएस या व्यक्तिगत आईडी निहित नहीं है।',
@@ -513,14 +513,14 @@ const HI = {
   'Camera-sequence tracks were inferred. The busiest zone was':
     'कैमरा-क्रम ट्रैक अनुमानित किए गए। सबसे व्यस्त क्षेत्र था',
   'No live camera feeds.': 'कोई लाइव कैमरा फ़ीड नहीं।',
-  'Detection time-of-day across all species': 'सभी प्रजातियों में दिन के समय के अनुसार डिटेक्शन',
+  'Detection time-of-day across all animals': 'सभी प्रजातियों में दिन के समय के अनुसार डिटेक्शन',
   'Time-of-day patterns reflect camera scheduling and animal behaviour in the synthetic dataset. They are not a behavioural study.':
     'दिन के समय के पैटर्न सिंथेटिक डेटासेट में कैमरा शेड्यूलिंग और पशु व्यवहार दर्शाते हैं। ये व्यवहार अध्ययन नहीं हैं।',
   'Patterns reflect camera scheduling and synthetic behaviour, not a field behavioural study.':
     'पैटर्न कैमरा शेड्यूलिंग और सिंथेटिक व्यवहार दर्शाते हैं, फ़ील्ड व्यवहार अध्ययन नहीं।',
   'Counts are a demonstration dataset, not a population estimate':
     'गणनाएँ प्रदर्शन डेटासेट हैं, जनसंख्या अनुमान नहीं',
-  '“Earlier records” counts the same species before the selected window; it is a baseline count, not a population estimate or growth rate.':
+  '“Earlier records” counts the same animal class before the selected window; it is a baseline count, not a population estimate or growth rate.':
     '“पुराने रिकॉर्ड” चयनित विंडो से पहले उसी प्रजाति की गणना करता है; यह आधार गणना है, जनसंख्या अनुमान या वृद्धि दर नहीं।',
   'Every record carries source, confidence and risk context':
     'हर रिकॉर्ड में स्रोत, विश्वास और जोखिम संदर्भ होता है',
@@ -528,7 +528,7 @@ const HI = {
   'click to filter history': 'इतिहास फ़िल्टर करने के लिए क्लिक करें',
 
   // ---------- Monitoring ----------
-  'Upload a camera-trap image or short video for real two-stage inference: open-vocabulary localisation followed by zero-shot species classification.':
+  'Upload a camera-trap image or short video for real two-stage inference: open-vocabulary localisation followed by zero-shot animal classification.':
     'वास्तविक दो-चरण इन्फ़रेंस के लिए कैमरा-ट्रैप छवि या छोटा वीडियो अपलोड करें: ओपन-वोकैबुलरी स्थानीयकरण, फिर ज़ीरो-शॉट प्रजाति वर्गीकरण।',
   'Drop an image or video, or browse files': 'छवि या वीडियो छोड़ें, या फ़ाइलें ब्राउज़ करें',
   'JPEG, PNG, WebP or a short MP4/MOV clip': 'JPEG, PNG, WebP या छोटा MP4/MOV क्लिप',
@@ -546,11 +546,11 @@ const HI = {
   'Registry status and busiest stations': 'रजिस्ट्री स्थिति और सबसे व्यस्त स्टेशन',
   'Camera network health': 'कैमरा नेटवर्क स्वास्थ्य',
   'Actual local model configuration': 'वास्तविक स्थानीय मॉडल कॉन्फ़िगरेशन',
-  'The classifier is zero-shot: it can mislabel visually similar species. Always treat detections as decision support, not species certainty.':
+  'The classifier is zero-shot: it can mislabel similar-looking animals. Always treat detections as decision support, not a confirmed identification.':
     'वर्गीकरणकर्ता ज़ीरो-शॉट है: दिखने में समान प्रजातियों को गलत लेबल कर सकता है। डिटेक्शन को निर्णय सहायता मानें, प्रजाति की पुष्टि नहीं।',
-  'Species confidence is CLIP zero-shot probability. Low-confidence crops are labelled \'unidentified\' rather than forced into a species.':
+  'AI confidence is CLIP zero-shot probability. Low-confidence crops are labelled \'unidentified\' rather than forced into a species.':
     'प्रजाति विश्वास CLIP ज़ीरो-शॉट प्रायिकता है। कम-विश्वास क्रॉप को प्रजाति में थोपने के बजाय \'अपहचाना\' लेबल किया जाता है।',
-  'Species confidence is CLIP zero-shot probability. Low-confidence crops are labelled \'unidentified\' rather than forced into a species.':
+  'AI confidence is CLIP zero-shot probability. Low-confidence crops are labelled \'unidentified\' rather than forced into a species.':
     'प्रजाति विश्वास CLIP ज़ीरो-शॉट प्रायिकता है। कम-विश्वास क्रॉप को प्रजाति में थोपने के बजाय \'अपहचाना\' लेबल किया जाता है।',
   'All detections, alerts and incidents are synthetic and clearly labelled. Images are AI-processed reference evidence, not live camera-trap feeds.':
     'सभी डिटेक्शन, अलर्ट और घटनाएँ सिंथेटिक और स्पष्ट रूप से लेबल हैं। छवियाँ AI-प्रोसेस्ड संदर्भ प्रमाण हैं, लाइव कैमरा-ट्रैप फ़ीड नहीं।',
@@ -655,10 +655,10 @@ const HI = {
   'Open field assignments': 'फ़ील्ड असाइनमेंट खोलें',
 
   // ---------- Analytics ----------
-  'Detection trends, species composition, explainable risk drivers and response performance over a selectable window — with CSV and JSON exports for offline review.':
+  'Detection trends, animal composition, explainable risk drivers and response performance over a selectable window — with CSV and JSON exports for offline review.':
     'चयनित विंडो में डिटेक्शन प्रवृत्तियाँ, प्रजाति संरचना, व्याख्या-योग्य जोखिम कारक और प्रतिक्रिया प्रदर्शन — ऑफ़लाइन समीक्षा के लिए CSV और JSON निर्यात के साथ।',
   'Reported spectrum': 'रिपोर्ट किया गया स्पेक्ट्रम',
-  'Detection CSV: timestamp, species, confidence, camera, coordinates, score, basis and source.':
+  'Detection CSV: timestamp, animal, confidence, camera, coordinates, score, basis and source.':
     'डिटेक्शन CSV: टाइमस्टैम्प, प्रजाति, विश्वास, कैमरा, निर्देशांक, स्कोर, आधार और स्रोत।',
   'JSON summary: aggregates, charts series, incidents and response metrics.':
     'JSON सारांश: समुच्चय, चार्ट शृंखलाएँ, घटनाएँ और प्रतिक्रिया मेट्रिक्स।',
@@ -666,11 +666,11 @@ const HI = {
   'Demonstration dataset · synthetic observations': 'प्रदर्शन डेटासेट · सिंथेटिक अवलोकन',
   'Demonstration dataset.': 'प्रदर्शन डेटासेट।',
   'Every record carries source, confidence and risk context': 'हर रिकॉर्ड में स्रोत, विश्वास और जोखिम संदर्भ होता है',
-  'Species distribution': 'प्रजाति वितरण',
+  'Animal distribution': 'प्रजाति वितरण',
   'Detection trend': 'डिटेक्शन प्रवृत्ति',
   'Compiling analytics…': 'विश्लेषण संकलित हो रहा है…',
   'Validated species.': 'सत्यापित प्रजातियाँ।',
-  'validated species.': 'सत्यापित प्रजातियाँ।',
+  'recognized animal classes.': 'सत्यापित प्रजातियाँ।',
 
   // ---------- Community ----------
   'Village safety · buffer landscape': 'गाँव सुरक्षा · बफ़र लैंडस्केप',
@@ -710,7 +710,7 @@ const HI = {
   'Use these first if there is immediate risk': 'तत्काल जोखिम हो तो पहले इन्हें उपयोग करें',
   'Demonstrator helpline entries reference national services. Always follow instructions from local authorities and the forest department.':
     'डेमो हेल्पलाइन प्रविष्टियाँ राष्ट्रीय सेवाओं को संदर्भित करती हैं। स्थानीय अधिकारियों और वन विभाग के निर्देशों का पालन करें।',
-  'General household advice and species-specific notes for the buffer landscape':
+  'General household advice and animal-specific notes for the buffer landscape':
     'बफ़र लैंडस्केप के लिए सामान्य घरेलू सलाह और प्रजाति-विशिष्ट टिप्पणियाँ',
   'Share this guidance within your household and village committee.':
     'यह मार्गदर्शन अपने परिवार और ग्राम समिति के साथ साझा करें।',

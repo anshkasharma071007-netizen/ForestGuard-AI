@@ -11,19 +11,28 @@ from datetime import timedelta
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from PIL import Image, UnidentifiedImageError
+from fastapi.responses import FileResponse
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import func, select, text
-from sqlalchemy.orm import Session
+from sqlalchemy import func, or_, select, text, update
+from sqlalchemy.orm import Session, selectinload
 
-from geospatial.species import SPECIES, SPECIES_ORDER, species_meta
+from geospatial.mapping import valid_coordinates
+from geospatial.species import REPORT_ANIMALS, SPECIES_ORDER, species_meta
 
 from backend import config
+from backend.api.routes_citizen import onboarded_citizen
 from backend.api.utils import now_iso, public_area_label
 from backend.database.session import get_db
-from backend.models import Alert, SightingReport, Village, utcnow
-from backend.services.serializers import serialize_village, species_info
+from backend.models import Alert, Incident, SightingReport, Village, utcnow
+from backend.models.entities import Citizen, CitizenNotification
+from backend.services.report_analysis import evidence_path
+from backend.services.alerts import public_summary
+from backend.services.incident_lifecycle import ACTIVE_ALERTS, lifecycle_status
+from backend.services.serializers import iso, serialize_village, species_info, village_identity
+from backend.services.villages import is_demo_village, resolve_village, village_center
 
 router = APIRouter(prefix="/api/community", tags=["community"])
+citizen_router = APIRouter(prefix="/api/citizen", tags=["citizen reports"])
 
 GENERAL_GUIDELINES = [
     "Do not approach, chase, surround or corner a wild animal. Give it a clear escape route.",
@@ -35,13 +44,22 @@ GENERAL_GUIDELINES = [
 ]
 
 
-def _public_alert(db: Session, alert: Alert) -> dict:
+def _active_public_alerts():
+    owned = select(SightingReport.id).where(SightingReport.id == Incident.report_id,
+                                           SightingReport.citizen_id.is_not(None)).exists()
+    query = (select(Alert).outerjoin(Incident, Alert.incident_id == Incident.id)
+             .where(Alert.status.in_(ACTIVE_ALERTS),
+                    or_(Alert.incident_id.is_(None),
+                        Incident.verified.is_(True) & (Incident.status == "verified"))))
+    return query, owned
+
+
+def _public_alert(db: Session, alert: Alert, *, approximate: bool = False) -> dict:
     villages = []
     if alert.village_ids:
         villages = db.scalars(select(Village).where(Village.id.in_(alert.village_ids))).all()
-    codes = [village.code for village in villages]
     meta = species_meta(alert.species)
-    return {
+    payload = {
         "id": alert.id,
         "species": alert.species,
         "species_name": meta["name"],
@@ -49,13 +67,41 @@ def _public_alert(db: Session, alert: Alert) -> dict:
         "severity": alert.severity,
         "status": alert.status,
         "created_at": alert.created_at.isoformat() + "Z",
-        "area_label": public_area_label(codes),
+        "area_label": public_area_label(villages),
         "village_names": [village.name for village in villages],
+        "village_ids": [village.id for village in villages],
+        "has_demo_geography": any(is_demo_village(village) for village in villages),
         "summary": alert.public_summary,
         "advice": meta["advice"],
         "is_simulated": alert.is_simulated,
         "note": "Location detail is intentionally coarse. Contact your range office for field guidance.",
     }
+    incident = db.get(Incident, alert.incident_id) if alert.incident_id else None
+    report = db.get(SightingReport, incident.report_id) if incident and incident.report_id else None
+    if report and report.citizen_id is not None:
+        animal = REPORT_ANIMALS.get(alert.species, REPORT_ANIMALS["unidentified"])["name"]
+        payload["alert_title"] = f"{animal} {'conflict' if incident.category == 'conflict' else 'sighting'}"
+        public_village = incident.village
+        if public_village and not valid_coordinates(public_village.lat, public_village.lon):
+            public_village = None
+        names = [public_village.name] if public_village else []
+        payload["village_names"] = names
+        payload["village_ids"] = [public_village.id] if public_village else []
+        payload["has_demo_geography"] = bool(public_village and is_demo_village(public_village))
+        payload["area_label"] = public_area_label([public_village]) if public_village else "Approximate incident area"
+        payload["summary"] = public_summary(alert.species, alert.severity, names)
+        if approximate:
+            # Use the submitted village center or a GPS grid center roughly 11 km apart.
+            payload["approximate_locations"] = [
+                village_center(public_village, public=True) if public_village
+                else {"lat": round(incident.lat, 1), "lon": round(incident.lon, 1)}
+            ]
+    elif approximate:
+        payload["approximate_locations"] = [
+            village_center(village, public=True) for village in villages
+            if valid_coordinates(village.lat, village.lon)
+        ]
+    return payload
 
 
 @router.get("/alerts")
@@ -63,22 +109,21 @@ def public_alerts(
     days: int = Query(default=21, ge=1, le=90),
     limit: int = Query(default=20, ge=1, le=50),
     field_only: bool = False,
+    verified_only: bool = False,
     village_code: str | None = None,
+    village_id: int | None = Query(default=None, gt=0),
     db: Session = Depends(get_db),
 ) -> dict:
-    query = (select(Alert)
-        .where(
-            Alert.created_at >= utcnow() - timedelta(days=days),
-            Alert.status.in_(["active", "acknowledged", "responding"]),
-        )
-        .order_by(Alert.created_at.desc())
-    )
+    query, owned = _active_public_alerts()
+    query = query.where(or_(owned, Alert.created_at >= utcnow() - timedelta(days=days)))
+    query = query.order_by(Alert.created_at.desc(), Alert.id.desc())
     if field_only:
         query = query.where(Alert.is_simulated.is_(False))
-    if village_code:
-        village_id = db.scalar(select(Village.id).where(Village.code == village_code))
-        if village_id is None:
-            raise HTTPException(400, "Unknown village.")
+    if verified_only:
+        query = query.where(Incident.verified.is_(True))
+    village = resolve_village(db, village_id=village_id, village_code=village_code)
+    if village is not None:
+        village_id = village.id
         if db.get_bind().dialect.name == "postgresql":
             from sqlalchemy.dialects.postgresql import JSONB
             query = query.where(Alert.village_ids.cast(JSONB).contains([village_id]))
@@ -87,7 +132,7 @@ def public_alerts(
             query = query.where(select(ids.c.value).where(ids.c.value == village_id).exists())
     alerts = db.scalars(query.limit(limit)).all()
     return {
-        "items": [_public_alert(db, alert) for alert in alerts],
+        "items": [_public_alert(db, alert, approximate=verified_only) for alert in alerts],
         "window_days": days,
         "note": (
             "Public advisories deliberately omit camera locations, detection coordinates and "
@@ -99,10 +144,8 @@ def public_alerts(
 
 @router.get("/summary")
 def community_summary(db: Session = Depends(get_db)) -> dict:
-    active = db.scalars(
-        select(Alert).where(Alert.status.in_(["active", "acknowledged", "responding"]))
-        .order_by(Alert.status, Alert.id)
-    ).all()
+    query, _ = _active_public_alerts()
+    active = db.scalars(query.order_by(Alert.status, Alert.id)).all()
     villages = db.scalars(select(Village).order_by(Village.name)).all()
     reports = db.scalar(select(func.count(SightingReport.id))) or 0
     high = [alert for alert in active if alert.severity == "high"]
@@ -123,9 +166,14 @@ def community_summary(db: Session = Depends(get_db)) -> dict:
 
 
 def _receipt(report: SightingReport) -> dict:
+    status = report.status
+    if report.citizen_id is not None and status == "verified" and report.incident:
+        status = _citizen_report_status(report, report.incident.status)
     return {
         "reference_code": report.reference_code,
-        "status": report.status,
+        "status": status,
+        **({"lifecycle_status": lifecycle_status(report, report.incident.status if report.incident else None)}
+           if report.citizen_id is not None else {}),
         "message": (
             "Report received. Your range office will review it. If there is an immediate danger "
             "to life, call 112 or the forest helpline (1926)."
@@ -175,36 +223,76 @@ def submit_report(
     reporter_name: str = Form(..., max_length=120),
     contact: str | None = Form(default=None, max_length=80),
     village_code: str | None = Form(default=None, max_length=20),
+    village_id: int | None = Form(default=None, gt=0),
     lat: float | None = Form(default=None),
     lon: float | None = Form(default=None),
     submission_key: UUID | None = Form(default=None),
     image: UploadFile | None = File(default=None),
     db: Session = Depends(get_db),
 ) -> dict:
-    if category not in {"sighting", "conflict"} or species not in SPECIES:
-        raise HTTPException(400, "Choose a supported category and species.")
     description, reporter_name = description.strip(), reporter_name.strip()
     contact = (contact or "").strip() or None
     if len(description) < 12 or not reporter_name:
         raise HTTPException(400, "Enter your name and a description of at least 12 characters.")
-    if any("\x00" in value for value in (description, reporter_name, contact or "", village_code or "")):
+    return _persist_report(db, category=category, species=species, description=description,
+                           reporter_name=reporter_name, contact=contact, village_code=village_code, village_id=village_id,
+                           lat=lat, lon=lon, submission_key=submission_key, image=image)
+
+
+@citizen_router.post("/reports", status_code=201)
+def submit_citizen_report(
+    title: str = Form(..., max_length=120),
+    category: str = Form(...),
+    species: str = Form(default="unidentified"),
+    description: str = Form(default="", max_length=4000),
+    village_code: str | None = Form(default=None, max_length=20),
+    village_id: int | None = Form(default=None, gt=0),
+    lat: float | None = Form(default=None),
+    lon: float | None = Form(default=None),
+    submission_key: UUID = Form(...),
+    image: UploadFile | None = File(default=None),
+    citizen: Citizen = Depends(onboarded_citizen),
+    db: Session = Depends(get_db),
+) -> dict:
+    title = title.strip()
+    if not title:
+        raise HTTPException(400, "Enter a report title.")
+    return _persist_report(db, category=category, species=species, description=description.strip(), title=title,
+                           reporter_name=citizen.name, contact=citizen.phone, citizen_id=citizen.id,
+                           village_code=village_code, village_id=village_id, lat=lat, lon=lon, submission_key=submission_key, image=image)
+
+
+def _persist_report(
+    db: Session, *, category: str, species: str, description: str, reporter_name: str, contact: str | None,
+    village_code: str | None, village_id: int | None, lat: float | None, lon: float | None, submission_key: UUID | None,
+    image: UploadFile | None, title: str | None = None, citizen_id: int | None = None,
+) -> dict:
+    if category not in {"sighting", "conflict"} or species not in REPORT_ANIMALS:
+        raise HTTPException(400, "Choose a supported category and animal.")
+    if any("\x00" in value for value in (title or "", description, reporter_name, contact or "", village_code or "")):
         raise HTTPException(400, "Remove invalid characters from the report.")
     if (lat is None) != (lon is None) or (lat is not None and not (-90 <= lat <= 90 and -180 <= lon <= 180)):
         raise HTTPException(400, "Provide a valid latitude and longitude.")
-    village = db.scalar(select(Village).where(Village.code == village_code)) if village_code else None
-    if (village_code and not village) or (lat is None and not village):
+    village = resolve_village(db, village_id=village_id, village_code=village_code or None)
+    if village is not None and lat is None and not valid_coordinates(village.lat, village.lon):
+        raise HTTPException(400, "This village has no usable location. Choose another village or use GPS.")
+    if lat is None and village is None:
         raise HTTPException(400, "Capture GPS coordinates or choose a village from the list.")
 
     content, extension = _read_photo(image) if image else (None, None)
     key = str(submission_key) if submission_key else None
     fields = dict(category=category, species=species, description=description, reporter_name=reporter_name,
                   contact=contact, lat=lat, lon=lon, village_id=village.id if village else None)
-    digest = hashlib.sha256(json.dumps([fields, hashlib.sha256(content).hexdigest() if content else None],
+    # Keep the legacy digest stable. Profile edits must not change a citizen's retry fingerprint.
+    digest_fields = fields if citizen_id is None else {
+        key: value for key, value in fields.items() if key not in {"reporter_name", "contact"}
+    } | {"title": title}
+    digest = hashlib.sha256(json.dumps([digest_fields, hashlib.sha256(content).hexdigest() if content else None],
                                        sort_keys=True).encode()).hexdigest()
 
     def replay():
         existing = db.scalar(select(SightingReport).where(SightingReport.submission_key == key))
-        if existing and existing.submission_digest != digest:
+        if existing and (existing.citizen_id != citizen_id or existing.submission_digest != digest):
             raise HTTPException(409, "This submission key was already used for a different report.")
         return _receipt(existing) if existing else None
 
@@ -212,7 +300,7 @@ def submit_report(
         return previous
     relative = f"community/{secrets.token_hex(16)}.{extension}" if content else None
     path = Path(config.UPLOAD_DIR) / relative if relative else None
-    report = SightingReport(**fields, image_path=relative, status="pending", is_simulated=False,
+    report = SightingReport(**fields, citizen_id=citizen_id, title=title, image_path=relative, status="pending", is_simulated=False,
                             reference_code=_reference(db, key is not None),
                             submission_key=key, submission_digest=digest if key else None,
                             analysis_status="queued" if path else "no_photo")
@@ -242,7 +330,18 @@ def submit_report(
 
 @router.post("/report-receipt")
 def recover_receipt(submission_key: UUID = Form(...), db: Session = Depends(get_db)):
-    report = db.scalar(select(SightingReport).where(SightingReport.submission_key == str(submission_key)))
+    return _recover_receipt(db, submission_key, None)
+
+
+@citizen_router.post("/report-receipt")
+def recover_citizen_receipt(submission_key: UUID = Form(...), citizen: Citizen = Depends(onboarded_citizen),
+                            db: Session = Depends(get_db)):
+    return _recover_receipt(db, submission_key, citizen.id)
+
+
+def _recover_receipt(db: Session, submission_key: UUID, citizen_id: int | None) -> dict:
+    report = db.scalar(select(SightingReport).where(SightingReport.submission_key == str(submission_key),
+                                                  SightingReport.citizen_id == citizen_id))
     if not report:
         raise HTTPException(404, "Submission has not been received.")
     return _receipt(report)
@@ -251,7 +350,8 @@ def recover_receipt(submission_key: UUID = Form(...), db: Session = Depends(get_
 @router.get("/reports/{reference_code}")
 def report_status(reference_code: str, db: Session = Depends(get_db)) -> dict:
     report = db.scalar(
-        select(SightingReport).where(SightingReport.reference_code == reference_code.strip().upper())
+        select(SightingReport).where(SightingReport.reference_code == reference_code.strip().upper(),
+                                     SightingReport.citizen_id.is_(None))
     )
     if not report:
         raise HTTPException(status_code=404, detail="No report found with that reference code.")
@@ -271,6 +371,117 @@ def report_status(reference_code: str, db: Session = Depends(get_db)) -> dict:
             "closed": "Reviewed and closed by the range office.",
         }.get(report.status, "Status under review."),
     }
+
+
+def _citizen_report_status(report: SightingReport, incident_status: str | None) -> str:
+    return "closed" if report.status == "verified" and incident_status == "resolved" else report.status
+
+
+def _citizen_summary(report: SightingReport, incident_status: str | None) -> dict:
+    return {"title": report.title, "reference_code": report.reference_code,
+            "status": _citizen_report_status(report, incident_status),
+            "lifecycle_status": lifecycle_status(report, incident_status),
+            "created_at": report.created_at.isoformat() + "Z",
+            "village_id": report.village_id, "village_name": report.village.name if report.village else None}
+
+
+@citizen_router.get("/reports")
+def citizen_reports(citizen: Citizen = Depends(onboarded_citizen), db: Session = Depends(get_db)):
+    reports = db.execute(select(SightingReport, Incident.status).outerjoin(Incident, Incident.report_id == SightingReport.id)
+                         .options(selectinload(SightingReport.village))
+                         .where(SightingReport.citizen_id == citizen.id)
+                         .order_by(SightingReport.created_at.desc(), SightingReport.id.desc())).all()
+    return {"items": [_citizen_summary(report, status) for report, status in reports]}
+
+
+def _owned_report(db: Session, reference_code: str, citizen: Citizen) -> SightingReport:
+    report = db.scalar(select(SightingReport).where(SightingReport.reference_code == reference_code.strip().upper(),
+                                                  SightingReport.citizen_id == citizen.id))
+    if not report:
+        raise HTTPException(404, "That report could not be found.")
+    return report
+
+
+@citizen_router.get("/reports/{reference_code}")
+def citizen_report(reference_code: str, citizen: Citizen = Depends(onboarded_citizen), db: Session = Depends(get_db)):
+    report = _owned_report(db, reference_code, citizen)
+    incident = report.incident
+    decision = next((event for event in reversed(report.review_history or [])
+                     if event.get("status") == report.status and report.status in {"verified", "rejected"}), {})
+    rejection = decision.get("citizen_note", decision.get("note")) if report.status == "rejected" else None
+    events = [{"event": "submitted", "at": iso(report.created_at)}]
+    if decision.get("at"):
+        events.append({"event": "approved" if report.status == "verified" else "rejected", "at": decision["at"]})
+    if incident and incident.resolved_at:
+        events.append({"event": "resolved", "at": iso(incident.resolved_at)})
+    return {**_citizen_summary(report, incident.status if incident else None),
+            "category": report.category, "species_name": REPORT_ANIMALS.get(
+                report.species, REPORT_ANIMALS["unidentified"])["name"],
+            "rejection_reason": rejection,
+            "confirmed_species_name": species_meta(incident.species)["name"] if incident else None,
+            "risk_level": incident.severity if incident else None,
+            "review_note": decision.get("citizen_note") if report.status == "verified" else None,
+            "resolution_note": incident.citizen_resolution_note if incident else None,
+            "events": events,
+            "location_source": "gps" if report.lat is not None and report.lon is not None else "village" if report.village_id else None,
+            "description": report.description,
+            "lat": report.lat, "lon": report.lon, "has_photo": bool(report.image_path),
+            "analysis_status": report.analysis_status,
+            "suggested_species": [species_meta(item["species"])["name"] for item in report.analysis_results or []
+                                  if report.analysis_status == "completed" and item.get("species") in SPECIES_ORDER]}
+
+
+@citizen_router.get("/notifications")
+def citizen_notifications(citizen: Citizen = Depends(onboarded_citizen), db: Session = Depends(get_db)):
+    rows = db.execute(
+        select(CitizenNotification, SightingReport.title, SightingReport.reference_code)
+        .join(SightingReport, SightingReport.id == CitizenNotification.report_id)
+        .where(CitizenNotification.citizen_id == citizen.id, SightingReport.citizen_id == citizen.id)
+        .order_by(CitizenNotification.created_at.desc(), CitizenNotification.report_id.desc(), CitizenNotification.event)
+    ).all()
+    return {
+        "items": [{"id": f"{item.report_id}:{item.event}", "event": item.event,
+                   "report_title": title, "reference_code": reference, "created_at": iso(item.created_at),
+                   "read_at": iso(item.read_at)} for item, title, reference in rows],
+        "unread": sum(item.read_at is None for item, _, _ in rows),
+    }
+
+
+@citizen_router.post("/notifications/read-all")
+def read_citizen_notifications(citizen: Citizen = Depends(onboarded_citizen), db: Session = Depends(get_db)):
+    db.execute(update(CitizenNotification).where(CitizenNotification.citizen_id == citizen.id,
+                                               CitizenNotification.read_at.is_(None)).values(read_at=utcnow()))
+    db.commit()
+    return {"unread": 0}
+
+
+@citizen_router.post("/notifications/{notification_id}/read")
+def read_citizen_notification(notification_id: str, citizen: Citizen = Depends(onboarded_citizen),
+                              db: Session = Depends(get_db)):
+    report_id, _, event = notification_id.partition(":")
+    if not report_id.isascii() or not report_id.isdigit() or len(report_id) > 10 or int(report_id) > 2**31 - 1:
+        raise HTTPException(404, "Notification not found.")
+    result = db.execute(update(CitizenNotification).where(
+        CitizenNotification.report_id == int(report_id), CitizenNotification.event == event,
+        CitizenNotification.citizen_id == citizen.id,
+    ).values(read_at=func.coalesce(CitizenNotification.read_at, utcnow()))
+        .returning(CitizenNotification.read_at)).scalar_one_or_none()
+    if result is None:
+        raise HTTPException(404, "Notification not found.")
+    db.commit()
+    return {"read_at": iso(result)}
+
+
+@citizen_router.get("/reports/{reference_code}/evidence")
+def citizen_report_evidence(reference_code: str, citizen: Citizen = Depends(onboarded_citizen), db: Session = Depends(get_db)):
+    report = _owned_report(db, reference_code, citizen)
+    if report.image_path:
+        try:
+            return FileResponse(evidence_path(report.image_path), headers={"Cache-Control": "private, no-store",
+                                "Content-Security-Policy": "sandbox", "X-Content-Type-Options": "nosniff"})
+        except FileNotFoundError:
+            pass
+    raise HTTPException(404, "Photo unavailable.")
 
 
 @router.get("/guidelines")
@@ -302,14 +513,9 @@ def public_villages(db: Session = Depends(get_db)) -> dict:
     villages = db.scalars(select(Village).order_by(Village.name)).all()
     return {
         "items": [
-            {
-                "code": village.code,
-                "name": village.name,
-                "district": village.district,
-                "population": village.population,
-                "risk_level": village.risk_level,
-            }
+            {**village_identity(village), **village_center(village, public=True),
+             "population": village.population, "risk_level": village.risk_level}
             for village in villages
         ],
-        "note": "Village list for report submission. Exact coordinates are not published here.",
+        "note": "Fictional demo geography is labelled. Exact coordinates are not published here for real villages.",
     }

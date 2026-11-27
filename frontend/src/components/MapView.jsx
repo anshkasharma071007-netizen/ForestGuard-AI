@@ -73,6 +73,7 @@ export default function MapView({
   const mapRef = useRef(null)
   const overlayRef = useRef(null)
   const fittedRef = useRef(false)
+  const incidentMarkers = useRef(new Map())
   const onSelectRef = useRef(onSelectDetection)
   onSelectRef.current = onSelectDetection
   const layerKey = JSON.stringify(layerInput)
@@ -134,6 +135,8 @@ export default function MapView({
     const map = mapRef.current
     const overlay = overlayRef.current
     if (!map || !overlay || !ready) return
+    const openIncident = [...incidentMarkers.current.entries()].find(([, marker]) => marker.isPopupOpen())?.[0]
+    incidentMarkers.current.clear()
     overlay.clearLayers()
 
     const studyFeatures = data?.study_area?.features || []
@@ -205,7 +208,11 @@ export default function MapView({
           })
             .bindTooltip(`${village.name} · ${level} exposure`, { sticky: true })
             .addTo(overlay)
-          const center = L.polygon(ring).getBounds().getCenter()
+        }
+        const center = Number.isFinite(village.lat) && Number.isFinite(village.lon)
+          ? [village.lat, village.lon]
+          : ring.length ? L.polygon(ring).getBounds().getCenter() : null
+        if (center) {
           L.marker(center, {
             icon: L.divIcon({
               className: 'fg-marker-wrap',
@@ -213,11 +220,10 @@ export default function MapView({
               iconSize: [70, 16],
               iconAnchor: [35, 8],
             }),
-            interactive: false,
-            keyboard: false,
-          }).addTo(overlay)
+            title: `Village · ${village.name}`,
+          }).bindTooltip(escapeHtml(`${village.name} · ${village.code} · ${level} exposure`)).addTo(overlay)
         }
-        if (layers.alertCoverage && village.lat && village.lon) {
+        if (layers.alertCoverage && Number.isFinite(village.lat) && Number.isFinite(village.lon)) {
           L.circle([village.lat, village.lon], {
             radius: (data?.risk?.alert_radius_km || 3.5) * 1000,
             color: '#B85C38',
@@ -292,13 +298,15 @@ export default function MapView({
 
     if (layers.incidents && data?.incidents?.length) {
       data.incidents.forEach((incident) => {
-        L.marker([incident.lat, incident.lon], { icon: glyphIcon('incident', '!') })
+        const marker = L.marker([incident.lat, incident.lon], { icon: pinIcon(RISK_COLOR[incident.severity] || RISK_COLOR.low, false) })
           .bindPopup(
-            `<strong>${escapeHtml(incident.category.replaceAll('_', ' '))}</strong><br/>${escapeHtml(
-              incident.village_name || 'Buffer area',
-            )}<br/>${escapeHtml(incident.severity)} · ${escapeHtml(incident.status)}`,
+            `<strong>${escapeHtml(incident.title || incident.category.replaceAll('_', ' '))}</strong><br/>${escapeHtml(
+              incident.village_name || 'GPS location',
+            )}<br/>${escapeHtml(incident.species_name || 'Unknown')} · ${escapeHtml(incident.severity)} risk${incident.report_id ? `<br/><a href="/reports?report=${Number(incident.report_id)}">Review report</a>` : ''}`,
           )
           .addTo(overlay)
+        incidentMarkers.current.set(incident.id, marker)
+        if (incident.id === openIncident) marker.openPopup()
       })
     }
 
@@ -355,7 +363,7 @@ export default function MapView({
 
   useEffect(() => {
     if (!mapRef.current || !focus?.length) return
-    mapRef.current.setView(focus, focus[2] || 13, { animate: true })
+    mapRef.current.setView([focus[0], focus[1]], focus[2] || 13, { animate: true })
   }, [focus])
 
   const speciesLegend = data?.detections?.length

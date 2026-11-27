@@ -9,15 +9,7 @@ from sqlalchemy.orm import Session
 from backend import config
 from backend.models import Alert, Village
 from backend.services.serializers import alert_village_details, iso, serialize_alert
-
-VILLAGE_REGION = {
-    "V-TUR": "Southern buffer",
-    "V-KOH": "South-western buffer",
-    "V-AWA": "Western buffer",
-    "V-SIL": "Eastern buffer",
-    "V-PIP": "Southern buffer",
-}
-
+from backend.services.villages import is_demo_village
 
 def query_list(values: list[str] | None) -> list[str]:
     if not values:
@@ -46,7 +38,9 @@ def parse_dt(value: str | None, *, end_of_day: bool = False) -> datetime | None:
 def load_study_area() -> dict:
     try:
         with open(config.STUDY_AREA_PATH, "r", encoding="utf-8") as fh:
-            return json.load(fh)
+            study = json.load(fh)
+            study["features"] = [feature for feature in study["features"] if feature["properties"].get("layer") != "village"]
+            return study
     except OSError as exc:
         raise HTTPException(status_code=500, detail="Study area geometry is unavailable.") from exc
 
@@ -85,9 +79,11 @@ def village_map(db: Session) -> dict[int, Village]:
     return {village.id: village for village in db.query(Village).all()}
 
 
-def public_area_label(village_codes: list[str]) -> str:
-    regions = [VILLAGE_REGION.get(code) for code in village_codes if VILLAGE_REGION.get(code)]
-    return regions[0] if regions else "Buffer landscape"
+def public_area_label(villages: list[Village]) -> str:
+    if villages and all(is_demo_village(village) for village in villages):
+        return "Illustrative Pench area (Demo)"
+    return next((village.district for village in villages if village.district and not is_demo_village(village)),
+                "Buffer landscape")
 
 
 def now_iso() -> str:

@@ -1,46 +1,47 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { formatTimestamp } from '@/format';
 import type { Resource } from '@/hooks/usePublicData';
 import type { PublicAdvisories } from '@/services/api';
 import { radius, spacing, typeScale, useTheme } from '@/theme';
-import { Feedback, StatusPill, SupportingText } from './Feedback';
+import { Feedback, SupportingText } from './Feedback';
 
-export function AdvisoryList({ state, retry, villageName, limit }: {
-  state: Resource<PublicAdvisories>; retry: () => void; villageName?: string; limit?: number;
+export function AdvisoryList({ state, retry }: {
+  state: Resource<PublicAdvisories>; retry: () => void;
 }) {
   const { colors } = useTheme();
+  const [expanded, setExpanded] = useState<number>();
   if (state.kind === 'loading') return <Feedback title="Loading alerts…" kind="loading" />;
   if (state.kind === 'unavailable') return <Feedback title="Alerts unavailable" detail={state.message} />;
   if (state.kind === 'error') return <Feedback title="Could not load alerts" detail={state.message} kind="error" retry={retry} />;
   if (state.kind !== 'ready') return null;
 
-  const matches = villageName ? state.data.items.filter((item) => item.villageNames.includes(villageName)) : state.data.items;
-  const items = matches.slice(0, limit ?? matches.length);
-  if (items.length === 0) return <Feedback title={villageName ? 'No listed alerts for this village' : 'No field alerts to show'}
-    detail={`The public feed covers the past ${state.data.windowDays} days.`} />;
+  const { items } = state.data;
+  if (items.length === 0) return <Feedback title="No nearby alerts" />;
 
   return (
     <View style={styles.list}>
       {items.map((item) => (
-        <View key={item.id} style={[styles.advisory, { backgroundColor: colors.card }]}>
+        <Pressable key={item.id} accessibilityRole="button" accessibilityState={{ expanded: expanded === item.id }}
+          onPress={() => setExpanded(expanded === item.id ? undefined : item.id)}
+          style={[styles.advisory, { backgroundColor: colors.card, borderColor: colors.border,
+            borderLeftColor: item.severity === 'high' ? colors.clay : item.severity === 'moderate' ? colors.amber : colors.moss }]}>
           <View style={styles.meta}>
-            <StatusPill label={`${capitalize(item.severity)} priority`} tone={severityTone(item.severity)} />
-            <SupportingText>{new Date(item.publishedAt).toLocaleString()}</SupportingText>
+            <Text accessibilityRole="header" style={[typeScale.card, { color: colors.primaryText, flexShrink: 1 }]}>{item.title ?? item.speciesName}</Text>
+            <Text style={[typeScale.supporting, { color: item.severity === 'high' ? colors.clay : item.severity === 'moderate' ? colors.warningText : colors.successText }]}>
+              {capitalize(item.severity)} risk
+            </Text>
           </View>
-          <Text accessibilityRole="header" style={[typeScale.card, { color: colors.primaryText }]}>{item.speciesName}</Text>
-          <SupportingText>{[item.area, ...item.villageNames.filter((name) => name !== item.area)].join(' · ')}</SupportingText>
-          {item.summary && <Text style={[typeScale.body, { color: colors.primaryText }]}>{item.summary}</Text>}
-          {item.advice && <Text style={[typeScale.body, { color: colors.secondaryText }]}>{item.advice}</Text>}
-        </View>
+          <SupportingText>{[item.area, ...item.villageNames.filter(name => name !== item.area), item.distanceKm === undefined ? undefined
+            : item.distanceKm < 1 ? 'Less than 1 km away' : `About ${item.distanceKm.toFixed(1)} km away`].filter(Boolean).join(' · ')}</SupportingText>
+          <SupportingText>{formatTimestamp(item.publishedAt)}</SupportingText>
+          {expanded === item.id && item.summary && <Text style={[typeScale.body, { color: colors.primaryText }]}>{item.summary}</Text>}
+          {expanded === item.id && item.advice && !item.summary?.includes(item.advice)
+            && <Text style={[typeScale.body, { color: colors.secondaryText }]}>{item.advice}</Text>}
+        </Pressable>
       ))}
     </View>
   );
-}
-
-function severityTone(severity: string) {
-  if (severity === 'high') return 'danger';
-  if (severity === 'moderate') return 'warning';
-  if (severity === 'low') return 'success';
-  return 'neutral';
 }
 
 function capitalize(text: string) {
@@ -49,6 +50,6 @@ function capitalize(text: string) {
 
 const styles = StyleSheet.create({
   list: { gap: spacing.md },
-  meta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm },
-  advisory: { gap: spacing.sm, padding: spacing.md, borderRadius: radius.card },
+  meta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: spacing.sm },
+  advisory: { gap: spacing.xs, padding: spacing.md, borderRadius: radius.input, borderWidth: 1, borderLeftWidth: 3 },
 });

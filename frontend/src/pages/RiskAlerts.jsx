@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   BellRing,
   CheckCircle2,
@@ -6,16 +7,12 @@ import {
   Clock3,
   Crosshair,
   Loader2,
-  RotateCcw,
-  Save,
   ShieldAlert,
   Siren,
-  SlidersHorizontal,
   Users,
 } from 'lucide-react'
 import api, { errorMessage, mediaUrl } from '../api/client'
 import { useApi } from '../hooks/useApi'
-import { useAuth } from '../context/AuthContext'
 import MapView from '../components/MapView'
 import { AlertRow } from '../components/cards'
 import {
@@ -48,48 +45,28 @@ const WORKFLOW = [
   'Response',
 ]
 
-const FIELD_META = [
-  ['alert_threshold', 'Alert trigger score', 0, 100, '1'],
-  ['alert_radius_km', 'Village alert radius (km)', 0.2, 25, '0.1'],
-  ['influence_radius_km', 'Risk influence radius (km)', 0.5, 30, '0.1'],
-  ['moderate', 'Moderate threshold', 0, 100, '1'],
-  ['high', 'High threshold', 0, 100, '1'],
-]
-
 export default function RiskAlerts() {
-  const { isAdmin } = useAuth()
+  const [params, setParams] = useSearchParams()
   const { data, loading, error, reload } = useApi('/api/alerts?days=45&limit=200', { interval: 6000 })
   const zones = useApi('/api/risk/zones?days=21')
-  const config = useApi('/api/risk/config')
   const guards = useApi('/api/guards')
   const map = useApi('/api/map/layers?days=45')
   const [statusFilter, setStatusFilter] = useState('open')
   const [severity, setSeverity] = useState('')
   const [selectedAlert, setSelectedAlert] = useState(null)
-  const [form, setForm] = useState(null)
   const [note, setNote] = useState('')
   const [assignId, setAssignId] = useState('')
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState(null)
-  const [saveState, setSaveState] = useState(null)
 
-  const detail = useApi(selectedAlert ? `/api/alerts/${selectedAlert.id}` : null, {
-    enabled: Boolean(selectedAlert),
+  const linkedId = Number(params.get('alert'))
+  const selectedId = selectedAlert?.id ?? (Number.isSafeInteger(linkedId) && linkedId > 0 ? linkedId : null)
+  const detail = useApi(selectedId ? `/api/alerts/${selectedId}` : null, {
+    enabled: Boolean(selectedId),
+    interval: 6000,
   })
 
-  useEffect(() => {
-    if (!config.data?.settings) return
-    const settings = config.data.settings
-    setForm({
-      alert_threshold: settings.alert_threshold,
-      alert_radius_km: settings.alert_radius_km,
-      influence_radius_km: settings.influence_radius_km,
-      moderate: settings.thresholds?.moderate ?? 35,
-      high: settings.thresholds?.high ?? 65,
-    })
-  }, [config.data])
-
-  const items = data?.items || []
+  const items = data?.items?.filter((alert) => alert.detection_id) || []
   const openStatuses = ['active', 'acknowledged', 'responding']
   const filtered = useMemo(() => {
     return items.filter((alert) => {
@@ -104,8 +81,7 @@ export default function RiskAlerts() {
   const highCount = items.filter((alert) => openStatuses.includes(alert.status) && alert.severity === 'high').length
   const zoneSummary = zones.data?.summary
   const exposure = zones.data?.villages || []
-  const detailRecord =
-    detail.data?.alert && detail.data.alert.id === selectedAlert?.id ? detail.data.alert : null
+  const detailRecord = detail.data?.alert?.id === selectedId ? detail.data.alert : null
   const detailAlert = detailRecord || selectedAlert
 
   const openDetail = (alert) => {
@@ -116,11 +92,11 @@ export default function RiskAlerts() {
   }
 
   const act = async (action, payload = {}) => {
-    if (!selectedAlert) return
+    if (!selectedId || busy) return
     setBusy(true)
     setActionError(null)
     try {
-      await api.post(`/api/alerts/${selectedAlert.id}/${action}`, { note: note || undefined, ...payload })
+      await api.post(`/api/alerts/${selectedId}/${action}`, { note: note || undefined, ...payload })
       await detail.reload()
       await reload()
       setNote('')
@@ -139,56 +115,16 @@ export default function RiskAlerts() {
     await act('assign', { guard_id: Number(assignId) })
   }
 
-  const saveConfig = async () => {
-    if (!form) return
-    setSaveState({ type: 'loading' })
-    try {
-      await api.patch('/api/risk/config', {
-        alert_threshold: Number(form.alert_threshold),
-        alert_radius_km: Number(form.alert_radius_km),
-        influence_radius_km: Number(form.influence_radius_km),
-        thresholds: { moderate: Number(form.moderate), high: Number(form.high) },
-      })
-      setSaveState({ type: 'ok', message: 'Configuration saved. All detections were re-scored.' })
-      config.reload()
-      zones.reload()
-      reload()
-      map.reload()
-    } catch (err) {
-      setSaveState({ type: 'error', message: errorMessage(err) })
-    }
-  }
-
-  const resetConfig = async () => {
-    setSaveState({ type: 'loading' })
-    try {
-      await api.post('/api/risk/config/reset')
-      setSaveState({ type: 'ok', message: 'Defaults restored and detections re-scored.' })
-      config.reload()
-      zones.reload()
-      reload()
-      map.reload()
-    } catch (err) {
-      setSaveState({ type: 'error', message: errorMessage(err) })
-    }
-  }
-
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Risk & alert operations"
-        title="Turn signals into timely, verified response"
-        description="Inspect indicative risk zones, configure the scoring engine, and run the full alert lifecycle from acknowledgement to field closure."
+        title="Automated detection alerts"
+        description="Inspect detection alerts and coordinate guard response."
         actions={
           <>
             <Badge tone="danger" dot>
               {openCount} open
             </Badge>
-            {isAdmin && (
-              <button type="button" className="btn-outline" onClick={resetConfig}>
-                <RotateCcw className="h-3.5 w-3.5" /> Reset defaults
-              </button>
-            )}
           </>
         }
       />
@@ -230,7 +166,7 @@ export default function RiskAlerts() {
       {error && <ErrorBox message={error} onRetry={reload} />}
 
       <section className="grid gap-4 xl:grid-cols-12">
-        <div className="card overflow-hidden xl:col-span-8">
+        <div className="card overflow-hidden xl:col-span-12">
           <div className="flex flex-col gap-2 border-b border-line-10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="eyebrow">Risk surface</div>
@@ -271,72 +207,6 @@ export default function RiskAlerts() {
           </div>
         </div>
 
-        <div className="card p-5 xl:col-span-4">
-          <SectionTitle
-            title="Risk engine configuration"
-            subtitle={isAdmin ? 'Admin — changes re-score the whole dataset' : 'Read-only for guard role'}
-            action={<SlidersHorizontal className="h-4 w-4 text-muted-16" />}
-          />
-          {config.loading && !config.data ? (
-            <Loading height="h-64" />
-          ) : config.error ? (
-            <ErrorBox message={config.error} onRetry={config.reload} />
-          ) : (
-            form && (
-              <div className="mt-3 space-y-2.5">
-                {FIELD_META.map(([key, label, min, max, step]) => (
-                  <div key={key}>
-                    <label className="mb-1 flex items-center justify-between text-[10px] font-medium text-secondary-8">
-                      {label}
-                      <span className="font-mono text-[9.5px] text-muted-16">
-                        {key === 'alert_radius_km' || key === 'influence_radius_km' ? 'km' : 'score'}
-                      </span>
-                    </label>
-                    <input
-                      type="number"
-                      className="field !py-1.5 !text-[12px]"
-                      value={form[key]}
-                      min={min}
-                      max={max}
-                      step={step}
-                      disabled={!isAdmin}
-                      onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))}
-                    />
-                  </div>
-                ))}
-                <div className="rounded-lg border border-line-10 bg-inset-13 px-2.5 py-2 text-[9px] leading-relaxed text-muted-5">
-                  Scores are computed from proximity (55%), recency (15%), recent activity (12%), verified incidents
-                  (10%) and movement evidence (8%), scaled by species risk weight.
-                </div>
-                {isAdmin && (
-                  <div className="flex gap-2">
-                    <button type="button" className="btn-primary flex-1 !py-2" onClick={saveConfig} disabled={saveState?.type === 'loading'}>
-                      {saveState?.type === 'loading' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                      Save & re-score
-                    </button>
-                    <button type="button" className="btn-outline !py-2" onClick={resetConfig} disabled={saveState?.type === 'loading'}>
-                      <RotateCcw className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                )}
-                {saveState?.message && (
-                  <div
-                    className={`rounded-lg px-2.5 py-2 text-[9.5px] leading-relaxed ${saveState.type === 'error'
-                        ? 'border border-danger-line-1 bg-danger-surface-3 text-danger-2'
-                        : 'border border-success-line-1 bg-success-surface-2 text-success-1'
-                      }`}
-                  >
-                    {saveState.message}
-                  </div>
-                )}
-                <div className="rounded-lg bg-forest-900 px-2.5 py-2 text-[9px] leading-relaxed text-forest-100/70">
-                  Changing thresholds affects both classification and alert generation. Existing alerts are not
-                  deleted; the engine deduplicates within 24 hours.
-                </div>
-              </div>
-            )
-          )}
-        </div>
       </section>
 
       <section className="card p-5">
@@ -360,7 +230,7 @@ export default function RiskAlerts() {
                 <div className="text-right text-[9px] text-muted-9">
                   {village.detections_14d} signals
                   <br />
-                  {village.top_species ? titleCase(village.top_species) : 'no dominant species'}
+                  {village.top_species ? titleCase(village.top_species) : 'No dominant animal'}
                 </div>
               </div>
             </div>
@@ -461,24 +331,15 @@ export default function RiskAlerts() {
               </div>
             </div>
           </div>
-          <div className="mt-3 space-y-2">
-            {config.data?.species?.map((species) => (
-              <MetricBar
-                key={species.key}
-                label={`${species.name} · ${species.risk_label}`}
-                value={Math.round(species.risk_weight * 100)}
-                max={100}
-                color={species.risk_weight >= 0.8 ? '#B83B2B' : species.risk_weight >= 0.5 ? '#D9A441' : '#2F7250'}
-                suffix=" / 100 weight"
-              />
-            ))}
-          </div>
         </div>
       </section>
 
       <Modal
-        open={Boolean(selectedAlert)}
-        onClose={() => setSelectedAlert(null)}
+        open={Boolean(selectedId)}
+        onClose={() => {
+          setSelectedAlert(null)
+          if (params.has('alert')) setParams(previous => { const next = new URLSearchParams(previous); next.delete('alert'); return next })
+        }}
         title={detailAlert ? `${detailAlert.species_name} alert` : 'Alert'}
         subtitle={detailAlert ? `Alert #${detailAlert.id} · ${detailAlert.severity} priority · ${formatDateTime(detailAlert.created_at)}` : ''}
         width="max-w-3xl"
@@ -505,7 +366,9 @@ export default function RiskAlerts() {
           )
         }
       >
-        {selectedAlert && (
+        {!detailAlert && detail.loading && <Loading label="Loading alert…" height="h-24" />}
+        {!detailAlert && detail.error && <ErrorBox message={detail.error} onRetry={detail.reload} />}
+        {detailAlert && (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
               <SpeciesTag species={detailAlert.species} name={detailAlert.species_name} color={detailAlert.color} />
@@ -528,7 +391,7 @@ export default function RiskAlerts() {
                     ['Camera', detailRecord.detection.camera_code],
                     ['Confidence', confidencePercent(detailRecord.detection.confidence)],
                     ['Detected', formatDateTime(detailRecord.detection.detected_at)],
-                    ['Distance', detailRecord.detection.distance_km != null ? `${detailRecord.detection.distance_km} km` : '—'],
+                    ['Distance', Number.isFinite(detailRecord.detection.distance_km) ? `${detailRecord.detection.distance_km} km` : 'Unavailable'],
                   ].map(([label, value]) => (
                     <div key={label} className="rounded-lg bg-inset-2 px-2.5 py-2">
                       <div className="text-[8px] uppercase tracking-[0.12em] text-muted-16">{label}</div>
