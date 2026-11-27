@@ -11,6 +11,7 @@ load_dotenv(os.path.join(ROOT, ".env"))
 DEMO_MODE = os.getenv("DEMO_MODE", "false").strip().lower() in {"1", "true", "yes", "on"}
 APP_ENV = os.getenv("APP_ENV", "production").strip().lower()
 CITIZEN_DEV_OTP_ENABLED = os.getenv("CITIZEN_DEV_OTP_ENABLED", "false").strip().lower() == "true"
+AUTHORITY_DEMO_ACCOUNTS_ENABLED = os.getenv("AUTHORITY_DEMO_ACCOUNTS_ENABLED", "false").strip().lower() == "true"
 CORS_ORIGINS = [origin.strip() for origin in os.getenv(
     "CORS_ORIGINS",
     "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,"
@@ -18,6 +19,10 @@ CORS_ORIGINS = [origin.strip() for origin in os.getenv(
 ).split(",") if origin.strip()]
 _configured_secret = os.getenv("SECRET_KEY", "").strip()
 SECRET_KEY = _configured_secret or secrets.token_urlsafe(32)
+
+
+def authority_demo_accounts_allowed() -> bool:
+    return APP_ENV == "development" and AUTHORITY_DEMO_ACCOUNTS_ENABLED
 
 
 def validate_authority_secret():

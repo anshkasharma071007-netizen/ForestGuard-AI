@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -9,6 +9,7 @@ from backend.api.deps import create_token, get_current_user, verify_password
 from backend.database.session import get_db
 from backend.models import Guard, User
 from backend.schemas.api import LoginRequest
+from backend.services.authority_demo import DEMO_ACCOUNTS, demo_role_for_credentials
 from backend.services.serializers import serialize_guard
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -28,15 +29,28 @@ def _user_payload(user: User, db: Session) -> dict:
 
 @router.post("/login")
 def login(payload: LoginRequest, db: Session = Depends(get_db)) -> dict:
-    user = db.scalar(select(User).where(User.email == payload.email.strip().lower()))
-    if not user or not verify_password(payload.password, user.password_hash):
+    email = payload.email.strip().lower()
+    demo_role = demo_role_for_credentials(email, payload.password)
+    if demo_role and not config.authority_demo_accounts_allowed():
+        raise HTTPException(status_code=401, detail="Incorrect email or password.")
+    user = db.scalar(select(User).where(User.email == email))
+    if not user or (demo_role and user.role != demo_role) or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Incorrect email or password.")
     return {
-        "token": create_token(user),
+        "token": create_token(user, authority_demo=demo_role is not None),
         "token_type": "bearer",
         "user": _user_payload(user, db),
         "demo_mode": config.DEMO_MODE,
     }
+
+
+@router.get("/demo-accounts", include_in_schema=False)
+def demo_accounts(request: Request, response: Response) -> dict:
+    response.headers["Cache-Control"] = "private, no-store"
+    if not config.authority_demo_accounts_allowed():
+        return {}
+    available_roles = request.app.state.authority_demo_roles
+    return {role: account for role, account in DEMO_ACCOUNTS.items() if role in available_roles}
 
 
 @router.get("/me")

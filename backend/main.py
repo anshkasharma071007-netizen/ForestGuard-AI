@@ -22,6 +22,7 @@ from backend.api import (
     routes_risk,
 )
 from backend.database.session import SessionLocal
+from backend.services.authority_demo import provision_authority_demo_accounts
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("forest-guard-ai")
@@ -51,6 +52,14 @@ async def lifespan(app: FastAPI):
     app.state.seed_result = None
     if config.DEMO_MODE and os.getenv("SEED_ON_START", "false").strip().lower() in {"1", "true", "yes", "on"}:
         app.state.seed_result = _seed_if_needed()
+    app.state.authority_demo_roles = set()
+    if config.authority_demo_accounts_allowed():
+        with SessionLocal() as db:
+            accounts = provision_authority_demo_accounts(db)
+        for role, result in accounts.items():
+            logger.info("Authority demo %s: %s", role, result)
+            if result in {"created", "already provisioned"}:
+                app.state.authority_demo_roles.add(role)
     from backend.services.report_analysis import run_worker
     stop = Event()
     worker = Thread(target=run_worker, args=(stop,), daemon=True, name="report-analysis")

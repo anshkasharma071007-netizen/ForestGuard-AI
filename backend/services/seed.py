@@ -141,6 +141,13 @@ def _asset_paths(asset: dict) -> tuple[str, str]:
 
 def seed_database(db: Session) -> dict:
     """Seed an empty database in one transaction using a fresh session."""
+    from backend.services.authority_demo import demo_role_for_credentials
+
+    if not config.authority_demo_accounts_allowed() and (
+        demo_role_for_credentials(config.DEMO_ADMIN_EMAIL, config.DEMO_ADMIN_PASSWORD)
+        or demo_role_for_credentials(config.DEMO_GUARD_EMAIL, config.DEMO_GUARD_PASSWORD)
+    ):
+        return {"seeded": False, "reason": "The configured authority credentials require explicit development opt-in."}
     with db.begin():
         connection = db.connection()
         tables = Base.metadata.sorted_tables

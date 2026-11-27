@@ -39,17 +39,23 @@ def verify_password(password: str, stored: str) -> bool:
         return False
 
 
-def create_token(user: User) -> str:
-    return _serializer.dumps({"uid": user.id, "role": user.role, "name": user.name})
+def create_token(user: User, *, authority_demo: bool = False) -> str:
+    payload = {"uid": user.id, "role": user.role, "name": user.name}
+    if authority_demo:
+        payload["authority_demo"] = True
+    return _serializer.dumps(payload)
 
 
 def read_token(token: str) -> dict:
     try:
-        return _serializer.loads(token, max_age=config.TOKEN_MAX_AGE_SECONDS)
+        payload = _serializer.loads(token, max_age=config.TOKEN_MAX_AGE_SECONDS)
     except SignatureExpired as exc:
         raise HTTPException(status_code=401, detail="Session expired. Please sign in again.") from exc
     except BadSignature as exc:
         raise HTTPException(status_code=401, detail="Invalid session token.") from exc
+    if payload.get("authority_demo") and not config.authority_demo_accounts_allowed():
+        raise HTTPException(status_code=401, detail="Invalid session token.")
+    return payload
 
 
 def get_current_user(

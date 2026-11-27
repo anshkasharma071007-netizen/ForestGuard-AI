@@ -36,7 +36,8 @@ Start in the repository root. Use the same database owner and passfile as the or
 brew services start postgresql@17  # only if PostgreSQL is stopped
 .venv/bin/python -m tools.init_database --admin-user "$(id -un)" --use-libpq --no-env
 DATABASE_URL=postgresql+psycopg:///forest_guard_ai .venv/bin/alembic current
-APP_ENV=development CITIZEN_DEV_OTP_ENABLED=true AI_MODE=auto DEMO_MODE=false SEED_ON_START=false \
+APP_ENV=development AUTHORITY_DEMO_ACCOUNTS_ENABLED=true CITIZEN_DEV_OTP_ENABLED=true \
+  AI_MODE=auto DEMO_MODE=false SEED_ON_START=false \
   .venv/bin/python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 \
   --env-file .forest-guard-local/backend.env
 ```
@@ -74,6 +75,19 @@ If `.env` already exists, setup prints the verified `DATABASE_URL` and `PGPASSFI
 Open [API health](http://127.0.0.1:8000/api/health) and check for `"database": "ok"`. See [database operations](database.md) for reruns, advanced flags, and recovery.
 
 The core install uses `AI_MODE=demo` and needs no inference weights. For upload inference install `requirements.txt` and set `AI_MODE=auto`.
+
+### Authority demo sign-in
+
+Set `APP_ENV=development` and `AUTHORITY_DEMO_ACCOUNTS_ENABLED=true` before starting the backend. Startup provisions the Range Officer (`admin@forestguard.ai`, role `admin`) and Forest Guard (`guard@forestguard.ai`, role `guard`). Keep `DEMO_MODE=false` and `SEED_ON_START=false` when working with genuine data. Use loopback for desktop testing or a trusted development LAN when testing a phone.
+
+To provision just the authority accounts without starting the API, run from the repository root:
+
+```sh
+APP_ENV=development AUTHORITY_DEMO_ACCOUNTS_ENABLED=true \
+  .venv/bin/python -m tools.provision_authority_demo --env-file .forest-guard-local/backend.env
+```
+
+Omit `--env-file` if the repository's ignored `.env` already points to the development database. The command uses the restricted runtime login and can be rerun safely. It reports an existing email with different credentials or role and preserves that account. This includes accounts from an earlier synthetic dataset seed. Sign in to those accounts with their existing credentials. After startup, the sign-in page offers matching demo accounts, and each button fills the form for the normal **Sign in** action. Disabling the flag or running outside development hides the buttons and rejects the provided demo credentials and their sessions.
 
 ### Model weights
 
@@ -119,6 +133,7 @@ Copy `.env.example` to `.env` and edit as needed. `.env` is git-ignored. The dat
 | `SEED_ON_START` | `false` | Startup seeding requires both this flag and `DEMO_MODE=true`. Use the explicit seed command for setup |
 | `APP_ENV` | `production` | Set `development` only for local development sessions |
 | `CITIZEN_DEV_OTP_ENABLED` | `false` | Set `true` together with `APP_ENV=development` to allow the local OTP `1234` |
+| `AUTHORITY_DEMO_ACCOUNTS_ENABLED` | `false` | Set `true` together with `APP_ENV=development` to provision and enable the authority demo sign-ins |
 | `PGPASSFILE` | Set by the initializer | Path to the private runtime libpq passfile |
 | `AI_MODE` | `demo` in the generated environment | `auto` = load YOLO-World + CLIP; `demo` = no model loading, uploads 503 |
 | `YOLO_WORLD_WEIGHTS` | `yolov8s-worldv2.pt` | Detector weights path (relative to repo root or absolute) |

@@ -1,20 +1,32 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, Loader2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 import ThemeToggle from '../components/ThemeToggle'
 import { Logo } from '../components/ui'
-import { errorMessage } from '../api/client'
+import api, { errorMessage } from '../api/client'
 
 export default function Login() {
   const { token, login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const [email, setEmail] = useState('admin@forestguard.ai')
-  const [password, setPassword] = useState('forest123')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [demoAccounts, setDemoAccounts] = useState({})
   const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (token) return undefined
+    const controller = new AbortController()
+    api.get('/api/auth/demo-accounts', { signal: controller.signal })
+      .then(({ data }) => {
+        if (!controller.signal.aborted) setDemoAccounts(data)
+      })
+      .catch(() => {})
+    return () => controller.abort()
+  }, [token])
 
   if (token) return <Navigate to="/" replace />
 
@@ -32,14 +44,10 @@ export default function Login() {
     }
   }
 
-  const fill = (role) => {
-    if (role === 'admin') {
-      setEmail('admin@forestguard.ai')
-      setPassword('forest123')
-    } else {
-      setEmail('guard@forestguard.ai')
-      setPassword('guard123')
-    }
+  const fill = (account) => {
+    setEmail(account.email)
+    setPassword(account.password)
+    setError(null)
   }
 
   return (
@@ -122,17 +130,18 @@ export default function Login() {
               </button>
             </form>
 
-            <div className="mt-5 border-t border-control-line-7 pt-3 [@media(max-height:650px)]:mt-3 [@media(max-height:650px)]:pt-2">
-              <p className="mb-2 text-xs font-medium text-success-8">Use a demo account</p>
-              <div className="grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => fill('admin')} className="btn-outline px-2 text-xs">
-                  Range officer
-                </button>
-                <button type="button" onClick={() => fill('guard')} className="btn-outline px-2 text-xs">
-                  Forest guard
-                </button>
+            {Object.keys(demoAccounts).length > 0 && (
+              <div className="mt-5 border-t border-control-line-7 pt-3 [@media(max-height:650px)]:mt-3 [@media(max-height:650px)]:pt-2">
+                <p className="mb-2 text-xs font-medium text-success-8">Use a demo account</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {Object.entries(demoAccounts).map(([role, account]) => (
+                    <button key={role} type="button" onClick={() => fill(account)} disabled={submitting} className="btn-outline px-2 text-xs">
+                      {account.name}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </section>
 
           <Link to="/community" className="mx-auto inline-flex items-center gap-1.5 py-1 text-sm font-semibold text-success-8 hover:underline">
