@@ -13,22 +13,22 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 from PIL import Image, UnidentifiedImageError
 from fastapi.responses import FileResponse
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import func, or_, select, text
+from sqlalchemy import func, or_, select, text, update
 from sqlalchemy.orm import Session, selectinload
 
 from geospatial.mapping import valid_coordinates
-from geospatial.species import SPECIES, SPECIES_ORDER, species_meta
+from geospatial.species import REPORT_ANIMALS, SPECIES_ORDER, species_meta
 
 from backend import config
 from backend.api.routes_citizen import onboarded_citizen
 from backend.api.utils import now_iso, public_area_label
 from backend.database.session import get_db
 from backend.models import Alert, Incident, SightingReport, Village, utcnow
-from backend.models.entities import Citizen
+from backend.models.entities import Citizen, CitizenNotification
 from backend.services.report_analysis import evidence_path
 from backend.services.alerts import public_summary
 from backend.services.incident_lifecycle import ACTIVE_ALERTS, lifecycle_status
-from backend.services.serializers import serialize_village, species_info, village_identity
+from backend.services.serializers import iso, serialize_village, species_info, village_identity
 from backend.services.villages import is_demo_village, resolve_village, village_center
 
 router = APIRouter(prefix="/api/community", tags=["community"])
@@ -79,6 +79,8 @@ def _public_alert(db: Session, alert: Alert, *, approximate: bool = False) -> di
     incident = db.get(Incident, alert.incident_id) if alert.incident_id else None
     report = db.get(SightingReport, incident.report_id) if incident and incident.report_id else None
     if report and report.citizen_id is not None:
+        animal = REPORT_ANIMALS.get(alert.species, REPORT_ANIMALS["unidentified"])["name"]
+        payload["alert_title"] = f"{animal} {'conflict' if incident.category == 'conflict' else 'sighting'}"
         public_village = incident.village
         if public_village and not valid_coordinates(public_village.lat, public_village.lon):
             public_village = None
@@ -265,8 +267,8 @@ def _persist_report(
     village_code: str | None, village_id: int | None, lat: float | None, lon: float | None, submission_key: UUID | None,
     image: UploadFile | None, title: str | None = None, citizen_id: int | None = None,
 ) -> dict:
-    if category not in {"sighting", "conflict"} or species not in SPECIES:
-        raise HTTPException(400, "Choose a supported category and species.")
+    if category not in {"sighting", "conflict"} or species not in REPORT_ANIMALS:
+        raise HTTPException(400, "Choose a supported category and animal.")
     if any("\x00" in value for value in (title or "", description, reporter_name, contact or "", village_code or "")):
         raise HTTPException(400, "Remove invalid characters from the report.")
     if (lat is None) != (lon is None) or (lat is not None and not (-90 <= lat <= 90 and -180 <= lon <= 180)):
@@ -403,17 +405,71 @@ def _owned_report(db: Session, reference_code: str, citizen: Citizen) -> Sightin
 @citizen_router.get("/reports/{reference_code}")
 def citizen_report(reference_code: str, citizen: Citizen = Depends(onboarded_citizen), db: Session = Depends(get_db)):
     report = _owned_report(db, reference_code, citizen)
-    rejection = next((event.get("note") for event in reversed(report.review_history or [])
-                      if event.get("status") == "rejected"), None)
-    return {**_citizen_summary(report, report.incident.status if report.incident else None),
-            "category": report.category, "species_name": species_meta(report.species)["name"],
-            "rejection_reason": rejection if report.status == "rejected" else None,
-            "confirmed_species_name": species_meta(report.incident.species)["name"] if report.incident else None,
+    incident = report.incident
+    decision = next((event for event in reversed(report.review_history or [])
+                     if event.get("status") == report.status and report.status in {"verified", "rejected"}), {})
+    rejection = decision.get("citizen_note", decision.get("note")) if report.status == "rejected" else None
+    events = [{"event": "submitted", "at": iso(report.created_at)}]
+    if decision.get("at"):
+        events.append({"event": "approved" if report.status == "verified" else "rejected", "at": decision["at"]})
+    if incident and incident.resolved_at:
+        events.append({"event": "resolved", "at": iso(incident.resolved_at)})
+    return {**_citizen_summary(report, incident.status if incident else None),
+            "category": report.category, "species_name": REPORT_ANIMALS.get(
+                report.species, REPORT_ANIMALS["unidentified"])["name"],
+            "rejection_reason": rejection,
+            "confirmed_species_name": species_meta(incident.species)["name"] if incident else None,
+            "risk_level": incident.severity if incident else None,
+            "review_note": decision.get("citizen_note") if report.status == "verified" else None,
+            "resolution_note": incident.citizen_resolution_note if incident else None,
+            "events": events,
+            "location_source": "gps" if report.lat is not None and report.lon is not None else "village" if report.village_id else None,
             "description": report.description,
             "lat": report.lat, "lon": report.lon, "has_photo": bool(report.image_path),
             "analysis_status": report.analysis_status,
             "suggested_species": [species_meta(item["species"])["name"] for item in report.analysis_results or []
-                                  if item.get("species") in SPECIES and item["species"] != "unidentified"]}
+                                  if report.analysis_status == "completed" and item.get("species") in SPECIES_ORDER]}
+
+
+@citizen_router.get("/notifications")
+def citizen_notifications(citizen: Citizen = Depends(onboarded_citizen), db: Session = Depends(get_db)):
+    rows = db.execute(
+        select(CitizenNotification, SightingReport.title, SightingReport.reference_code)
+        .join(SightingReport, SightingReport.id == CitizenNotification.report_id)
+        .where(CitizenNotification.citizen_id == citizen.id, SightingReport.citizen_id == citizen.id)
+        .order_by(CitizenNotification.created_at.desc(), CitizenNotification.report_id.desc(), CitizenNotification.event)
+    ).all()
+    return {
+        "items": [{"id": f"{item.report_id}:{item.event}", "event": item.event,
+                   "report_title": title, "reference_code": reference, "created_at": iso(item.created_at),
+                   "read_at": iso(item.read_at)} for item, title, reference in rows],
+        "unread": sum(item.read_at is None for item, _, _ in rows),
+    }
+
+
+@citizen_router.post("/notifications/read-all")
+def read_citizen_notifications(citizen: Citizen = Depends(onboarded_citizen), db: Session = Depends(get_db)):
+    db.execute(update(CitizenNotification).where(CitizenNotification.citizen_id == citizen.id,
+                                               CitizenNotification.read_at.is_(None)).values(read_at=utcnow()))
+    db.commit()
+    return {"unread": 0}
+
+
+@citizen_router.post("/notifications/{notification_id}/read")
+def read_citizen_notification(notification_id: str, citizen: Citizen = Depends(onboarded_citizen),
+                              db: Session = Depends(get_db)):
+    report_id, _, event = notification_id.partition(":")
+    if not report_id.isascii() or not report_id.isdigit() or len(report_id) > 10 or int(report_id) > 2**31 - 1:
+        raise HTTPException(404, "Notification not found.")
+    result = db.execute(update(CitizenNotification).where(
+        CitizenNotification.report_id == int(report_id), CitizenNotification.event == event,
+        CitizenNotification.citizen_id == citizen.id,
+    ).values(read_at=func.coalesce(CitizenNotification.read_at, utcnow()))
+        .returning(CitizenNotification.read_at)).scalar_one_or_none()
+    if result is None:
+        raise HTTPException(404, "Notification not found.")
+    db.commit()
+    return {"read_at": iso(result)}
 
 
 @citizen_router.get("/reports/{reference_code}/evidence")

@@ -118,7 +118,7 @@ def test_private_reports_review_and_status(client, admin_headers, dev_otp):
     assert client.post(path, headers=other, data=fields).status_code == 409
     assert client.get(path, headers=other).json()["items"] == []
     current = client.get(f"{path}/{code}", headers=citizen).json()
-    assert current["title"] == fields["title"] and current["species_name"] == "Unidentified animal"
+    assert current["title"] == fields["title"] and current["species_name"] == "Unknown animal"
     assert current["description"] == "" and not current["has_photo"]
     review = next(r for r in client.get("/api/reports", headers=admin_headers).json()["items"] if r["reference_code"] == code)
     assert review["reporter_name"] == "Signed-in observer" and review["contact"] == "+919876500142"
@@ -128,7 +128,9 @@ def test_private_reports_review_and_status(client, admin_headers, dev_otp):
     assert client.patch(official, headers=citizen, json={"status": "verified"}).status_code == 401
     assert client.patch(official, headers=admin_headers, json={"status": "forwarded"}).status_code == 409
     assert client.get(f"{path}/{code}", headers=citizen).json()["lifecycle_status"] == "pending"
-    decision = client.patch(official, headers=admin_headers, json={"status": "verified"})
+    decision = client.patch(official, headers=admin_headers, json={
+        "status": "verified", "risk_level": "low", "risk_reason": "No direct contact reported.",
+    })
     assert decision.status_code == 200, decision.text
     assert client.get(f"{path}/{code}", headers=citizen).json()["lifecycle_status"] == "under_work"
     incident = decision.json()["report"]["incident_id"]

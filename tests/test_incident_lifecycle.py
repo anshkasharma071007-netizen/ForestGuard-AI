@@ -48,8 +48,10 @@ def submit(client, citizen, *, photo=False, **location):
 
 
 def approve(client, admin, report_id, species="unidentified"):
-    return client.patch(f"/api/reports/{report_id}", headers=admin,
-                        json={"status": "verified", "confirmed_species": species})
+    payload = {"status": "verified", "confirmed_species": species}
+    if species == "unidentified":
+        payload.update(risk_level="low", risk_reason="No reported conflict or human contact.")
+    return client.patch(f"/api/reports/{report_id}", headers=admin, json=payload)
 
 
 def linked(db, report_id):
@@ -90,10 +92,21 @@ def test_gps_universal_publication_concurrent_approval_and_resolution(client, ad
         incident_id, alert_id = incident.id, alert.id
 
     status_path = f"{CITIZEN_REPORTS}/{code}"
+    notifications = "/api/citizen/notifications"
     assert client.get(status_path, headers=owner).json()["lifecycle_status"] == "under_work"
     assert client.get(status_path + "/evidence", headers=owner).status_code == 200
     assert client.get(status_path, headers=other).status_code == 404
     assert client.get(status_path + "/evidence", headers=other).status_code == 404
+    authorized = client.get(notifications, headers=owner).json()
+    assert authorized["unread"] == 2
+    notice = next(item for item in authorized["items"] if item["reference_code"] == code)
+    assert notice["event"] == "approved" and notice["read_at"] is None
+    assert client.get(notifications, headers=other).json() == {"items": [], "unread": 0}
+    read_path = f"{notifications}/{notice['id']}/read"
+    assert client.post(read_path, headers=other).status_code == 404
+    read_at = client.post(read_path, headers=owner).json()["read_at"]
+    assert client.post(read_path, headers=owner).json()["read_at"] == read_at
+    assert client.get(notifications, headers=owner).json()["unread"] == 1
     assert client.post("/api/citizen/report-receipt", headers=other, data={"submission_key": receipt}).status_code == 404
     public = next(item for item in client.get(PUBLIC_ALERTS, headers=other).json()["items"] if item["id"] == alert_id)
     assert public["approximate_locations"] == [{"lat": 21.8, "lon": 79.3}]
@@ -101,7 +114,7 @@ def test_gps_universal_publication_concurrent_approval_and_resolution(client, ad
     assert not {"lat", "lon", "title", "reporter_name", "contact", "image_url", "incident_id"}.intersection(public)
 
     def resolve(index):
-        payload = {"note": "Patrol complete"}
+        payload = {"note": "Patrol complete", "citizen_note": "The response is complete."}
         if index % 2:
             return client.post(f"/api/alerts/{alert_id}/resolve", headers=admin_headers, json=payload)
         return client.patch(f"/api/incidents/{incident_id}", headers=admin_headers, json={"status": "resolved", **payload})
@@ -112,7 +125,17 @@ def test_gps_universal_publication_concurrent_approval_and_resolution(client, ad
     assert detail["incident"]["resolved_by_id"] and detail["incident"]["resolution_note"] == "Patrol complete"
     assert detail["incident"]["resolved_at"] == detail["alert"]["resolved_at"]
     assert sum(event["kind"] == "resolved" for event in detail["alert"]["events"]) == 1
-    assert client.get(status_path, headers=owner).json()["lifecycle_status"] == "resolved"
+    citizen_detail = client.get(status_path, headers=owner).json()
+    assert citizen_detail["lifecycle_status"] == "resolved"
+    assert citizen_detail["resolution_note"] == "The response is complete."
+    assert "Patrol complete" not in str(citizen_detail)
+    assert [item["event"] for item in citizen_detail["events"]] == ["submitted", "approved", "resolved"]
+    updated = client.get(notifications, headers=owner).json()
+    assert updated["unread"] == 2
+    assert {item["event"] for item in updated["items"] if item["reference_code"] == code} == {"approved", "resolved"}
+    assert len(updated["items"]) == 3
+    assert client.post(notifications + "/read-all", headers=owner).status_code == 200
+    assert client.get(notifications, headers=owner).json()["unread"] == 0
     assert client.patch(f"/api/incidents/{incident_id}", headers=admin_headers, json={"status": "verified"}).status_code == 409
     assert client.post("/api/risk/recalculate", headers=admin_headers).status_code == 200
     assert alert_id not in {item["id"] for item in client.get(PUBLIC_ALERTS).json()["items"]}
@@ -127,10 +150,15 @@ def test_rejection_and_contradictory_review(client, admin_headers, citizens):
     official = f"/api/reports/{report_id}"
     assert client.patch(official, headers=admin_headers, json={"status": "closed"}).status_code == 409
     assert client.patch(official, headers=admin_headers, json={"status": "rejected", "note": "  "}).status_code == 400
-    assert client.patch(official, headers=admin_headers, json={"status": "rejected", "note": "Unrelated to wildlife"}).status_code == 200
+    rejection = {"status": "rejected", "note": "Internal review", "citizen_note": "Unrelated to wildlife"}
+    for _ in range(2):
+        assert client.patch(official, headers=admin_headers, json=rejection).status_code == 200
     assert approve(client, admin_headers, report_id).status_code == 409
     citizen = client.get(f"{CITIZEN_REPORTS}/{code}", headers=owner).json()
     assert (citizen["lifecycle_status"], citizen["rejection_reason"]) == ("rejected", "Unrelated to wildlife")
+    assert "Internal review" not in str(citizen)
+    inbox = client.get("/api/citizen/notifications", headers=owner).json()["items"]
+    assert [item["event"] for item in inbox if item["reference_code"] == code] == ["rejected"]
     with SessionLocal() as db:
         assert linked(db, report_id) == (None, None)
 
@@ -196,3 +224,65 @@ def test_approval_rollback_and_historical_dry_run(client, admin_headers, citizen
         legacy_incident, legacy_alert = linked(db, legacy_id)
         assert legacy_incident.status == "resolved" and legacy_incident.resolved_at == legacy_alert.resolved_at
         assert legacy_incident.resolved_by == "Historical guard"
+
+
+def test_report_risk_preview_manual_and_override(client, admin_headers, guard_headers, citizens):
+    from geospatial.species import SPECIES_ORDER
+
+    owner, other, village = citizens
+    close_id, close_ref, _ = submit(client, owner, village_code=village)
+    far_id, _, _ = submit(client, owner, lat=22.5, lon=80.1)
+    conflict_id, _, _ = submit(client, owner, category="conflict", lat=22.5, lon=80.1)
+
+    def preview(report_id, animal):
+        response = client.post(f"/api/reports/{report_id}/risk-preview", headers=guard_headers,
+                               json={"confirmed_species": animal})
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    scores = {animal: preview(close_id, animal)["risk"] for animal in SPECIES_ORDER}
+    assert scores["tiger"]["level"] == "high"
+    assert scores["deer"]["level"] == "low"
+    assert scores["tiger"]["species_weight"] > scores["wild_boar"]["species_weight"]
+    assert preview(far_id, "tiger")["risk"]["level"] == "moderate"
+    assert preview(conflict_id, "tiger")["risk"]["score"] > preview(far_id, "tiger")["risk"]["score"]
+    assert preview(far_id, "other") == {"assessment_method": "manual", "risk": None, "can_override": False}
+    assert preview(far_id, "unidentified")["assessment_method"] == "manual"
+
+    def approve_as(report_id, authority, animal, **assessment):
+        return client.patch(f"/api/reports/{report_id}", headers=authority, json={
+            "status": "verified", "confirmed_species": animal, **assessment,
+        })
+
+    assert approve_as(far_id, guard_headers, "other").status_code == 400
+    assert approve_as(far_id, guard_headers, "other", risk_level="high", risk_reason=" ").status_code == 400
+    manual = approve_as(far_id, guard_headers, "other", risk_level="high", risk_reason="Direct contact reported.")
+    assert manual.json()["report"]["risk"]["assessment_method"] == "manual"
+    assert approve_as(close_id, guard_headers, "tiger", risk_level="moderate", risk_reason="Context").status_code == 403
+    assert approve_as(close_id, admin_headers, "tiger", risk_level="moderate").status_code == 400
+    approved = approve_as(close_id, admin_headers, "tiger", risk_level="moderate",
+                          risk_reason="Access to the site is restricted.", citizen_note="A team is following up.")
+    assert approved.status_code == 200, approved.text
+    assessment = approved.json()["report"]["risk"]
+    assert assessment["level"] == "moderate" and assessment["assessment_method"] == "override"
+    assert assessment["original_assessment"]["level"] == scores["tiger"]["level"]
+    assert assessment["assessed_by_id"] and assessment["assessed_at"]
+    assert client.post("/api/risk/recalculate", headers=admin_headers).status_code == 200
+    incident_id = approved.json()["report"]["incident_id"]
+    payload = client.get(f"/api/incidents/{incident_id}", headers=guard_headers).json()
+    assert payload["report"]["risk"] == assessment == payload["incident"]["risk"]
+    assert payload["alert"]["severity"] == assessment["level"]
+    citizen = client.get(f"{CITIZEN_REPORTS}/{close_ref}", headers=owner).json()
+    assert citizen["risk_level"] == assessment["level"] and citizen["review_note"] == "A team is following up."
+    assert "Access to the site" not in str(citizen)
+    assert any(item["id"] == payload["alert"]["id"] and item["severity"] == assessment["level"]
+               for item in client.get(PUBLIC_ALERTS, headers=other).json()["items"])
+
+    alert_id = payload["alert"]["id"]
+    notify_path = "/api/reports/notifications"
+    admin_notifications = client.get(notify_path, headers=admin_headers).json()
+    assert any(item["kind"] == "alert" and item["id"] == alert_id for item in admin_notifications["items"])
+    assert client.post(f"/api/alerts/{alert_id}/read", headers=admin_headers).status_code == 200
+    assert client.get(notify_path, headers=admin_headers).json()["unread_alerts"] == admin_notifications["unread_alerts"] - 1
+    assert any(item["kind"] == "alert" and item["id"] == alert_id
+               for item in client.get(notify_path, headers=guard_headers).json()["items"])

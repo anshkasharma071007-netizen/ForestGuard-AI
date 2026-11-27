@@ -245,6 +245,7 @@ def serialize_incident(incident: Incident) -> dict:
         "resolved_by": incident.resolved_by,
         "resolved_by_id": incident.resolved_by_id,
         "resolution_note": incident.resolution_note,
+        "citizen_resolution_note": incident.citizen_resolution_note,
         "image_url": media_url(incident.image_path),
         "is_simulated": incident.is_simulated,
         "is_public": incident.is_public,
@@ -273,10 +274,15 @@ def serialize_sighting(report: SightingReport, *, public: bool = False) -> dict:
             "confirmed_species": report.incident.species if report.incident else None,
             "confirmed_species_name": species_meta(report.incident.species)["name"] if report.incident else None,
             "reporter_name": report.reporter_name,
+            "is_citizen_submission": report.citizen_id is not None,
             "image_url": f"/api/reports/{report.id}/evidence" if report.image_path else None,
             "analysis_status": report.analysis_status, "analysis_results": report.analysis_results,
+            "analysis_finished_at": iso(report.analysis_finished_at),
             "review_history": report.review_history or [],
             "incident_id": report.incident.id if report.incident else None,
+            "resolved_at": iso(report.incident.resolved_at) if report.incident else None,
+            "resolved_by": report.incident.resolved_by if report.incident else None,
+            "resolution_note": report.incident.resolution_note if report.incident else None,
             "risk": _report_risk(report.incident.report_risk) if report.incident else None,
         })
     return data

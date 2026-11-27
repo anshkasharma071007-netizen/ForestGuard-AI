@@ -49,7 +49,7 @@ def process_next() -> bool:
         values = dict(analysis_status="failed")
     with SessionLocal.begin() as db:
         db.execute(update(SightingReport).where(SightingReport.id == job.id,
-                   SightingReport.analysis_started_at == started).values(**values))
+                   SightingReport.analysis_started_at == started).values(analysis_finished_at=utcnow(), **values))
     return True
 
 

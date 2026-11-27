@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.orm import Session
 
 from geospatial.risk_analysis import utcnow
-from geospatial.species import SPECIES, species_meta
+from geospatial.species import REPORT_ANIMALS, SPECIES_ORDER
 
 from backend.api.deps import require_guard
 from backend.api.utils import alert_payload
@@ -23,18 +23,22 @@ from backend.models import (
     SightingReport,
     User,
 )
-from backend.models.entities import ReportRead
+from backend.models.entities import AlertRead, ReportRead
 from backend.services.report_analysis import evidence_path
 from backend.schemas.api import (
     AlertActionRequest,
     AlertAssignRequest,
     AlertResolveRequest,
     IncidentUpdateRequest,
+    ReportRiskPreview,
     SightingStatusUpdate,
 )
-from backend.services.risk_service import recalculate_all
-from backend.services.incident_lifecycle import close_alert, lock_record, resolve_incident, review_report
+from backend.services.risk_service import get_settings, recalculate_all, score_report_incident
+from backend.services.incident_lifecycle import (
+    PENDING, close_alert, lock_record, report_incident_for_review, resolve_incident, review_report,
+)
 from backend.services.serializers import (
+    iso,
     serialize_alert,
     serialize_incident,
     serialize_sighting,
@@ -185,7 +189,7 @@ def resolve_alert(
         raise HTTPException(status_code=404, detail="Alert not found.")
     if alert.incident_id is not None:
         incident = lock_record(db, Incident, alert.incident_id)
-        resolve_incident(db, incident, user, payload.note)
+        resolve_incident(db, incident, user, payload.note, payload.citizen_note)
     else:
         alert = lock_record(db, Alert, alert_id)
         note = (payload.note or "").strip() or "Field team closed the alert after verification."
@@ -275,7 +279,7 @@ def update_incident(
             raise HTTPException(409, "An approved incident must remain verified.")
         if incident.report_id is None and incident.status != "resolved" and payload.verified is not None:
             incident.verified = payload.verified
-        resolve_incident(db, incident, user, payload.note)
+        resolve_incident(db, incident, user, payload.note, payload.citizen_note)
     elif incident.report_id is not None or incident.status == "resolved":
         if payload.status not in {None, incident.status} or payload.verified not in {None, incident.verified}:
             raise HTTPException(409, "This incident cannot change to that status.")
@@ -295,6 +299,7 @@ def update_incident(
 def list_reports(
     status: list[str] | None = Query(default=None),
     category: list[str] | None = Query(default=None),
+    unread_only: bool = False,
     db: Session = Depends(get_db),
     user: User = Depends(require_guard),
 ) -> dict:
@@ -307,12 +312,13 @@ def list_reports(
         query = query.where(SightingReport.status.in_(statuses))
     if categories:
         query = query.where(SightingReport.category.in_(categories))
-    reports = db.scalars(query.order_by(SightingReport.created_at.desc())).all()
     read = set(db.scalars(select(ReportRead.report_id).where(ReportRead.user_id == user.id)))
+    if unread_only:
+        query = query.where(~SightingReport.id.in_(read), SightingReport.is_simulated.is_(False))
+    reports = db.scalars(query.order_by(SightingReport.created_at.desc())).all()
     return {
         "items": [dict(serialize_sighting(report), unread=report.id not in read) for report in reports],
-        "species": [{"key": key, "name": "Unknown" if key == "unidentified" else species_meta(key)["name"]}
-                    for key in SPECIES],
+        "species": [{"key": key, "name": animal["name"]} for key, animal in REPORT_ANIMALS.items()],
         "summary": {
             "unread": sum(r.id not in read for r in reports),
             "verified": sum(r.status == "verified" for r in reports),
@@ -328,9 +334,35 @@ def list_reports(
 @router.get("/reports/notifications")
 def report_notifications(db: Session = Depends(get_db), user: User = Depends(require_guard)):
     seen = select(ReportRead.report_id).where(ReportRead.user_id == user.id)
-    unread = db.scalar(select(func.count()).select_from(SightingReport).where(~SightingReport.id.in_(seen), SightingReport.is_simulated.is_(False)))
+    reports = select(SightingReport).where(~SightingReport.id.in_(seen), SightingReport.is_simulated.is_(False))
+    unread = db.scalar(select(func.count()).select_from(reports.subquery()))
     latest = db.scalar(select(Alert).where(Alert.is_simulated.is_(False)).order_by(Alert.id.desc()).limit(1))
-    return {"unread": unread, "latest_alert": {"id": latest.id, "incident_id": latest.incident_id, "summary": latest.public_summary} if latest else None}
+    seen_alerts = select(AlertRead.alert_id).where(AlertRead.user_id == user.id)
+    alerts = select(Alert).where(Alert.is_simulated.is_(False), ~Alert.id.in_(seen_alerts))
+    unread_alerts = db.scalar(select(func.count()).select_from(alerts.subquery()))
+    items = [
+        {"kind": "report", "id": report.id, "title": report.title or report.reference_code, "created_at": iso(report.created_at)}
+        for report in db.scalars(reports.order_by(SightingReport.created_at.desc(), SightingReport.id.desc()).limit(8))
+    ]
+    items.extend(
+        {"kind": "alert", "id": alert.id, "incident_id": alert.incident_id,
+         "title": REPORT_ANIMALS.get(alert.species, REPORT_ANIMALS["unidentified"])["name"],
+         "created_at": iso(alert.created_at)}
+        for alert in db.scalars(alerts.order_by(Alert.created_at.desc(), Alert.id.desc()).limit(8))
+    )
+    return {"unread": unread, "unread_alerts": unread_alerts,
+            "items": sorted(items, key=lambda item: item["created_at"], reverse=True)[:8],
+            "latest_alert": {"id": latest.id, "incident_id": latest.incident_id,
+                             "summary": latest.public_summary} if latest else None}
+
+
+@router.post("/alerts/{alert_id}/read")
+def mark_alert_read(alert_id: int, db: Session = Depends(get_db), user: User = Depends(require_guard)):
+    lock_record(db, Alert, alert_id)
+    if not db.get(AlertRead, (alert_id, user.id)):
+        db.add(AlertRead(alert_id=alert_id, user_id=user.id))
+    db.commit()
+    return {"unread": False}
 
 
 @router.post("/reports/{report_id}/read")
@@ -358,12 +390,30 @@ def report_evidence(report_id: int, db: Session = Depends(get_db), _: User = Dep
 @router.post("/reports/{report_id}/retry")
 def retry_analysis(report_id: int, db: Session = Depends(get_db), _: User = Depends(require_guard)):
     report = lock_record(db, SightingReport, report_id)
-    if report.analysis_status in {"failed", "unavailable"}:
-        report.analysis_status = "queued"
-        db.commit()
-    elif report.analysis_status == "no_photo":
+    if report.analysis_status == "no_photo" or not report.image_path:
         raise HTTPException(409, "Report has no photo to analyse.")
+    if report.analysis_status in {"completed", "failed", "unavailable"}:
+        report.analysis_status = "queued"
+        report.analysis_finished_at = None
+        report.analysis_results = None
+        db.commit()
     return {"analysis_status": report.analysis_status}
+
+
+@router.post("/reports/{report_id}/risk-preview")
+def preview_report_risk(report_id: int, payload: ReportRiskPreview, db: Session = Depends(get_db),
+                        user: User = Depends(require_guard)):
+    report = db.get(SightingReport, report_id)
+    if report is None:
+        raise HTTPException(404, "Report not found.")
+    if report.status not in PENDING or report.incident:
+        raise HTTPException(409, "This report already has a final review decision.")
+    incident = report_incident_for_review(report, payload.confirmed_species)
+    owned = report.citizen_id is not None
+    manual = owned and incident.species not in SPECIES_ORDER
+    risk = None if manual else score_report_incident(db, incident, get_settings(db), citizen_report=owned)
+    return {"assessment_method": "manual" if manual else "automatic", "risk": risk,
+            "can_override": owned and not manual and user.role == "admin"}
 
 
 @router.patch("/reports/{report_id}")
@@ -372,7 +422,10 @@ def update_report(
     user: User = Depends(require_guard),
 ) -> dict:
     report = lock_record(db, SightingReport, report_id)
-    changed = payload.status and review_report(db, report, payload.status, payload.note, payload.confirmed_species, user)
+    changed = payload.status and review_report(
+        db, report, payload.status, payload.note, payload.confirmed_species, user,
+        citizen_note=payload.citizen_note, risk_level=payload.risk_level, risk_reason=payload.risk_reason,
+    )
     if changed:
         db.commit()
     return {"report": serialize_sighting(report), "message": "Report reviewed." if changed else "Status already current."}

@@ -187,6 +187,7 @@ class Incident(Base):
     resolved_by: Mapped[str | None] = mapped_column(String(120))
     resolved_by_id: Mapped[int | None] = mapped_column(Integer)
     resolution_note: Mapped[str | None] = mapped_column(Text)
+    citizen_resolution_note: Mapped[str | None] = mapped_column(Text)
     image_path: Mapped[str | None] = mapped_column(String(255))
     is_simulated: Mapped[bool] = mapped_column(Boolean, default=True)
     is_public: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -218,6 +219,7 @@ class SightingReport(Base):
     submission_digest: Mapped[str | None] = mapped_column(String(64))
     analysis_status: Mapped[str] = mapped_column(String(20), default="no_photo", server_default="no_photo", index=True)
     analysis_started_at: Mapped[datetime | None] = mapped_column(DateTime)
+    analysis_finished_at: Mapped[datetime | None] = mapped_column(DateTime)
     analysis_results: Mapped[list | None] = mapped_column(JSON)
     review_history: Mapped[list | None] = mapped_column(JSON)
     incident: Mapped[Incident | None] = relationship()
@@ -229,6 +231,26 @@ class ReportRead(Base):
 
     report_id: Mapped[int] = mapped_column(ForeignKey("sighting_reports.id"), primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
+
+
+class CitizenNotification(Base):
+    __tablename__ = "citizen_notifications"
+    __table_args__ = (CheckConstraint(
+        "event IN ('approved', 'rejected', 'resolved')", name="ck_citizen_notification_event"
+    ),)
+
+    report_id: Mapped[int] = mapped_column(ForeignKey("sighting_reports.id", ondelete="CASCADE"), primary_key=True)
+    event: Mapped[str] = mapped_column(String(12), primary_key=True)
+    citizen_id: Mapped[int] = mapped_column(ForeignKey("citizens.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class AlertRead(Base):
+    __tablename__ = "alert_reads"
+
+    alert_id: Mapped[int] = mapped_column(ForeignKey("alerts.id", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
 
 
 class Alert(Base):

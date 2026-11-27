@@ -134,7 +134,7 @@ def test_gps_lifecycle_with_zero_villages(empty_village_api, monkeypatch):
     rescored = api.post("/api/risk/recalculate", headers=authority)
     assert rescored.status_code == 200, rescored.text
     assert rescored.json()["summary"]["detections_scored"] == 1
-    assert rescored.json()["summary"]["report_incidents_scored"] == 1
+    assert rescored.json()["summary"]["report_incidents_scored"] == 0
     detection_detail = api.get(f"/api/detections/{detection_id}", headers=authority).json()
     assert detection_detail["detection"]["distance_km"] is detection_detail["risk"]["distance_km"] is None
     for risk in (report["risk"], api.get(f"/api/incidents/{incident_id}", headers=authority).json()["report"]["risk"]):
@@ -215,7 +215,7 @@ def test_demo_villages_share_registry_and_preserve_records(empty_village_api, mo
     assert (changed["lat"], changed["lon"]) == (chosen["lat"], chosen["lon"])
     assert api.post("/api/citizen/reports", headers=citizen, data=form).status_code == 400
     submitted = api.post("/api/citizen/reports", headers=citizen, data={
-        "title": "Separate incident location", "category": "sighting",
+        "title": "Separate incident location", "category": "sighting", "species": "deer",
         "submission_key": str(uuid4()), "village_id": next(v["id"] for v in public if v["code"] == "V003"),
     })
     assert submitted.status_code == 201

@@ -3,7 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from datetime import datetime, timedelta
 
-from sqlalchemy import select, text, update
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from geospatial.mapping import distance_to_polygon_km, polygon_ring, valid_coordinates
@@ -11,7 +11,7 @@ from geospatial.risk_analysis import RiskSettings, risk_level, score_detection, 
 from geospatial.species import species_meta
 
 from backend import config
-from backend.models import Alert, Detection, Incident, SightingReport, Track, Village
+from backend.models import Detection, Incident, SightingReport, Track, Village
 from backend.models.entities import RiskConfiguration
 from backend.services.villages import village_risk_inputs
 
@@ -72,19 +72,43 @@ def score_detection_record(
     )
 
 
-def score_report_incident(db: Session, incident: Incident, settings: RiskSettings) -> dict:
+def score_report_incident(db: Session, incident: Incident, settings: RiskSettings, *, citizen_report: bool = False) -> dict:
     prior = db.scalars(select(Detection).where(
         Detection.detected_at < incident.created_at,
         Detection.is_simulated == incident.is_simulated,
     )).all()
-    return score_detection(
+    risk = score_detection(
         species=incident.species, lat=incident.lat, lon=incident.lon, detected_at=incident.created_at,
         villages=village_risk_inputs(db),
-        incidents=[item for item in _incident_dicts(db) if item["is_simulated"] == incident.is_simulated],
+        incidents=[item for item in _incident_dicts(db)
+                   if item["is_simulated"] == incident.is_simulated
+                   and (not citizen_report or item["created_at"] < incident.created_at)],
         prior_detections=[{"species": d.species, "lat": d.lat, "lon": d.lon, "detected_at": d.detected_at}
                           for d in prior],
         settings=settings,
     )
+    if not citizen_report:
+        return risk
+
+    # Citizen reports explicitly describe an encounter. An absence of camera
+    # activity is common, and movement cannot be inferred from these reports.
+    threat = round(30 * risk["species_weight"], 1)
+    conflict = 20 if incident.category == "conflict" else 0
+    components = [
+        {"key": "animal_threat", "label": "Animal threat", "points": threat},
+        {"key": "category", "label": "Reported conflict", "points": conflict},
+        *[{**item, "points": round(item["points"] * 0.7, 1)}
+          for item in risk["components"] if item["key"] != "movement"],
+    ]
+    score = min(100.0, round(sum(item["points"] for item in components), 1))
+    if risk["distance_km"] is None and score < settings.thresholds["moderate"]:
+        minimum = settings.thresholds["moderate"]
+        components.append({"key": "missing_proximity", "label": "Precautionary minimum",
+                           "detail": "Village proximity unavailable", "points": round(minimum - score, 1)})
+        score = minimum
+    return {**risk, "score": score, "level": risk_level(score, settings.thresholds),
+            "components": components, "assessment_method": "automatic",
+            "missing_factors": ["village_proximity"] if risk["distance_km"] is None else []}
 
 
 def recalculate_all(
@@ -137,7 +161,13 @@ def recalculate_all(
     ).order_by(Incident.report_id).with_for_update()).all()
     owned_reports = set(db.scalars(select(SightingReport.id).where(SightingReport.citizen_id.is_not(None))))
 
+    rescored_reports = 0
     for incident in verified_reports:
+        # Approval assessments are operational decisions. Historical citizen
+        # assessments and manual decisions are preserved by routine recalculation.
+        if incident.report_id in owned_reports or (incident.report_risk or {}).get("assessment_method") in {"manual", "override"}:
+            continue
+        rescored_reports += 1
         observations = [entry for entry in prior[incident.is_simulated]
                         if entry["detected_at"] < incident.created_at]
         incident.report_risk = score_detection(
@@ -145,17 +175,10 @@ def recalculate_all(
             villages=villages, incidents=history[incident.is_simulated], prior_detections=observations, track_direction=None,
             settings=settings, now=now,
         )
-        if incident.report_id in owned_reports:
-            risk = incident.report_risk
-            incident.severity = risk["level"]
-            db.execute(update(Alert).where(
-                Alert.incident_id == incident.id, Alert.status.in_(("active", "acknowledged", "responding"))
-            ).values(severity=risk["level"], score=risk["score"], risk_basis=risk["basis"],
-                     reason=risk["reason"], priority_rank={"high": 2, "moderate": 3, "low": 4}[risk["level"]]))
     recent_cutoff = now - timedelta(days=14)
     recent_scores = [(d.lat, d.lon, d.risk_score) for d in detections if d.detected_at >= recent_cutoff]
     recent_scores.extend((i.lat, i.lon, i.report_risk["score"]) for i in verified_reports
-                         if i.created_at >= recent_cutoff)
+                         if i.created_at >= recent_cutoff and (i.report_risk or {}).get("score") is not None)
     radius = float(settings.data["alert_radius_km"]) + 0.5
     for village in db.scalars(select(Village)).all():
         ring = polygon_ring(village.boundary_geojson)
@@ -168,7 +191,7 @@ def recalculate_all(
         db.flush()
     return {
         "detections_scored": len(detections),
-        "report_incidents_scored": len(verified_reports),
+        "report_incidents_scored": rescored_reports,
         "levels": counts,
         "alerts_eligible": alerts_eligible,
         "settings": settings.to_dict(),

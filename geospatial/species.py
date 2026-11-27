@@ -106,6 +106,11 @@ SPECIES: dict[str, dict] = {
 }
 
 SPECIES_ORDER = ["tiger", "leopard", "elephant", "sloth_bear", "wild_boar", "deer"]
+REPORT_ANIMALS = {
+    **{key: SPECIES[key] for key in SPECIES_ORDER},
+    "unidentified": {**SPECIES["unidentified"], "name": "Unknown animal"},
+    "other": {**SPECIES["unidentified"], "name": "Other animal"},
+}
 
 # Prompt aliases improve zero-shot retrieval without over-claiming classes.
 SPECIES_PROMPTS = {
@@ -124,4 +129,6 @@ NEGATIVE_PROMPTS = [
 
 
 def species_meta(key: str) -> dict:
+    if key == "other":
+        return REPORT_ANIMALS[key]
     return SPECIES.get(key, SPECIES["unidentified"])

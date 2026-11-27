@@ -76,7 +76,7 @@ def reconcile(db: Session, *, apply: bool = False) -> dict:
         changes.append({"report_id": report_id, "action": "publish_missing_alert"})
         if apply:
             settings = get_settings(db)
-            risk = score_report_incident(db, incident, settings)
+            risk = incident.report_risk or score_report_incident(db, incident, settings)
             incident.report_risk = risk
             incident.severity = risk["level"]
             maybe_create_alert(db, incident, risk, settings, actor="Lifecycle reconciliation",
