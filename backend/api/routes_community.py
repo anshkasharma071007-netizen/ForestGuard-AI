@@ -16,6 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.orm import Session
 
+from geospatial.mapping import valid_coordinates
 from geospatial.species import SPECIES, SPECIES_ORDER, species_meta
 
 from backend import config
@@ -77,6 +78,8 @@ def _public_alert(db: Session, alert: Alert, *, approximate: bool = False) -> di
     report = db.get(SightingReport, incident.report_id) if incident and incident.report_id else None
     if report and report.citizen_id is not None:
         public_village = incident.village
+        if public_village and not valid_coordinates(public_village.lat, public_village.lon):
+            public_village = None
         names = [public_village.name] if public_village else []
         payload["village_names"] = names
         payload["area_label"] = public_area_label([public_village.code]) if public_village else "Approximate incident area"

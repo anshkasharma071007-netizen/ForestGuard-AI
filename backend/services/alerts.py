@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from math import isfinite
 
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
@@ -173,8 +174,9 @@ def _reason_for(detection: Detection) -> str:
     meta = species_meta(detection.species)
     village = detection.nearest_village.name if detection.nearest_village else "the nearest village"
     distance = detection.observed_distance_km
-    distance_text = f"{distance:.1f} km" if distance is not None else "an unspecified distance"
+    if distance is None or not isfinite(distance):
+        return f"{meta['name']} detected. Nearest-village distance is unavailable."
     return (
-        f"{meta['name']} detection {distance_text} from {village} boundary. "
+        f"{meta['name']} detection {distance:.1f} km from {village} boundary. "
         "Open the detection record for the full, explainable risk breakdown."
     )

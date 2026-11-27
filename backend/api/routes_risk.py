@@ -25,6 +25,7 @@ from backend.services.risk_service import (
     store_settings,
 )
 from backend.services.risk_service import recalculate_all
+from backend.services.serializers import finite_distance
 
 router = APIRouter(prefix="/api", tags=["risk"])
 
@@ -355,7 +356,7 @@ def export_analytics(
                 detection.risk_level,
                 detection.risk_basis,
                 detection.nearest_village.name if detection.nearest_village else "",
-                detection.observed_distance_km,
+                finite_distance(detection.observed_distance_km),
                 detection.source_type,
                 "yes" if detection.is_simulated else "no",
             ]

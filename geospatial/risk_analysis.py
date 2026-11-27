@@ -20,6 +20,8 @@ from .mapping import (
     haversine_km,
     polygon_feature,
     polygon_ring,
+    valid_coordinates,
+    valid_ring,
 )
 from .species import SPECIES, species_meta
 
@@ -128,18 +130,26 @@ def risk_level(score: float, thresholds: dict | None = None) -> str:
     return "low"
 
 
-def _nearest_village(lat: float, lon: float, villages: Iterable[dict]) -> tuple[dict | None, float]:
+def _village_distance(lat: float, lon: float, village: dict) -> float | None:
+    if not valid_coordinates(lat, lon):
+        return None
+    ring = village.get("boundary_ring")
+    if not ring:
+        ring = polygon_ring(village.get("boundary_geojson") or village.get("boundary"))
+    if valid_ring(ring):
+        return distance_to_polygon_km(lat, lon, ring)
+    village_lat, village_lon = village.get("lat"), village.get("lon")
+    if valid_coordinates(village_lat, village_lon):
+        return haversine_km(lat, lon, village_lat, village_lon)
+    return None
+
+
+def _nearest_village(lat: float, lon: float, villages: Iterable[dict]) -> tuple[dict | None, float | None]:
     best: dict | None = None
-    best_distance = float("inf")
+    best_distance = None
     for village in villages:
-        ring = village.get("boundary_ring")
-        if ring is None:
-            geo = village.get("boundary_geojson") or village.get("boundary")
-            ring = polygon_ring(geo) if geo else []
-        distance = distance_to_polygon_km(lat, lon, ring) if ring else haversine_km(
-            lat, lon, float(village["lat"]), float(village["lon"])
-        )
-        if distance < best_distance:
+        distance = _village_distance(lat, lon, village)
+        if distance is not None and (best_distance is None or distance < best_distance):
             best, best_distance = village, distance
     return best, best_distance
 
@@ -161,7 +171,9 @@ def _frequency(
         when = _aware_naive(item["detected_at"])
         if when > detected_at or when < detected_at - window:
             continue
-        if haversine_km(lat, lon, float(item["lat"]), float(item["lon"])) <= radius:
+        if valid_coordinates(lat, lon) and valid_coordinates(item.get("lat"), item.get("lon")) and (
+            haversine_km(lat, lon, item["lat"], item["lon"]) <= radius
+        ):
             count += 1
     return count
 
@@ -182,7 +194,9 @@ def _verified_incidents(
         when = _aware_naive(incident["created_at"])
         if when > detected_at or when < detected_at - window:
             continue
-        if haversine_km(lat, lon, float(incident["lat"]), float(incident["lon"])) <= radius:
+        if valid_coordinates(lat, lon) and valid_coordinates(incident.get("lat"), incident.get("lon")) and (
+            haversine_km(lat, lon, incident["lat"], incident["lon"]) <= radius
+        ):
             count += 1
     return count
 
@@ -210,7 +224,7 @@ def score_detection(
 
     village, distance_km = _nearest_village(lat, lon, villages)
     influence = max(float(settings.data["influence_radius_km"]), 0.1)
-    proximity = max(0.0, min(1.0, 1.0 - distance_km / influence))
+    proximity = max(0.0, min(1.0, 1.0 - distance_km / influence)) if distance_km is not None else 0.0
 
     age_days = max(0.0, (now - detected_at).total_seconds() / 86400.0)
     halflife = max(float(settings.data["recency_halflife_days"]), 0.1)
@@ -223,7 +237,7 @@ def score_detection(
     incident = min(1.0, incident_count / max(float(settings.data["incident_target"]), 1.0))
 
     movement = 0.0
-    if track_direction == "toward_village" and distance_km <= influence:
+    if track_direction == "toward_village" and distance_km is not None and distance_km <= influence:
         movement = 1.0
 
     weights = settings.weights
@@ -235,7 +249,7 @@ def score_detection(
         "movement": movement,
     }
     labels = {
-        "proximity": ("Distance to village boundary", f"{distance_km:.1f} km"),
+        "proximity": ("Distance to nearest village", f"{distance_km:.1f} km" if distance_km is not None else "Unavailable"),
         "recency": ("Recency of detection", f"{age_days:.1f} days ago"),
         "frequency": ("Recent same-species activity", f"{freq} detections / 7 days"),
         "incident": ("Verified incidents nearby", f"{incident_count} incidents / 30 days"),
@@ -260,7 +274,7 @@ def score_detection(
     score = round(min(100.0, max(0.0, total)), 1)
     level = risk_level(score, settings.thresholds)
 
-    if movement and distance_km <= influence:
+    if movement:
         basis = "confirmed_movement"
         basis_label = "Movement-supported (camera sequence)"
     elif proximity >= 0.35:
@@ -271,18 +285,18 @@ def score_detection(
         basis_label = "Buffer proximity"
     else:
         basis = "core_activity"
-        basis_label = "Core-zone activity"
+        basis_label = "Core-zone activity" if distance_km is not None else "Activity without village proximity"
 
     if village:
         reason = (
-            f"{meta['name']} detected {distance_km:.1f} km from {village['name']} boundary. "
+            f"{meta['name']} detected {distance_km:.1f} km from {village.get('name') or 'the nearest village'}. "
             f"{freq} same-species detections nearby in the previous 7 days; "
             f"{incident_count} verified incidents in the previous 30 days."
         )
         if movement:
-            reason += f" Camera sequence indicates movement toward {village['name']} (inferred, not GPS)."
+            reason += f" Camera sequence indicates movement toward {village.get('name') or 'the nearest village'} (inferred, not GPS)."
     else:
-        reason = f"{meta['name']} detected outside mapped village influence zones."
+        reason = f"{meta['name']} detected. Nearest-village distance is unavailable."
 
     return {
         "score": score,
@@ -291,8 +305,8 @@ def score_detection(
         "basis_label": basis_label,
         "species_weight": round(species_weight, 3),
         "nearest_village_id": village["id"] if village else None,
-        "nearest_village_name": village["name"] if village else None,
-        "distance_km": round(distance_km, 2),
+        "nearest_village_name": (village.get("name") or None) if village else None,
+        "distance_km": round(distance_km, 2) if distance_km is not None else None,
         "components": components,
         "reason": reason,
         "activity_7d": freq,
@@ -306,13 +320,8 @@ def villages_within_radius(
 ) -> list[dict]:
     out = []
     for village in villages:
-        ring = village.get("boundary_ring") or polygon_ring(
-            village.get("boundary_geojson") or village.get("boundary") or {}
-        )
-        distance = distance_to_polygon_km(lat, lon, ring) if ring else haversine_km(
-            lat, lon, float(village["lat"]), float(village["lon"])
-        )
-        if distance <= radius_km:
+        distance = _village_distance(lat, lon, village)
+        if distance is not None and distance <= radius_km:
             out.append({**village, "distance_km": round(distance, 2)})
     return sorted(out, key=lambda item: item["distance_km"])
 
@@ -340,7 +349,7 @@ def build_risk_zones(
     recent = []
     for det in detections:
         when = _aware_naive(det["detected_at"])
-        if when < now - window:
+        if when < now - window or not valid_coordinates(det.get("lat"), det.get("lon")):
             continue
         recent.append(
             {
@@ -353,9 +362,9 @@ def build_risk_zones(
         )
 
     if bbox is None:
-        if villages:
-            lats = [float(v["lat"]) for v in villages]
-            lons = [float(v["lon"]) for v in villages]
+        centers = [(v.get("lat"), v.get("lon")) for v in villages if valid_coordinates(v.get("lat"), v.get("lon"))]
+        if centers:
+            lats, lons = zip(*centers)
             pad = 0.08
             bbox = (min(lats) - pad, min(lons) - pad, max(lats) + pad, max(lons) + pad)
         else:
@@ -369,7 +378,7 @@ def build_risk_zones(
         while lon <= max_lon:
             center_lat, center_lon = lat + cell / 2, lon + cell / 2
             nearest_village, village_distance = _nearest_village(center_lat, center_lon, villages)
-            village_term = 18.0 * math.exp(-village_distance / 2.2) if nearest_village else 0.0
+            village_term = 18.0 * math.exp(-village_distance / 2.2) if village_distance is not None else 0.0
             best = 0.0
             dominant = None
             count = 0
@@ -405,7 +414,7 @@ def build_risk_zones(
                         "level": level,
                         "dominant_species": dominant,
                         "detections_21d": count,
-                        "nearest_village": nearest_village["name"] if nearest_village else None,
+                        "nearest_village": nearest_village.get("name") if nearest_village else None,
                         "basis": "gridded proximity & activity (indicative)",
                     },
                 )
@@ -423,13 +432,10 @@ def village_exposure(
     now = utcnow()
     out = []
     for village in villages:
-        ring = village.get("boundary_ring") or polygon_ring(
-            village.get("boundary_geojson") or village.get("boundary") or {}
-        )
         nearby = []
         for det in detections:
-            distance = distance_to_polygon_km(float(det["lat"]), float(det["lon"]), ring) if ring else 0
-            if distance <= radius:
+            distance = _village_distance(float(det["lat"]), float(det["lon"]), village)
+            if distance is not None and distance <= radius:
                 nearby.append({**det, "distance_km": distance})
         recent = [
             d for d in nearby if _aware_naive(d["detected_at"]) >= now - timedelta(days=14)

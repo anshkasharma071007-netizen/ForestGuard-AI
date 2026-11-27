@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select, text, update
 from sqlalchemy.orm import Session
 
-from geospatial.mapping import distance_to_polygon_km, polygon_ring
+from geospatial.mapping import distance_to_polygon_km, polygon_ring, valid_coordinates
 from geospatial.risk_analysis import RiskSettings, risk_level, score_detection, utcnow
 from geospatial.species import species_meta
 
@@ -174,7 +174,7 @@ def recalculate_all(
     for village in db.scalars(select(Village)).all():
         ring = polygon_ring(village.boundary_geojson)
         best = max((score for lat, lon, score in recent_scores
-                    if distance_to_polygon_km(lat, lon, ring) <= radius), default=0.0)
+                    if valid_coordinates(lat, lon) and distance_to_polygon_km(lat, lon, ring) <= radius), default=0.0)
         village.risk_level = risk_level(best, settings.thresholds)
     if commit:
         db.commit()

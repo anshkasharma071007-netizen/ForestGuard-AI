@@ -379,8 +379,8 @@ export default function GISMapPage() {
                   ['Species conf.', confidencePercent(detailDetection?.species_confidence)],
                   ['Station', detailDetection?.camera_code || 'Uploaded'],
                   ['Observed', formatDateTime(detailDetection?.detected_at)],
-                  ['Nearest village', detailDetection?.nearest_village || '—'],
-                  ['Distance', detailDetection?.distance_km != null ? `${detailDetection.distance_km} km` : '—'],
+                  ['Nearest village', detailDetection?.nearest_village || 'Unavailable'],
+                  ['Distance', Number.isFinite(detailDetection?.distance_km) ? `${detailDetection.distance_km} km` : 'Unavailable'],
                 ].map(([label, value]) => (
                   <div key={label} className="rounded-lg bg-inset-2 px-2.5 py-2">
                     <div className="text-[8px] uppercase tracking-[0.12em] text-muted-16">{label}</div>

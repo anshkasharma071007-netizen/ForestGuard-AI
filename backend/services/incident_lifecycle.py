@@ -6,6 +6,7 @@ from backend.models import Alert, AlertEvent, Incident, SightingReport, User, ut
 from backend.services.alerts import maybe_create_alert
 from backend.services.risk_service import get_settings, score_report_incident
 from geospatial.species import SPECIES
+from geospatial.mapping import valid_coordinates
 
 PENDING = ("pending", "forwarded")
 ACTIVE_ALERTS = ("active", "acknowledged", "responding")
@@ -37,10 +38,11 @@ def lifecycle_status(report: SightingReport, incident_status: str | None) -> str
 
 def report_location(report: SightingReport) -> tuple[float, float] | None:
     if report.lat is not None and report.lon is not None:
-        if -90 <= report.lat <= 90 and -180 <= report.lon <= 180:
+        if valid_coordinates(report.lat, report.lon):
             return report.lat, report.lon
         return None
-    if report.lat is None and report.lon is None and report.village:
+    if (report.lat is None and report.lon is None and report.village
+            and valid_coordinates(report.village.lat, report.village.lon)):
         return report.village.lat, report.village.lon
     return None
 

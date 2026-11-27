@@ -1,14 +1,35 @@
 from __future__ import annotations
 
+import math
 from datetime import datetime, timezone
 from typing import Any
 
+from geospatial.mapping import valid_coordinates
 from geospatial.species import species_meta
 
 from sqlalchemy.orm import Session
 
 from backend.models import Alert, Camera, Detection, Guard, Incident, SightingReport, Track, Village
 from backend.services.incident_lifecycle import lifecycle_status
+
+
+def finite_distance(value: float | None) -> float | None:
+    return value if value is not None and math.isfinite(value) else None
+
+
+def _report_risk(risk: dict | None) -> dict | None:
+    # Earlier SQLite deployments could retain Infinity in a report's JSON.
+    if not risk or risk.get("distance_km") is None or finite_distance(risk["distance_km"]) is not None:
+        return risk
+    return {
+        **risk,
+        "distance_km": None,
+        "basis_label": "Activity without village proximity",
+        "components": [
+            {**entry, "detail": "Unavailable"} if entry["key"] == "proximity" else entry
+            for entry in risk.get("components", [])
+        ],
+    }
 
 
 def iso(value: datetime | None) -> str | None:
@@ -68,7 +89,8 @@ def serialize_village(village: Village, *, public: bool = False) -> dict:
         "note": village.note,
     }
     if not public:
-        data.update({"lat": village.lat, "lon": village.lon})
+        location = valid_coordinates(village.lat, village.lon)
+        data.update({"lat": village.lat if location else None, "lon": village.lon if location else None})
     return data
 
 
@@ -113,7 +135,7 @@ def serialize_detection(det: Detection, *, include_bbox: bool = True) -> dict:
         "risk_basis": det.risk_basis,
         "nearest_village": det.nearest_village.name if det.nearest_village else None,
         "nearest_village_id": det.nearest_village_id,
-        "distance_km": det.observed_distance_km,
+        "distance_km": finite_distance(det.observed_distance_km),
         "notes": det.notes,
         "track_direction": det.track.direction if det.track else None,
     }
@@ -199,7 +221,7 @@ def serialize_incident(incident: Incident) -> dict:
     return {
         "id": incident.id,
         "report_id": incident.report_id,
-        "risk": incident.report_risk,
+        "risk": _report_risk(incident.report_risk),
         "category": incident.category,
         "description": incident.description,
         "lat": incident.lat,
@@ -249,7 +271,7 @@ def serialize_sighting(report: SightingReport, *, public: bool = False) -> dict:
             "analysis_status": report.analysis_status, "analysis_results": report.analysis_results,
             "review_history": report.review_history or [],
             "incident_id": report.incident.id if report.incident else None,
-            "risk": report.incident.report_risk if report.incident else None,
+            "risk": _report_risk(report.incident.report_risk) if report.incident else None,
         })
     return data
 

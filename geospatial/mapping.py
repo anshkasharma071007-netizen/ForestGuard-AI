@@ -59,15 +59,34 @@ def point_in_polygon(lat: float, lon: float, ring: Sequence[Sequence[float]]) ->
     return inside
 
 
-def polygon_ring(geometry: dict) -> list[list[float]]:
+def valid_coordinates(lat: float | None, lon: float | None) -> bool:
+    return (isinstance(lat, (int, float)) and isinstance(lon, (int, float))
+            and -90 <= lat <= 90 and -180 <= lon <= 180)
+
+
+def valid_ring(ring: Sequence[Sequence[float]]) -> bool:
+    return isinstance(ring, (list, tuple)) and len(ring) >= 3 and all(
+        isinstance(point, (list, tuple)) and len(point) >= 2 and valid_coordinates(point[1], point[0])
+        for point in ring
+    )
+
+
+def polygon_ring(geometry: dict | None) -> list[list[float]]:
     """Return the outer ring of a Polygon/MultiPolygon geometry."""
+    if not isinstance(geometry, dict):
+        return []
     if geometry.get("type") == "Feature":
         geometry = geometry.get("geometry") or {}
-    if geometry.get("type") == "Polygon":
-        return list(geometry["coordinates"][0])
-    if geometry.get("type") == "MultiPolygon":
-        return list(geometry["coordinates"][0][0])
-    return []
+    try:
+        if geometry.get("type") == "Polygon":
+            ring = geometry["coordinates"][0]
+        elif geometry.get("type") == "MultiPolygon":
+            ring = geometry["coordinates"][0][0]
+        else:
+            return []
+    except (AttributeError, KeyError, IndexError, TypeError):
+        return []
+    return list(ring) if valid_ring(ring) else []
 
 
 def distance_to_polygon_km(lat: float, lon: float, ring: Sequence[Sequence[float]]) -> float:

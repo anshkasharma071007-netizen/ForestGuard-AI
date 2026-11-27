@@ -104,3 +104,40 @@ def test_weights_sum_to_one():
     assert set(weights) == {"proximity", "recency", "frequency", "incident", "movement"}
     assert sum(weights.values()) == pytest.approx(1.0, abs=1e-9)
     assert all(0 <= value <= 1 for value in weights.values())
+
+
+@pytest.mark.parametrize("village", [
+    {"lat": None, "lon": None},
+    {"lat": float("nan"), "lon": 79.3},
+    {"lat": 21.7, "lon": float("inf")},
+    {"lat": float("-inf"), "lon": 79.3},
+    {"lat": 91, "lon": 79.3},
+    {"lat": 21.7, "lon": 181},
+    {"boundary_geojson": {"type": "Polygon", "coordinates": []}},
+    {"boundary_ring": [[79.3, 21.7], [float("nan"), 21.7], [79.4, 21.8]]},
+])
+def test_invalid_village_geography_is_unavailable(village):
+    from geospatial.risk_analysis import villages_within_radius
+
+    invalid = {"id": 1, "name": "Invalid geography", **village}
+    now = utcnow()
+    args = dict(species="elephant", lat=21.7, lon=79.3, detected_at=now, now=now,
+                track_direction="toward_village")
+    risk = score_detection(**args, villages=[invalid])
+    assert risk == score_detection(**args, villages=[])
+    assert risk["distance_km"] is None and risk["nearest_village_name"] is None
+    assert not risk["movement_supported"] and math.isfinite(risk["score"])
+    assert villages_within_radius(21.7, 79.3, [invalid], 4.0) == []
+
+
+def test_usable_village_geometry_and_center_preserve_measured_risk():
+    now = utcnow()
+    args = dict(species="elephant", lat=21.7, lon=79.3, detected_at=now, now=now)
+    village = {"id": 2, "name": "Test village", "lat": 21.7, "lon": 79.31}
+    center = score_detection(**args, villages=[village])
+    assert center["distance_km"] == pytest.approx(haversine_km(21.7, 79.3, 21.7, 79.31), abs=0.01)
+    boundary = score_detection(**args, villages=[{
+        **village, "lat": None, "boundary_ring": circle_ring(21.7, 79.31, 2),
+    }])
+    assert boundary["distance_km"] == 0
+    assert boundary["score"] > center["score"] > score_detection(**args, villages=[])["score"]

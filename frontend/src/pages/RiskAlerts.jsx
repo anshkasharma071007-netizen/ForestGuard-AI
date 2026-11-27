@@ -383,7 +383,7 @@ export default function RiskAlerts() {
                     ['Camera', detailRecord.detection.camera_code],
                     ['Confidence', confidencePercent(detailRecord.detection.confidence)],
                     ['Detected', formatDateTime(detailRecord.detection.detected_at)],
-                    ['Distance', detailRecord.detection.distance_km != null ? `${detailRecord.detection.distance_km} km` : '—'],
+                    ['Distance', Number.isFinite(detailRecord.detection.distance_km) ? `${detailRecord.detection.distance_km} km` : 'Unavailable'],
                   ].map(([label, value]) => (
                     <div key={label} className="rounded-lg bg-inset-2 px-2.5 py-2">
                       <div className="text-[8px] uppercase tracking-[0.12em] text-muted-16">{label}</div>

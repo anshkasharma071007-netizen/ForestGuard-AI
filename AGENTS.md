@@ -19,6 +19,8 @@ Phase 1 adds strict Indian mobile authentication, canonical phone storage and co
 
 Phase 2 uses atomic report approval and incident resolution. Each approved, authenticated citizen report gets one incident and one alert regardless of score. Mobile and authority views derive Pending, Under Work, Rejected, and Resolved from saved review and incident state. Public locations use a submitted village center or a coarse GPS grid. Authority navigation is Dashboard, Reports, Map, Alerts, and Settings. Risk settings live in PostgreSQL and updates require the administrator role. Revision `0005` adds settings and resolution attribution. Historical repair is a separate dry-run-first command documented in [database operations](docs/database.md). Apply historical corrections only with explicit approval.
 
+GPS report approval and risk recalculation work with an empty village registry. When a village has neither a usable boundary nor a valid center, its distance is unavailable. Risk metadata uses JSON null for an unavailable nearest-village distance, and proximity and movement add no points. The zero-village lifecycle regression runs with demo seeding disabled on SQLite and isolated PostgreSQL.
+
 Authority demo login is available with `APP_ENV=development AUTHORITY_DEMO_ACCOUNTS_ENABLED=true`. Startup or `.venv/bin/python -m tools.provision_authority_demo` provisions the Range Officer (`admin`) and Forest Guard (`guard`) users with the runtime database role. It preserves existing users and does not seed operational data. The website fetches available demo accounts from the backend. See [local setup](docs/setup.md) for commands and existing account handling.
 
 ## Final functional specification
