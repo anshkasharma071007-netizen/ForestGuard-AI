@@ -46,6 +46,13 @@ DEMO_MODE = os.getenv("DEMO_MODE", "false").strip().lower() in {"1", "true", "ye
 APP_ENV = os.getenv("APP_ENV", "production").strip().lower()
 DEMO_VILLAGES_ENABLED = os.getenv("DEMO_VILLAGES_ENABLED", "false").strip().lower() == "true"
 CITIZEN_DEV_OTP_ENABLED = os.getenv("CITIZEN_DEV_OTP_ENABLED", "false").strip().lower() == "true"
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "").strip()
+BREVO_SENDER_EMAIL = os.getenv("BREVO_SENDER_EMAIL", "").strip()
+BREVO_SENDER_NAME = os.getenv("BREVO_SENDER_NAME", "Forest Guard AI").strip()
+CITIZEN_OTP_SECRET = os.getenv("CITIZEN_OTP_SECRET", "").strip()
+GEOAPIFY_API_KEY = os.getenv("GEOAPIFY_API_KEY", "").strip()
+EXPO_PUSH_ENABLED = os.getenv("EXPO_PUSH_ENABLED", "").strip().lower() == "true"
+EXPO_PUSH_ACCESS_TOKEN = os.getenv("EXPO_PUSH_ACCESS_TOKEN", "").strip()
 AUTHORITY_DEMO_ACCOUNTS_ENABLED = os.getenv("AUTHORITY_DEMO_ACCOUNTS_ENABLED", "false").strip().lower() == "true"
 CORS_ORIGINS = [origin.strip() for origin in os.getenv(
     "CORS_ORIGINS",

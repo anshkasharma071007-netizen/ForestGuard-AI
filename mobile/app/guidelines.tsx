@@ -3,6 +3,8 @@ import { SupportingText } from '@/components/Feedback';
 import { usePublicData } from '@/hooks/usePublicData';
 import { getCommunityGuidance } from '@/services/api';
 import { Screen } from '@/components/Screen';
+import { SectionTitle } from '@/components/SectionTitle';
+import { Surface } from '@/components/Surface';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { spacing, typeScale, useTheme } from '@/theme';
 
@@ -19,9 +21,13 @@ export default function GuidelinesScreen() {
   const { state } = usePublicData(getCommunityGuidance);
   const guidance = state.kind === 'ready' && state.data.general.length ? state.data : null;
   return (
-    <Screen>
-      <ScreenHeader title="Safety guidelines" back />
-      <View style={styles.list}>
+    <Screen header={<ScreenHeader title="Privacy and safety" back />}>
+      <Surface style={styles.list}>
+        <SectionTitle title="Location and photo privacy" />
+        <SupportingText>Public alerts use approximate report areas. Submitted photographs are available to the reporting account and authorized reviewers.</SupportingText>
+      </Surface>
+      <Surface style={styles.list}>
+        <SectionTitle title="Wildlife safety guidelines" />
         <SupportingText>{guidance?.sourceNote ?? 'General precautions. Follow instructions from your local forest authorities.'}</SupportingText>
         {(guidance?.general ?? points).map((point) => (
           <View key={point} style={styles.row}>
@@ -29,13 +35,13 @@ export default function GuidelinesScreen() {
             <Text style={[styles.point, { color: colors.primaryText }]}>{point}</Text>
           </View>
         ))}
-      </View>
+      </Surface>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  list: { gap: spacing.md },
+  list: { gap: spacing.md, marginBottom: spacing.md },
   row: { flexDirection: 'row', gap: spacing.sm, alignItems: 'baseline' },
   point: { flex: 1, ...typeScale.body },
 });

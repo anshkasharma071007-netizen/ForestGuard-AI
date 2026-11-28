@@ -4,28 +4,12 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { formatTimestamp } from '@/format';
 import type { CitizenReport, ReportStatus } from '@/services/api';
 import { radius, spacing, typeScale, useTheme } from '@/theme';
+import { reportStatuses } from '@/report-status';
 import { StatusPill } from './Feedback';
 
-const statuses = {
-  pending: { label: 'Pending', tone: 'warning' },
-  forwarded: { label: 'Pending', tone: 'warning' },
-  verified: { label: 'Under Work', tone: 'success' },
-  under_work: { label: 'Under Work', tone: 'success' },
-  resolved: { label: 'Resolved', tone: 'neutral' },
-  rejected: { label: 'Rejected', tone: 'neutral' },
-  closed: { label: 'Resolved', tone: 'neutral' },
-} as const satisfies Record<ReportStatus, { label: string; tone: string }>;
-
 export function ReportStatusPill({ status }: { status: ReportStatus }) {
-  return <StatusPill {...statuses[status]} />;
-}
-
-export function ReportStatusText({ status }: { status: ReportStatus }) {
-  const { colors } = useTheme();
-  const { label } = statuses[status];
-  const color = { Pending: colors.warningText, 'Under Work': colors.infoText,
-    Rejected: colors.clay, Resolved: colors.successText }[label];
-  return <Text style={[typeScale.supporting, { color }]}>{label}</Text>;
+  const { label, tone } = reportStatuses[status];
+  return <StatusPill label={label} tone={tone} />;
 }
 
 export function ReportRow({ report, showReference = false }: { report: CitizenReport; showReference?: boolean }) {
@@ -39,7 +23,7 @@ export function ReportRow({ report, showReference = false }: { report: CitizenRe
     </View>
     {showReference && <Text style={[typeScale.supporting, { color: colors.mutedText }]}>{report.reference_code}</Text>}
     <View style={styles.line}>
-      <ReportStatusText status={report.status} />
+      <ReportStatusPill status={report.status} />
       <Text style={[typeScale.supporting, { color: colors.secondaryText }]}>{formatTimestamp(report.createdAt)}</Text>
     </View>
   </Pressable>;

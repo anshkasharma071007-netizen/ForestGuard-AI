@@ -9,7 +9,6 @@ import { useApi } from '../hooks/useApi'
 import { formatDateTime } from '../utils/format'
 import LanguageSwitcher from './LanguageSwitcher'
 import ThemeToggle from './ThemeToggle'
-import { Logo } from './ui'
 import './operations.css'
 
 const SECTIONS = [
@@ -153,8 +152,7 @@ export default function Layout({ children }) {
             {mobileOpen ? <X size={19} /> : <Menu size={19} />}
           </button>
           <NavLink to="/" className="operations-brand" onClick={() => setMobileOpen(false)}>
-            <Logo compact />
-            <span>Forest Guard AI</span>
+            <img src="/images/forest-guard-wordmark.png" alt="Forest Guard AI" width="198" height="52" />
           </NavLink>
         </div>
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">

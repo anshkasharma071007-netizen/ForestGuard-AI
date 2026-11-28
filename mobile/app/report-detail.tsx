@@ -1,25 +1,35 @@
 import { useIsFocused, useLocalSearchParams } from 'expo-router';
-import { RefreshCw } from 'lucide-react-native';
-import { useCallback, useEffect, useState, type PropsWithChildren } from 'react';
-import { Image, Platform, StyleSheet, Text, View } from 'react-native';
+import { CircleCheck, CircleX, ClipboardCheck, FileCheck2, MapPin, RefreshCw } from 'lucide-react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { useCitizen } from '@/citizen-context';
 import { eventLabels } from '@/citizen-notifications';
 import type { OriginalPhoto } from '@/components/EvidenceImage';
-import { Feedback, SupportingText } from '@/components/Feedback';
+import { Feedback, RiskPill, SupportingText } from '@/components/Feedback';
 import { IconAction } from '@/components/IconAction';
 import { PhotoPreview } from '@/components/PhotoPreview';
 import { PhotoViewer } from '@/components/PhotoViewer';
 import { ReferenceCode } from '@/components/ReferenceCode';
-import { ReportStatusText } from '@/components/ReportRow';
+import { ReportStatusPill } from '@/components/ReportRow';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionTitle } from '@/components/SectionTitle';
+import { Surface } from '@/components/Surface';
 import { formatTimestamp } from '@/format';
 import { useAppActive } from '@/hooks/useAppActive';
 import { usePublicData } from '@/hooks/usePublicData';
 import { getCitizenEvidence, getCitizenReport } from '@/services/api';
 import { cacheEvidence } from '@/services/evidence-cache';
 import { radius, spacing, typeScale, useTheme } from '@/theme';
+
+const activityIcons = { submitted: FileCheck2, approved: ClipboardCheck, rejected: CircleX, resolved: CircleCheck };
+const analysisLabels: Record<string, string> = {
+  queued: 'Photograph queued for analysis',
+  processing: 'Photograph analysis in progress',
+  completed: 'Photograph analysis completed',
+  unavailable: 'Photograph analysis unavailable',
+  failed: 'Photograph analysis could not be completed',
+};
 
 export default function ReportDetail() {
   const { code } = useLocalSearchParams<{ code: string }>();
@@ -31,74 +41,94 @@ export default function ReportDetail() {
   const { state, reload, refreshing, refreshError } = usePublicData(fetchReport, focused && active && !!code, 10000);
   const report = state.kind === 'ready' ? state.data : null;
   const point = report?.coordinates;
-  const location = report?.village ?? (point && `${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}`);
+  const location = report?.locationLabel ?? report?.village ?? (point && `${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}`);
   const source = report?.locationSource ?? (point ? 'gps' : report?.village ? 'village' : undefined);
   const risk = report?.risk;
   const hasResponse = report && (report.confirmedSpecies || risk || report.reviewNote || report.resolutionNote);
 
+  const events = [...(report?.events ?? [])].sort((first, second) => Date.parse(first.at) - Date.parse(second.at));
+  const analysisLabel = report && analysisLabels[report.analysis];
+
   return (
-    <Screen>
-      <ScreenHeader title="Report details" back action={code && <IconAction icon={RefreshCw} label="Refresh report details"
-        loading={refreshing} onPress={reload} />} />
+    <Screen refresh={{ onRefresh: reload, refreshing }} header={
+      <ScreenHeader title="Report details" back action={code && <IconAction icon={RefreshCw} tone="header"
+        label="Refresh report details" loading={refreshing} onPress={reload} />} />
+    }>
       {!code ? <Feedback title="Report unavailable" /> : state.kind === 'loading' && <Feedback title="Loading report…" kind="loading" />}
       {'message' in state && <Feedback title="Could not load report" detail={state.message} kind="error" retry={reload} />}
       {!!refreshError && <SupportingText error>{refreshError}</SupportingText>}
       {report && (
         <View style={styles.report}>
+          {focused && report.hasPhoto && <IncidentPhoto key={report.reference_code} code={report.reference_code} />}
           <View style={styles.identity}>
-            <ReferenceCode key={report.reference_code} code={report.reference_code} />
-            <ReportStatusText status={report.status} />
+            <Text accessibilityRole="header" style={[typeScale.screen, { color: colors.primaryText }]}>{report.title}</Text>
+            <Text style={[typeScale.body, { color: colors.secondaryText }]}>{report.confirmedSpecies ?? report.species}</Text>
+            <View style={styles.badges}>
+              <ReportStatusPill status={report.status} />
+              {risk && <RiskPill severity={risk} />}
+            </View>
+            <View style={styles.badges}>
+              <ReferenceCode key={report.reference_code} code={report.reference_code} />
+              <SupportingText>{formatTimestamp(report.createdAt)}</SupportingText>
+            </View>
+            {location && <View style={styles.location}>
+              <MapPin size={16} color={colors.accent} /><View style={{ flex: 1 }}><SupportingText>{location}</SupportingText></View>
+            </View>}
           </View>
-          <Text accessibilityRole="header" style={[typeScale.screen, { color: colors.primaryText }]}>{report.title}</Text>
-          <SupportingText>{formatTimestamp(report.createdAt)}</SupportingText>
-          {!!report.rejectionReason && <View style={[styles.rejection, { borderColor: colors.clay, backgroundColor: colors.dangerTint }]}>
+          {events.length > 0 && <Surface>
+            <SectionTitle title="Report progress" />
+            {events.map(({ event, at }, index) => {
+              const Icon = activityIcons[event as keyof typeof activityIcons] ?? FileCheck2;
+              const ink = event === 'rejected' ? colors.clay : colors.successText;
+              return <View key={event + at} style={styles.activity}>
+                <View style={styles.stepMarker}>
+                  <View style={[styles.stepIcon, { backgroundColor: event === 'rejected' ? colors.dangerTint : colors.softAccent }]}>
+                    <Icon size={17} color={ink} />
+                  </View>
+                  {index < events.length - 1 && <View style={[styles.connector, { backgroundColor: colors.border }]} />}
+                </View>
+                <View style={styles.stepText}>
+                  <Text style={[typeScale.action, { color: colors.primaryText }]}>{eventLabels[event] ?? 'Report updated'}</Text>
+                  <SupportingText>{formatTimestamp(at)}</SupportingText>
+                </View>
+              </View>;
+            })}
+          </Surface>}
+          {!!report.rejectionReason && <Surface style={{ backgroundColor: colors.dangerTint }}>
             <Field label="Rejection reason" value={report.rejectionReason} />
-          </View>}
-          <Section title="Your submission">
+          </Surface>}
+          <Surface>
+            <SectionTitle title="Your observation" />
             <View style={styles.fields}>
               <Field label="Category" value={report.category === 'conflict' ? 'Conflict' : 'Sighting'} />
               <Field label="Reported animal" value={report.species} />
-              <Field label="Incident location" value={location} />
-              <Field label="Location source" value={source === 'gps' ? 'GPS' : source === 'village' ? 'Village selection' : undefined} />
+              <Field label="Location source" value={source === 'gps' ? 'Selected coordinates' : source === 'village' ? 'Village selection' : undefined} />
             </View>
             <Field label="Description" value={report.description} />
-            {focused && report.hasPhoto && <IncidentPhoto key={report.reference_code} code={report.reference_code} />}
-          </Section>
-          {!!hasResponse && <Section title="Authority response">
-            <View style={styles.fields}>
-              <Field label="Confirmed animal" value={report.confirmedSpecies} />
-              <Field label="Risk" value={risk && (risk[0].toUpperCase() + risk.slice(1))}
-                color={risk === 'high' ? colors.clay : risk === 'moderate' ? colors.warningText : colors.successText} />
-            </View>
+          </Surface>
+          {analysisLabel && <Surface>
+            <SectionTitle title="AI photo analysis" />
+            <SupportingText>{analysisLabel}</SupportingText>
+            {report.suggestions.length > 0 && <Field label="Suggested animals" value={report.suggestions.join(', ')} />}
+          </Surface>}
+          {!!hasResponse && <Surface>
+            <SectionTitle title="Authority findings" />
+            <Field label="Confirmed animal" value={report.confirmedSpecies} />
             <Field label="Review note" value={report.reviewNote} />
             <Field label="Resolution" value={report.resolutionNote} />
-          </Section>}
-          {report.events.length > 0 && <Section title="Activity">
-            {report.events.map(({ event, at }) => <View key={event + at} style={styles.activity}>
-              <Text style={[typeScale.body, { color: colors.primaryText }]}>{eventLabels[event] ?? 'Report updated'}</Text>
-              <SupportingText>{formatTimestamp(at)}</SupportingText>
-            </View>)}
-          </Section>}
+          </Surface>}
         </View>
       )}
     </Screen>
   );
 }
 
-function Section({ title, children }: PropsWithChildren<{ title: string }>) {
-  const { colors } = useTheme();
-  return <View style={[styles.section, { borderColor: colors.border }]}>
-    <SectionTitle title={title} />
-    {children}
-  </View>;
-}
-
-function Field({ label, value, color }: { label: string; value?: string; color?: string }) {
+function Field({ label, value }: { label: string; value?: string }) {
   const { colors } = useTheme();
   if (!value) return null;
   return <View style={styles.field}>
     <SupportingText>{label}</SupportingText>
-    <Text style={[typeScale.body, { color: color ?? colors.primaryText }]}>{value}</Text>
+    <Text style={[typeScale.body, { color: colors.primaryText }]}>{value}</Text>
   </View>;
 }
 
@@ -151,7 +181,7 @@ function IncidentPhoto({ code }: { code: string }) {
     setImageError(false);
     setAttempt(attempt + 1);
   }} />;
-  if (!photo) return <SupportingText>Loading photograph…</SupportingText>;
+  if (!photo) return <Feedback title="Loading photograph…" kind="loading" />;
   return <>
     <PhotoPreview photo={photo} onExpand={() => setViewing(true)} />
     {viewing && <PhotoViewer photo={photo} onClose={() => setViewing(false)} />}
@@ -160,10 +190,14 @@ function IncidentPhoto({ code }: { code: string }) {
 
 const styles = StyleSheet.create({
   report: { gap: spacing.md },
-  identity: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', columnGap: spacing.sm },
-  section: { borderTopWidth: 1, marginTop: spacing.sm, paddingTop: spacing.lg, gap: spacing.md },
+  identity: { gap: spacing.xs },
+  badges: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.sm },
+  location: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   fields: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  field: { flexBasis: '46%', flexGrow: 1, minWidth: 128, gap: spacing.xs },
-  activity: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
-  rejection: { padding: spacing.md, borderLeftWidth: 3, borderRadius: radius.input },
+  field: { flexBasis: '44%', flexGrow: 1, minWidth: 120, gap: spacing.xs },
+  activity: { flexDirection: 'row', alignItems: 'stretch', gap: spacing.sm },
+  stepMarker: { alignItems: 'center' },
+  stepIcon: { width: 32, height: 32, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
+  connector: { width: 1, flex: 1, marginTop: spacing.xs, marginBottom: -spacing.xs },
+  stepText: { flex: 1, gap: spacing.xs, paddingBottom: spacing.sm },
 });

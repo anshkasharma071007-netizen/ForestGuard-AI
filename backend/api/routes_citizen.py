@@ -19,6 +19,7 @@ from backend import config
 from backend.api.deps import security
 from backend.database.session import get_db
 from backend.models.entities import Citizen, CitizenSession, utcnow
+from backend.services.citizen_email import normalize_email, request_code, verify_code
 from backend.services.serializers import village_identity
 from backend.services.villages import resolve_village, village_center
 from geospatial.mapping import valid_coordinates
@@ -43,11 +44,26 @@ class Verification(PhoneInput):
     transport: Literal["bearer", "cookie"] = "bearer"
 
 
+class EmailInput(BaseModel):
+    email: Email
+
+
+class EmailVerification(EmailInput):
+    code: str = Field(pattern=r"^[0-9]{6}$")
+    transport: Literal["bearer", "cookie"] = "bearer"
+
+
+LocationLabel = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=250,
+                                                 pattern=r"^[^\x00-\x1f\x7f]+$")]
+
+
 class Location(BaseModel):
     village_code: str | None = Field(default=None, min_length=1, max_length=20)
     village_id: int | None = Field(default=None, gt=0)
     lat: float | None = Field(default=None, ge=-90, le=90, allow_inf_nan=False)
     lon: float | None = Field(default=None, ge=-180, le=180, allow_inf_nan=False)
+
+    label: LocationLabel | None = None
 
     @model_validator(mode="after")
     def select_one_location(self):
@@ -69,6 +85,7 @@ class ProfileUpdate(BaseModel):
     name: Name
     email: Email | None = None
     location: Location | None = None
+    phone: str | None = Field(default=None, max_length=40)
 
 
 def _normalize_phone(value: str) -> str:
@@ -83,26 +100,28 @@ def _normalize_phone(value: str) -> str:
 
 
 def saved_location(citizen: Citizen, *, approximate=False) -> dict | None:
-    return _serialize_location(citizen.village, citizen.lat, citizen.lon, approximate=approximate)
+    return _serialize_location(citizen.village, citizen.lat, citizen.lon, citizen.location_label, approximate=approximate)
 
 
-def _serialize_location(village, lat, lon, *, approximate):
+def _serialize_location(village, lat, lon, label, *, approximate):
     if village and valid_coordinates(village.lat, village.lon):
         return {"type": "village", "village": village_identity(village),
                 **village_center(village, public=approximate)}
     if valid_coordinates(lat, lon):
-        return {"type": "gps", "lat": lat, "lon": lon}
+        return {"type": "gps", "lat": lat, "lon": lon, **({"label": label} if label else {})}
     return None
 
 
 def saved_alert_location(citizen: Citizen) -> dict | None:
-    return _serialize_location(citizen.alert_village, citizen.alert_lat, citizen.alert_lon, approximate=True)
+    return _serialize_location(citizen.alert_village, citizen.alert_lat, citizen.alert_lon, citizen.alert_location_label,
+                               approximate=True)
 
 
 def _profile(citizen: Citizen) -> dict:
-    return {"id": citizen.id, "phone": citizen.phone, "name": citizen.name, "email": citizen.email,
+    return {"id": citizen.id, "phone": citizen.contact_phone, "name": citizen.name, "email": citizen.login_email or citizen.email,
             "location": saved_location(citizen, approximate=True), "alert_radius_km": citizen.alert_radius_km,
-            "saved_alert_location": saved_alert_location(citizen)}
+            "saved_alert_location": saved_alert_location(citizen), "push_reports": citizen.push_reports,
+            "push_nearby": citizen.push_nearby, "email_verified": citizen.email_verified_at is not None}
 
 
 def _token_hash(token: str) -> str:
@@ -110,7 +129,7 @@ def _token_hash(token: str) -> str:
 
 
 def _dev_verification_enabled() -> bool:
-    return config.APP_ENV == "development" and config.CITIZEN_DEV_OTP_ENABLED
+    return config.DB_MODE == "local" and config.APP_ENV == "development" and config.CITIZEN_DEV_OTP_ENABLED
 
 
 def _trusted_origin(request: Request):
@@ -125,12 +144,14 @@ def _session(
     db: Session = Depends(get_db),
 ) -> CitizenSession:
     token = credentials.credentials if credentials else request.cookies.get(COOKIE)
-    if not token or len(token) != 43 or not _dev_verification_enabled():
+    if not token or len(token) != 43:
         raise HTTPException(401, "Sign in to your citizen account.")
     if not credentials and request.method not in {"GET", "HEAD", "OPTIONS"}:
         _trusted_origin(request)
     session = db.get(CitizenSession, _token_hash(token))
     if not session or session.expires_at <= utcnow():
+        raise HTTPException(401, "Citizen session expired. Sign in again.")
+    if session.auth_method == "legacy" and (not _dev_verification_enabled() or session.citizen.login_email):
         raise HTTPException(401, "Citizen session expired. Sign in again.")
     _check_account(request, session)
     return session
@@ -158,13 +179,13 @@ def _require_dev_verification():
         raise HTTPException(403, "Development phone verification is disabled.")
 
 
-@router.post("/validate-phone", dependencies=[Depends(_require_dev_verification)])
+@router.post("/validate-phone", dependencies=[Depends(_require_dev_verification)], include_in_schema=False)
 def validate_phone(payload: PhoneInput):
     _normalize_phone(payload.phone)
     return {"valid": True}
 
 
-@router.post("/verify", dependencies=[Depends(_require_dev_verification)])
+@router.post("/verify", dependencies=[Depends(_require_dev_verification)], include_in_schema=False)
 def verify(payload: Verification, request: Request, response: Response, db: Session = Depends(get_db)):
     if payload.transport == "cookie":
         _trusted_origin(request)
@@ -176,24 +197,46 @@ def verify(payload: Verification, request: Request, response: Response, db: Sess
         raise HTTPException(409, "Multiple historical accounts use this number. Contact support to review them.")
     if matches:
         citizen = matches[0]
+        if citizen.login_email:
+            raise HTTPException(403, "Use your verified email to sign in.")
     else:
         if not payload.name:
             raise HTTPException(400, "Enter your full name to create an account.")
         insert = sqlite_insert if db.get_bind().dialect.name == "sqlite" else postgres_insert
-        db.execute(insert(Citizen).values(phone=phone, normalized_phone=phone, name=payload.name, email=payload.email)
+        db.execute(insert(Citizen).values(phone=phone, normalized_phone=phone, name=payload.name, email=payload.email,
+                                          contact_phone=phone)
                    .on_conflict_do_nothing(index_elements=[Citizen.phone]))
         citizen = db.scalars(select(Citizen).where(Citizen.phone == phone)).one()
 
+    return _start_session(db, citizen, payload.transport, request, response, "legacy")
+
+
+@router.post("/email-otp/send")
+def send_email_code(payload: EmailInput, request: Request, db: Session = Depends(get_db)):
+    _trusted_origin(request)
+    return request_code(db, normalize_email(payload.email), request.client.host if request.client else "unknown")
+
+
+@router.post("/email-otp/verify")
+def verify_email_code(payload: EmailVerification, request: Request, response: Response,
+                      db: Session = Depends(get_db)):
+    _trusted_origin(request)
+    citizen = verify_code(db, normalize_email(payload.email), payload.code,
+                          request.client.host if request.client else "unknown")
+    return _start_session(db, citizen, payload.transport, request, response, "email")
+
+
+def _start_session(db, citizen, transport, request, response, auth_method):
     now = utcnow()
-    if payload.transport == "cookie" and (previous := request.cookies.get(COOKIE)) and len(previous) == 43:
+    if transport == "cookie" and (previous := request.cookies.get(COOKIE)) and len(previous) == 43:
         db.execute(delete(CitizenSession).where(CitizenSession.token_hash == _token_hash(previous)))
     db.execute(delete(CitizenSession).where(CitizenSession.citizen_id == citizen.id, CitizenSession.expires_at <= now))
     token = secrets.token_urlsafe(32)
-    db.add(CitizenSession(token_hash=_token_hash(token), citizen_id=citizen.id,
+    db.add(CitizenSession(token_hash=_token_hash(token), citizen=citizen, auth_method=auth_method,
                           expires_at=now + timedelta(seconds=SESSION_SECONDS)))
     profile = _profile(citizen)
     db.commit()
-    if payload.transport == "cookie":
+    if transport == "cookie":
         response.set_cookie(COOKIE, token, max_age=SESSION_SECONDS, path="/api/citizen", httponly=True,
                             secure=config.APP_ENV != "development", samesite="strict")
         return {"profile": profile}
@@ -211,11 +254,18 @@ def update_profile(payload: ProfileUpdate, citizen: Citizen = Depends(get_citize
         location = payload.location
         village = _location_village(db, location)
         citizen.village, citizen.lat, citizen.lon = village, location.lat, location.lon
-        citizen.alert_village, citizen.alert_lat, citizen.alert_lon = village, location.lat, location.lon
+        citizen.location_label = location.label
+        if not citizen.alert_village and not valid_coordinates(citizen.alert_lat, citizen.alert_lon):
+            citizen.alert_village, citizen.alert_lat, citizen.alert_lon = village, location.lat, location.lon
+            citizen.alert_location_label = location.label
     elif not saved_location(citizen):
         raise HTTPException(400, "Choose a location to finish setting up your profile.")
     citizen.name = payload.name
-    citizen.email = payload.email
+    if not citizen.login_email and "email" in payload.model_fields_set:
+        citizen.email = payload.email
+    if "phone" in payload.model_fields_set and payload.phone != citizen.contact_phone:
+        phone = (payload.phone or "").strip().removeprefix("+91")
+        citizen.contact_phone = _normalize_phone(phone) if phone else None
     db.commit()
     return _profile(citizen)
 
@@ -232,6 +282,7 @@ def update_saved_location(payload: Location, citizen: Citizen = Depends(onboarde
                           db: Session = Depends(get_db)):
     citizen.alert_village = _location_village(db, payload)
     citizen.alert_lat, citizen.alert_lon = payload.lat, payload.lon
+    citizen.alert_location_label = payload.label
     db.commit()
     return _profile(citizen)
 
@@ -239,7 +290,8 @@ def update_saved_location(payload: Location, citizen: Citizen = Depends(onboarde
 @router.delete("/saved-location")
 def remove_saved_location(citizen: Citizen = Depends(onboarded_citizen), db: Session = Depends(get_db)):
     citizen.alert_village = None
-    citizen.alert_lat = citizen.alert_lon = None
+    citizen.alert_lat = citizen.alert_lon = citizen.alert_location_label = None
+    citizen.push_nearby = False
     db.commit()
     return _profile(citizen)
 

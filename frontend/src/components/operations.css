@@ -11,15 +11,15 @@
 }
 
 .operations-brand {
-  @apply flex min-w-0 items-center gap-2 font-display text-base font-semibold text-ink sm:text-xl;
+  @apply flex min-w-0 items-center rounded-md;
 }
 
-.operations-brand > div > div {
-  @apply h-8 w-8 rounded-lg shadow-none;
+.operations-brand > img {
+  @apply block h-auto w-[176px] max-w-full sm:w-[198px];
 }
 
-.operations-brand > span {
-  line-height: 1.15;
+[data-theme='dark'] .operations-brand {
+  @apply bg-[#F4F1E8] px-1;
 }
 
 .operations-body {

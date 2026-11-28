@@ -19,7 +19,7 @@ from geospatial.mapping import valid_coordinates
 from geospatial.species import REPORT_ANIMALS, SPECIES_ORDER, normalize_report_animal, species_meta
 
 from backend import config
-from backend.api.routes_citizen import AlertRadius, onboarded_citizen, saved_alert_location
+from backend.api.routes_citizen import AlertRadius, LocationLabel, onboarded_citizen, saved_alert_location
 from backend.api.utils import now_iso, public_area_label
 from backend.database.session import get_db
 from backend.models import Alert, Incident, SightingReport, Village, utcnow
@@ -141,7 +141,7 @@ def public_alerts(
 
 
 class NearbyAlertQuery(BaseModel):
-    source: Literal["saved", "gps"] = "saved"
+    source: Literal["saved", "gps", "selected"] = "saved"
     lat: float | None = Field(default=None, ge=-90, le=90, allow_inf_nan=False)
     lon: float | None = Field(default=None, ge=-180, le=180, allow_inf_nan=False)
     radius_km: AlertRadius | None = None
@@ -159,13 +159,13 @@ def nearby_alerts(
     lat, lon = payload.lat, payload.lon
     if payload.source == "saved":
         if lat is not None or lon is not None:
-            raise HTTPException(400, "Choose either saved location or current GPS.")
+            raise HTTPException(400, "Choose a saved location or provide coordinates.")
         location = saved_alert_location(citizen)
         if location is None:
             raise HTTPException(400, "Choose current GPS or save a location in your profile.")
         lat, lon = location["lat"], location["lon"]
     if not valid_coordinates(lat, lon):
-        raise HTTPException(400, "Provide a valid current GPS location.")
+        raise HTTPException(400, "Provide valid location coordinates.")
     radius_km = payload.radius_km if payload.radius_km is not None else citizen.alert_radius_km
     limit, offset = payload.limit, payload.offset
     query = _active_public_alerts()
@@ -301,6 +301,7 @@ def submit_citizen_report(
     village_id: int | None = Form(default=None, gt=0),
     lat: float | None = Form(default=None),
     lon: float | None = Form(default=None),
+    label: LocationLabel | None = Form(default=None),
     submission_key: UUID = Form(...),
     image: UploadFile | None = File(default=None),
     citizen: Citizen = Depends(onboarded_citizen),
@@ -310,14 +311,16 @@ def submit_citizen_report(
     if not title:
         raise HTTPException(400, "Enter a report title.")
     return _persist_report(db, category=category, species=species, description=description.strip(), title=title,
-                           reporter_name=citizen.name, contact=citizen.phone, citizen_id=citizen.id,
-                           village_code=village_code, village_id=village_id, lat=lat, lon=lon, submission_key=submission_key, image=image)
+                           reporter_name=citizen.name, contact=citizen.contact_phone, citizen_id=citizen.id,
+                           village_code=village_code, village_id=village_id, lat=lat, lon=lon, submission_key=submission_key, image=image,
+                           location_label=label)
 
 
 def _persist_report(
     db: Session, *, category: str, species: str, description: str, reporter_name: str, contact: str | None,
     village_code: str | None, village_id: int | None, lat: float | None, lon: float | None, submission_key: UUID | None,
     image: UploadFile | None, title: str | None = None, citizen_id: int | None = None,
+    location_label: str | None = None,
 ) -> dict:
     species = normalize_report_animal(species)
     if category not in {"sighting", "conflict"} or species not in REPORT_ANIMALS:
@@ -340,6 +343,8 @@ def _persist_report(
     digest_fields = fields if citizen_id is None else {
         key: value for key, value in fields.items() if key not in {"reporter_name", "contact"}
     } | {"title": title}
+    if location_label is not None:
+        digest_fields["location_label"] = location_label
     digest = hashlib.sha256(json.dumps([digest_fields, hashlib.sha256(content).hexdigest() if content else None],
                                        sort_keys=True).encode()).hexdigest()
 
@@ -357,7 +362,7 @@ def _persist_report(
     simulated = config.demo_jurisdictions_allowed()
     jurisdiction_id = db.scalar(select(jurisdiction_at(db, incident_lat, incident_lon, demo=simulated)))
     report = SightingReport(**fields, citizen_id=citizen_id, jurisdiction_id=jurisdiction_id,
-                            title=title, status="pending", is_simulated=simulated,
+                            title=title, status="pending", is_simulated=simulated, location_label=location_label,
                             reference_code=_reference(db, key is not None),
                             submission_key=key, submission_digest=digest if key else None,
                             analysis_status="queued" if relative else "no_photo")
@@ -432,7 +437,8 @@ def _citizen_summary(report: SightingReport, incident_status: str | None) -> dic
             "status": _citizen_report_status(report, incident_status),
             "lifecycle_status": lifecycle_status(report, incident_status),
             "created_at": report.created_at.isoformat() + "Z",
-            "village_id": report.village_id, "village_name": report.village.name if report.village else None}
+            "village_id": report.village_id, "village_name": report.village.name if report.village else None,
+            "location_label": report.location_label}
 
 
 @citizen_router.get("/reports")

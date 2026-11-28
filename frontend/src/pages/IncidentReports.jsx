@@ -12,7 +12,7 @@ import { formatDateTime, titleCase } from '../utils/format'
 function location(report) {
   const gps = report.lat != null && report.lon != null && [report.lat, report.lon].map(n => n.toFixed(5)).join(', ')
   const village = report.village_name && (gps ? report.village_name : report.village_name + ' (village centre)')
-  return [village, gps].filter(Boolean).join(' · ') || 'Location unavailable'
+  return [report.location_label || village, gps].filter(Boolean).join(' · ') || 'Location unavailable'
 }
 
 function reportTitle(report) {

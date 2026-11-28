@@ -3,9 +3,9 @@ import * as SecureStore from 'expo-secure-store';
 import { createContext, useContext, useEffect, useRef, useState, type PropsWithChildren } from 'react';
 import { Platform } from 'react-native';
 import { ApiError, endCitizenSession, getCitizenProfile, updateAlertRadius, updateCitizenProfile, updateSavedAlertLocation,
-  verifyCitizen, type CitizenAccess, type CitizenProfile, type Coordinates, type LocationInput } from '@/services/api';
-import { getCurrentCoordinates, LocationPermissionError } from '@/services/device-location';
+  savePushPreferences, verifyCitizen, type CitizenAccess, type CitizenProfile, type Coordinates, type LocationInput, type PushPreferences } from '@/services/api';
 import type { AlertLocation, AlertRadius } from '@/services/nearby-alerts';
+import { clearDeviceNotifications } from '@/services/push-device';
 import { clearCitizenSubmissions, clearLegacyReferences } from '@/services/report-storage';
 
 const key = 'forest-guard.citizen-session';
@@ -35,9 +35,6 @@ function useSession() {
   const [logoutNotice, setLogoutNotice] = useState('');
   const [logoutPending, setLogoutPending] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  const [locating, setLocating] = useState(false);
-  const [locationError, setLocationError] = useState('');
-  const gpsRequest = useRef<CitizenAccess | null>(null);
   const radiusRequest = useRef<CitizenAccess | null>(null);
   const [savingAlertRadius, setSavingAlertRadius] = useState(false);
 
@@ -49,8 +46,6 @@ function useSession() {
     const next: ActiveSession = { profile, access, controller,
       alertLocation: profile.savedAlertLocation ? { source: 'saved' } : null, alertRadius: profile.alertRadiusKm };
     current.current = next;
-    setLocating(false);
-    setLocationError('');
     setSavingAlertRadius(false);
     setSession(next);
   }
@@ -58,40 +53,20 @@ function useSession() {
   async function finishLogout(access: CitizenAccess) {
     setLogoutPending(true);
     pendingLogout.current = access;
-    let localCleared = false;
-    let revoked = false;
-    // Persist the intent before touching the HttpOnly cookie or the native credential.
     try {
+      // Keep the native credential in SecureStore until the server removes its push token.
       await AsyncStorage.setItem(logoutKey, String(access.citizenId ?? ''));
+      if (!native || access.token) await endCitizenSession(access);
       await Promise.all([
         native ? SecureStore.deleteItemAsync(key, storageOptions) : undefined,
         access.citizenId ? clearCitizenSubmissions(access.citizenId) : undefined,
       ]);
-      localCleared = true;
+      await AsyncStorage.removeItem(logoutKey);
+      pendingLogout.current = null;
+      setLogoutPending(false);
+      setLogoutNotice('');
     } catch {
-      setLogoutNotice('Could not clear session storage. Retry sign-out.');
-    }
-
-    try {
-      if (!native || access.token) {
-        await endCitizenSession(access);
-        revoked = true;
-      } else if (localCleared) {
-        setLogoutNotice('Local session cleared. Server sign-out could not be confirmed.');
-      }
-    } catch {
-      if (localCleared) setLogoutNotice('Your account is hidden. Server sign-out could not be confirmed.');
-    }
-
-    if (localCleared && (revoked || native)) {
-      try {
-        await AsyncStorage.removeItem(logoutKey);
-        pendingLogout.current = null;
-        setLogoutPending(false);
-        if (revoked) setLogoutNotice('');
-      } catch {
-        setLogoutNotice('Could not clear session storage. Retry sign-out.');
-      }
+      setLogoutNotice('Your account is hidden on this device. Reconnect and retry sign-out.');
     }
   }
 
@@ -152,7 +127,7 @@ function useSession() {
     }
   }
 
-  async function save(input: { name: string; email: string | null; location?: LocationInput }) {
+  async function save(input: { name: string; phone?: string | null; location?: LocationInput }) {
     const active = current.current;
     if (!active) return;
     const profile = await updateCitizenProfile(active.access, input);
@@ -163,7 +138,7 @@ function useSession() {
     const active = current.current;
     if (active?.access !== access) return;
     let alertLocation = active.alertLocation;
-    if (changedLocation && alertLocation?.source !== 'gps') {
+    if (changedLocation && (!alertLocation || alertLocation.source === 'saved')) {
       alertLocation = profile.savedAlertLocation ? { source: 'saved' } : null;
     }
     const next = { ...active, profile, alertLocation };
@@ -178,41 +153,25 @@ function useSession() {
     applyLocationProfile(active.access, profile, true);
   }
 
-  async function selectAlertLocation(source: AlertLocation['source']) {
+  function selectAlertLocation(location: AlertLocation) {
     const active = current.current;
-    if (!active || gpsRequest.current === active.access) return;
-    setLocationError('');
-    if (source === 'saved') {
-      if (!active.profile.savedAlertLocation) return;
-      const next: ActiveSession = { ...active, alertLocation: { source } };
-      current.current = next;
-      setSession(next);
-      return;
-    }
-    gpsRequest.current = active.access;
-    setLocating(true);
-    try {
-      const point = await getCurrentCoordinates();
-      if (current.current?.access !== active.access) return;
-      const next: ActiveSession = { ...current.current, gps: point, alertLocation: { source, ...point } };
-      current.current = next;
-      setSession(next);
-    } catch (error) {
-      if (current.current?.access === active.access) {
-        setLocationError(error instanceof LocationPermissionError
-          ? 'Location permission was denied. Allow GPS access or choose a saved location in Profile.'
-          : 'Current GPS is unavailable. Try again or choose a saved location in Profile.');
-      }
-    } finally {
-      if (gpsRequest.current === active.access) gpsRequest.current = null;
-      if (current.current?.access === active.access) setLocating(false);
-    }
+    if (!active || (location.source === 'saved' && !active.profile.savedAlertLocation)) return;
+    const next = { ...active, alertLocation: location, gps: location.source === 'gps' ? location : active.gps };
+    current.current = next;
+    setSession(next);
   }
 
-  const hasOnboarded = Boolean(session?.profile.location);
-  useEffect(() => {
-    if (hasOnboarded) void selectAlertLocation('gps');
-  }, [hasOnboarded, session?.access]);
+  async function savePush(preferences: PushPreferences) {
+    const active = current.current;
+    if (!active) return;
+    const push = await savePushPreferences(active.access, preferences);
+    const latest = current.current;
+    if (latest?.access === active.access) {
+      const next = { ...latest, profile: { ...latest.profile, push } };
+      current.current = next;
+      setSession(next);
+    }
+  }
 
   async function saveAlertRadius(radius: AlertRadius) {
     const active = current.current;
@@ -250,6 +209,7 @@ function useSession() {
     current.current = null;
     active?.controller.abort();
     setSession(null);
+    void clearDeviceNotifications().catch(() => {});
     setLogoutNotice('');
     try { await finishLogout(access); }
     finally { operation.current = false; }
@@ -257,7 +217,7 @@ function useSession() {
 
   return {
     profile: session?.profile ?? null, access: session?.access ?? inactiveAccess,
-    alertLocation: session?.alertLocation ?? null, gps: session?.gps, selectAlertLocation, locating, locationError,
+    alertLocation: session?.alertLocation ?? null, gps: session?.gps, selectAlertLocation, savePush,
     alertRadius: session?.alertRadius ?? 25, saveAlertRadius, savingAlertRadius,
     loading, restoreError, retry: () => setAttempt((value) => value + 1),
     logoutNotice, logoutPending, verify, save, saveLocation, signOut,

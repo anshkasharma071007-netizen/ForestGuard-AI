@@ -160,7 +160,7 @@ FOREST_GUARD_DB_MODE=cloud APP_ENV=development AUTHORITY_DEMO_ACCOUNTS_ENABLED=t
   .venv/bin/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 
-- With an empty village registry, select GPS for onboarding and citizen reports. Village selection and village-based proximity require verified registry rows. Use the existing local-only village demo command for fictional geography. Import verified villages as a separately approved operation keyed by village code when genuine records are available.
+- Citizen onboarding and reporting accept GPS, address search, or a map pin with an empty village registry. Village-based proximity calculations use verified registry rows. Use the existing local-only village demo command for fictional geography. Import verified villages as a separately approved operation keyed by village code when genuine records are available.
 - An empty risk settings table uses the bundled defaults. Administrators can save settings through the existing Settings screen when they need database-persisted overrides. The species catalogue comes from the application.
 - Citizen reporting requires no camera, guard roster or historical incident records. Authority camera-media ingestion needs at least one configured camera station. Use genuine station records for that workflow. Cloud mode disables bundled operational and village demo seeding.
 
@@ -208,7 +208,7 @@ GRANT SELECT (alert_village_id, alert_lat, alert_lon),
 ON public.citizens TO forest_guard_app;
 ```
 
-The runtime role retains read-only Alembic metadata access. Check `FOREST_GUARD_DB_MODE=cloud .venv/bin/alembic current` for `0009` before starting the cloud API. For local PostgreSQL, apply migrations and runtime grants with `.venv/bin/python -m tools.init_database --admin-user <owner>`.
+The runtime role retains read-only Alembic metadata access. Apply [revision `0010` and its runtime grants](citizen-services.md#migration-and-runtime-grants) before starting the current cloud API. For local PostgreSQL, apply migrations and runtime grants with `.venv/bin/python -m tools.init_database --admin-user <owner>`.
 
 ### Enable private Supabase Storage
 

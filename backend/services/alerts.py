@@ -12,6 +12,7 @@ from geospatial.species import species_meta
 
 from backend.models import Alert, AlertEvent, Detection, Guard, Incident, SightingReport, Village, utcnow
 from backend.models.entities import AuthorityJurisdiction
+from backend.services.citizen_push import queue_nearby
 from backend.services.geography import jurisdiction_at
 from backend.services.villages import village_center, village_risk_inputs
 
@@ -145,6 +146,8 @@ def maybe_create_alert(
     for village in db.scalars(select(Village).where(Village.id.in_([v["id"] for v in villages]))):
         village.last_alert_at = created_at
     db.flush()
+    if incident:
+        queue_nearby(db, alert, detection)
     return alert
 
 

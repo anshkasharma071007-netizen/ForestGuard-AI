@@ -1,6 +1,6 @@
-import { useIsFocused } from 'expo-router';
+import { useIsFocused, useLocalSearchParams } from 'expo-router';
 import { RefreshCw } from 'lucide-react-native';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { useCitizen } from '@/citizen-context';
 import { Dropdown, InputField, SelectionRow } from '@/components/Controls';
@@ -14,37 +14,36 @@ import { usePublicData } from '@/hooks/usePublicData';
 import { getCitizenReports } from '@/services/api';
 import { spacing } from '@/theme';
 
-const filters = [
-  { id: 'all', label: 'All statuses', statuses: [] },
-  { id: 'pending', label: 'Pending', statuses: ['pending', 'forwarded'] },
-  { id: 'under_work', label: 'Under Work', statuses: ['under_work', 'verified'] },
-  { id: 'rejected', label: 'Rejected', statuses: ['rejected'] },
-  { id: 'resolved', label: 'Resolved', statuses: ['resolved', 'closed'] },
-];
+import { reportFilters, reportStatuses } from '@/report-status';
 
 export default function AllReports() {
   const { access } = useCitizen();
   const focused = useIsFocused();
   const active = useAppActive();
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState(filters[0]);
+  const { status } = useLocalSearchParams<{ status?: string }>();
+  const defaultFilter = reportFilters.find(option => option.id === status) ?? reportFilters[0];
+  const [filter, setFilter] = useState(defaultFilter);
+  useEffect(() => setFilter(defaultFilter), [defaultFilter]);
   const [expanded, setExpanded] = useState(false);
   const fetchReports = useCallback((signal: AbortSignal) => getCitizenReports(access, signal), [access]);
   const { state, reload, refreshing, refreshError } = usePublicData(fetchReports, focused && active, 10000);
   const query = search.trim().toLowerCase();
   const filtered = state.kind === 'ready' ? state.data.filter(
-    (report) => (!filter.statuses.length || filter.statuses.includes(report.status))
+    (report) => (filter.id === 'all' || reportStatuses[report.status].group === filter.id)
       && (!query || [report.title, report.reference_code].some((text) => text.toLowerCase().includes(query))),
   ) : [];
 
-  return <Screen>
-    <ScreenHeader title="All reports" back action={<IconAction icon={RefreshCw} label="Refresh all reports" loading={refreshing} onPress={reload} />} />
+  return <Screen refresh={{ onRefresh: reload, refreshing }} header={
+    <ScreenHeader title="Report history" back action={<IconAction icon={RefreshCw} tone="header"
+      label="Refresh all reports" loading={refreshing} onPress={reload} />} />
+  }>
     <View style={{ gap: spacing.sm }}>
       <InputField label="Search reports" placeholder="Title or reference code" value={search} onChangeText={setSearch}
         autoCorrect={false} returnKeyType="search" />
       <Dropdown label={filter.label} accessibilityLabel={`Status filter: ${filter.label}`} expanded={expanded} onPress={() => setExpanded(!expanded)} />
       {expanded && <View accessibilityRole="radiogroup" accessibilityLabel="Report status">
-        {filters.map((option) => <SelectionRow key={option.id} label={option.label} selected={filter.id === option.id}
+        {reportFilters.map((option) => <SelectionRow key={option.id} label={option.label} selected={filter.id === option.id}
           onPress={() => { setFilter(option); setExpanded(false); }} />)}
       </View>}
       {state.kind === 'loading' && <Feedback title="Loading reports…" kind="loading" />}

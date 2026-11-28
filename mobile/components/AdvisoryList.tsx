@@ -1,56 +1,54 @@
+import { ChevronDown, ChevronRight, PawPrint } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { formatTimestamp } from '@/format';
-import type { Resource } from '@/hooks/usePublicData';
-import type { PublicAdvisories } from '@/services/api';
+import type { Advisory } from '@/services/api';
 import { radius, spacing, typeScale, useTheme } from '@/theme';
-import { Feedback, SupportingText } from './Feedback';
+import { RiskPill, SupportingText } from './Feedback';
 
-export function AdvisoryList({ state, retry, radiusKm }: {
-  state: Resource<PublicAdvisories>; retry: () => void; radiusKm: number;
-}) {
-  const { colors } = useTheme();
+export function AdvisoryList({ items, onSelect }: { items: Advisory[]; onSelect?: (ids: number[]) => void }) {
   const [expanded, setExpanded] = useState<number>();
-  if (state.kind === 'loading') return <Feedback title="Loading alerts…" kind="loading" />;
-  if (state.kind === 'unavailable') return <Feedback title="Alerts unavailable" detail={state.message} />;
-  if (state.kind === 'error') return <Feedback title="Could not load alerts" detail={state.message} kind="error" retry={retry} />;
-  if (state.kind !== 'ready') return null;
-
-  const { items } = state.data;
-  if (items.length === 0) return <Feedback title={`No active alerts within ${radiusKm} km`} />;
-
-  return (
-    <View style={styles.list}>
-      {items.map((item) => (
-        <Pressable key={item.id} accessibilityRole="button" accessibilityState={{ expanded: expanded === item.id }}
-          onPress={() => setExpanded(expanded === item.id ? undefined : item.id)}
-          style={[styles.advisory, { backgroundColor: colors.card, borderColor: colors.border,
-            borderLeftColor: item.severity === 'high' ? colors.clay : item.severity === 'moderate' ? colors.amber : colors.moss }]}>
-          <View style={styles.meta}>
-            <Text accessibilityRole="header" style={[typeScale.card, { color: colors.primaryText, flexShrink: 1 }]}>{item.title ?? item.speciesName}</Text>
-            <Text style={[typeScale.supporting, { color: item.severity === 'high' ? colors.clay : item.severity === 'moderate' ? colors.warningText : colors.successText }]}>
-              {capitalize(item.severity)} risk
-            </Text>
-          </View>
-          <SupportingText>{[item.area, ...item.villageNames.filter(name => name !== item.area), item.distanceKm === undefined ? undefined
-            : item.distanceKm === 0 ? 'Less than 1 km away' : `About ${item.distanceKm} km away`].filter(Boolean).join(' · ')}</SupportingText>
-          <SupportingText>{[item.isSimulated ? 'Simulated alert' : null, formatTimestamp(item.publishedAt)]
-            .filter(Boolean).join(' · ')}</SupportingText>
-          {expanded === item.id && item.summary && <Text style={[typeScale.body, { color: colors.primaryText }]}>{item.summary}</Text>}
-          {expanded === item.id && item.advice && !item.summary?.includes(item.advice)
-            && <Text style={[typeScale.body, { color: colors.secondaryText }]}>{item.advice}</Text>}
-        </Pressable>
-      ))}
-    </View>
-  );
+  return <View style={styles.list}>
+    {items.map(item => <AdvisoryRow key={item.id} item={item} expanded={expanded === item.id}
+      onPress={() => onSelect ? onSelect([item.id]) : setExpanded(expanded === item.id ? undefined : item.id)} />)}
+  </View>;
 }
 
-function capitalize(text: string) {
-  return text.charAt(0).toUpperCase() + text.slice(1);
+function AdvisoryRow({ item, expanded, onPress }: { item: Advisory; expanded: boolean; onPress: () => void }) {
+  const { colors } = useTheme();
+  const distance = item.distanceKm === undefined ? undefined
+    : item.distanceKm === 0 ? 'Under 1 km away' : `About ${item.distanceKm} km away`;
+  return <Pressable accessibilityRole="button" accessibilityState={{ expanded }} onPress={onPress}
+    style={({ pressed }) => [styles.row, { backgroundColor: pressed ? colors.softAccent : colors.card, borderColor: colors.border }]}>
+    <View style={styles.heading}>
+      <View style={[styles.icon, { backgroundColor: colors.softAccent }]}><PawPrint size={21} color={colors.accent} /></View>
+      <View style={styles.info}>
+        <Text style={[typeScale.card, { color: colors.primaryText }]}>{item.title ?? item.speciesName}</Text>
+        <RiskPill severity={item.severity} />
+        <SupportingText>{[distance, formatTimestamp(item.publishedAt), item.isSimulated ? 'Simulated' : null].filter(Boolean).join(' · ')}</SupportingText>
+      </View>
+      {expanded ? <ChevronDown size={18} color={colors.mutedText} /> : <ChevronRight size={18} color={colors.mutedText} />}
+    </View>
+    {expanded && <AdvisoryDetails item={item} />}
+  </Pressable>;
+}
+
+export function AdvisoryDetails({ item }: { item: Advisory }) {
+  const { colors } = useTheme();
+  return <View style={styles.details}>
+    <SupportingText>{[item.area, ...item.villageNames.filter(name => name !== item.area),
+      item.status === 'responding' ? 'Response underway' : item.status === 'acknowledged' ? 'Acknowledged' : 'Active'].join(' · ')}</SupportingText>
+    {item.summary && <Text style={[typeScale.body, { color: colors.primaryText }]}>{item.summary}</Text>}
+    {!item.summary?.includes(item.advice ?? '') && item.advice &&
+      <Text style={[typeScale.body, { color: colors.primaryText }]}>{item.advice}</Text>}
+  </View>;
 }
 
 const styles = StyleSheet.create({
-  list: { gap: spacing.md },
-  meta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: spacing.sm },
-  advisory: { gap: spacing.xs, padding: spacing.md, borderRadius: radius.input, borderWidth: 1, borderLeftWidth: 3 },
+  list: { gap: spacing.sm },
+  row: { gap: spacing.md, padding: spacing.md, borderRadius: radius.input, borderWidth: 1 },
+  heading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  icon: { width: 42, height: 44, borderRadius: radius.input, alignItems: 'center', justifyContent: 'center' },
+  info: { flex: 1, gap: spacing.xs },
+  details: { gap: spacing.xs },
 });

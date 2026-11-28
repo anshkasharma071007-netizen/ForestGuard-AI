@@ -3,13 +3,13 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { photoViewerColors, radius, sizing, spacing } from '@/theme';
 import { EvidenceImage, type OriginalPhoto } from './EvidenceImage';
 
-export function PhotoPreview({ photo, onExpand, overlay }: {
-  photo: OriginalPhoto; onExpand: () => void; overlay?: ComponentProps<typeof EvidenceImage>['overlay'];
+export function PhotoPreview({ photo, onExpand, overlay, label = 'Submitted incident photo' }: {
+  photo: OriginalPhoto; label?: string; onExpand: () => void; overlay?: ComponentProps<typeof EvidenceImage>['overlay'];
 }) {
   const ratio = photo.width > 0 && photo.height > 0 ? photo.width / photo.height : 4 / 3;
   return <View style={styles.frame}>
-    <EvidenceImage photo={photo} label="Submitted incident photo" overlay={overlay} style={[styles.image, { aspectRatio: ratio }]} />
-    <Pressable accessibilityRole="button" accessibilityLabel="Expand submitted photograph" onPress={onExpand} style={styles.expand}>
+    <EvidenceImage photo={photo} label={label} overlay={overlay} style={[styles.image, { aspectRatio: ratio }]} />
+    <Pressable accessibilityRole="button" accessibilityLabel="Expand photograph" onPress={onExpand} style={styles.expand}>
       <Maximize2 size={18} color={photoViewerColors.foreground} />
     </Pressable>
   </View>;

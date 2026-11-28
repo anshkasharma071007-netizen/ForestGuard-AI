@@ -1,4 +1,4 @@
-"""Provision only development authority demo users in the configured database."""
+"""Provision the development Greater Noida Range Officer."""
 
 import argparse
 import os
@@ -15,17 +15,11 @@ def main():
         os.environ["FOREST_GUARD_ENV_FILE"] = str(args.env_file)
 
     from backend import config
-    from backend.database.session import SessionLocal, validate_runtime_database
-    from backend.services.authority_demo import DEMO_ACCOUNTS, provision_authority_demo_accounts
+    from tools.provision_greater_noida import main as provision
 
     if not config.authority_demo_accounts_allowed():
-        parser.exit(1, "Set APP_ENV=development and AUTHORITY_DEMO_ACCOUNTS_ENABLED=true to provision demo accounts.\n")
-    with SessionLocal.begin() as db:
-        validate_runtime_database(db)
-    with SessionLocal() as db:
-        results = provision_authority_demo_accounts(db)
-    for role, result in results.items():
-        print(f"{DEMO_ACCOUNTS[role]['email']}: {result}")
+        parser.exit(1, "Set APP_ENV=development and AUTHORITY_DEMO_ACCOUNTS_ENABLED=true to provision the demo.\n")
+    provision()
 
 
 if __name__ == "__main__":

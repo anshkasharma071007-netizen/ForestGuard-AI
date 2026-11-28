@@ -1,12 +1,12 @@
 import { createElement, useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Linking, Platform, StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Feedback } from '@/components/Feedback';
 import type { Coordinates } from '@/services/api';
 import { radius, useTheme } from '@/theme';
 
 export type RiskZone = Coordinates & { id: number; color: string; radiusM: number };
-type MapScene = { center: Coordinates; gps?: Coordinates; radiusM: number; zones: RiskZone[]; recenter: number };
+type MapScene = { center: Coordinates; gps?: Coordinates; radiusM: number; zones: RiskZone[]; recenter: number; picker?: boolean; pin?: Coordinates; zoom?: number; dark?: boolean };
 
 const html = String.raw`<!doctype html>
 <html lang="en">
@@ -19,6 +19,9 @@ const html = String.raw`<!doctype html>
 <style>
 html,body,#map { width:100%;height:100%;margin:0;background:#dbe4da }
 #tiles { position:absolute;right:10px;top:10px;z-index:900;background:white;color:#17261e;border-radius:4px;padding:5px;font:13px system-ui; }
+.dark #map { background:#33483b }
+.dark .leaflet-tile-pane { filter: invert(.87) hue-rotate(165deg) saturate(.62) brightness(.85); }
+#tiles { top:auto;bottom:24px;left:10px;right:auto }
 .leaflet-interactive[tabindex]:focus { outline:none;stroke:#163751;stroke-width:4; }
 </style>
 </head>
@@ -44,9 +47,34 @@ html,body,#map { width:100%;height:100%;margin:0;background:#dbe4da }
   tiles.on('tileerror', function () { tileStatus.hidden = false; });
   tiles.on('tileload', function () { tileStatus.hidden = true; });
   var viewKey = '';
+  var lastScene = '';
+  var mapElement = document.getElementById('map');
+  if (window.ResizeObserver) {
+    new ResizeObserver(function () {
+      if (viewKey && mapElement.clientWidth && mapElement.clientHeight) {
+        map.invalidateSize({ animate: false, debounceMoveend: true });
+      }
+    }).observe(mapElement);
+  }
+  var choosing = false;
+  map.on('click', function (event) {
+    if (choosing) send({ type:'point', lat:event.latlng.lat, lon:L.Util.wrapNum(event.latlng.lng, [-180, 180]) });
+  });
   function point(coords) { return [coords.lat, coords.lon]; }
   function render(scene) {
+    var nextScene = JSON.stringify(scene);
+    if (nextScene === lastScene) return;
+    lastScene = nextScene;
+    document.documentElement.classList.toggle('dark', scene.dark === true);
     var center = point(scene.center);
+    choosing = scene.picker === true;
+    if (choosing) {
+      overlay.clearLayers();
+      if (viewKey !== scene.recenter) map.setView(center, scene.zoom || 14);
+      viewKey = scene.recenter;
+      if (scene.pin) L.marker(point(scene.pin), { interactive: false }).addTo(overlay);
+      return;
+    }
     var coverageStyle = { radius: scene.radiusM, color:'#215f9d', weight:2, dashArray:'7 5',
       fillOpacity:0.035, interactive:false };
     var nextView = [center[0], center[1], scene.radiusM, scene.recenter].join(':');
@@ -96,8 +124,10 @@ html,body,#map { width:100%;height:100%;margin:0;background:#dbe4da }
 const nativeSource = { html };
 const frameStyle = { width: '100%', height: '100%', border: 0, display: 'block' };
 
-export function RiskMapSurface({ scene, onSelect }: { scene: MapScene; onSelect: (ids: number[]) => void }) {
-  const { colors } = useTheme();
+export function RiskMapSurface({ scene, onSelect, onPick, fill = false }: {
+  scene: MapScene; fill?: boolean; onSelect?: (ids: number[]) => void; onPick?: (point: Coordinates) => void;
+}) {
+  const { colors, isDark } = useTheme();
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const webview = useRef<WebView<object>>(null);
@@ -107,9 +137,14 @@ export function RiskMapSurface({ scene, onSelect }: { scene: MapScene; onSelect:
     if (!value || typeof value !== 'object' || !('type' in value)) return;
     if (value.type === 'ready' || value.type === 'error') setStatus(value.type);
     if (value.type === 'zone' && 'ids' in value && Array.isArray(value.ids)) {
-      onSelect(value.ids.filter((id): id is number => typeof id === 'number' && Number.isInteger(id)));
+      onSelect?.(value.ids.filter((id): id is number => typeof id === 'number' && Number.isInteger(id)));
     }
-  }, [onSelect]);
+    if (value.type === 'point' && 'lat' in value && 'lon' in value
+        && typeof value.lat === 'number' && Math.abs(value.lat) <= 90
+        && typeof value.lon === 'number' && Math.abs(value.lon) <= 180) {
+      onPick?.({ lat: value.lat, lon: value.lon });
+    }
+  }, [onSelect, onPick]);
 
   useEffect(() => {
     if (Platform.OS !== 'web') return;
@@ -128,15 +163,19 @@ export function RiskMapSurface({ scene, onSelect }: { scene: MapScene; onSelect:
 
   useEffect(() => {
     if (status !== 'ready') return;
-    if (Platform.OS === 'web') frame.current?.contentWindow?.postMessage({ type: 'scene', scene }, '*');
-    else webview.current?.injectJavaScript(`window.ForestGuardRiskMap.render(${JSON.stringify(scene)}); true;`);
-  }, [scene, status]);
+    const themedScene = { ...scene, dark: isDark };
+    if (Platform.OS === 'web') frame.current?.contentWindow?.postMessage({ type: 'scene', scene: themedScene }, '*');
+    else webview.current?.injectJavaScript(`window.ForestGuardRiskMap.render(${JSON.stringify(themedScene)}); true;`);
+  }, [isDark, scene, status]);
 
-  return <View style={[styles.surface, { borderColor: colors.border, backgroundColor: colors.card }]}>
-    {Platform.OS === 'web' ? createElement('iframe', { key: attempt, ref: frame, srcDoc: html, title: 'Nearby wildlife risk map',
+  return <View style={[styles.surface, fill && styles.fill, scene.picker && styles.picker, { borderColor: colors.border, backgroundColor: colors.card }]}>
+    {Platform.OS === 'web' ? createElement('iframe', { key: attempt, ref: frame, srcDoc: html, title: scene.picker ? 'Choose a location on the map' : 'Nearby wildlife risk map',
       sandbox: 'allow-scripts allow-popups allow-popups-to-escape-sandbox', style: frameStyle }) : <WebView<object> key={attempt} ref={webview} source={nativeSource}
       originWhitelist={['*']} applicationNameForUserAgent="ForestGuardAI/1.0"
-      onShouldStartLoadWithRequest={request => request.url === 'about:blank'}
+      onShouldStartLoadWithRequest={request => {
+        if (request.url === 'https://www.openstreetmap.org/copyright') void Linking.openURL(request.url).catch(() => {});
+        return request.url === 'about:blank';
+      }}
       setSupportMultipleWindows={false} allowFileAccess={false} allowFileAccessFromFileURLs={false}
       allowUniversalAccessFromFileURLs={false} geolocationEnabled={false} scrollEnabled={false}
       onError={() => setStatus('error')} onMessage={event => {
@@ -151,6 +190,8 @@ export function RiskMapSurface({ scene, onSelect }: { scene: MapScene; onSelect:
 }
 
 const styles = StyleSheet.create({
-  surface: { height: 390, overflow: 'hidden', borderWidth: 1, borderRadius: radius.input },
+  fill: { flex: 1 },
+  picker: { height: 260 },
+  surface: { overflow: 'hidden', borderWidth: 1, borderRadius: radius.input },
   feedback: { justifyContent: 'center', padding: 16 },
 });

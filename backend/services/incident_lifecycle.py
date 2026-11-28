@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from backend.models import Alert, AlertEvent, Incident, SightingReport, User, utcnow
 from backend.models.entities import CitizenNotification
 from backend.services.alerts import maybe_create_alert
+from backend.services.citizen_push import queue_report
 from backend.services.risk_service import get_settings, score_report_incident
 from geospatial.species import REPORT_ANIMALS, SPECIES_ORDER, normalize_report_animal
 from geospatial.mapping import valid_coordinates
@@ -65,6 +66,7 @@ def report_incident_for_review(report: SightingReport, confirmed_species: str | 
 def notify_citizen(db: Session, report: SightingReport, event: str, at) -> None:
     if report.citizen_id is not None:
         db.add(CitizenNotification(report_id=report.id, citizen_id=report.citizen_id, event=event, created_at=at))
+        queue_report(db, report.citizen_id, report.id, event, at)
 
 
 def review_report(db: Session, report: SightingReport, status: str, note: str | None,

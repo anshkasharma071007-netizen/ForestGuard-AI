@@ -10,10 +10,9 @@ from backend.api.routes_jurisdictions import JurisdictionInput, add_jurisdiction
 from backend.database.session import SessionLocal, validate_runtime_database
 from backend.models import User
 from backend.models.entities import AuthorityJurisdiction, Jurisdiction
+from backend.services.authority_demo import GREATER_NOIDA_EMAIL as EMAIL, GREATER_NOIDA_NAME as NAME
 from backend.services.geography import lock_routing
 
-NAME = "Greater Noida (approximate development jurisdiction)"
-EMAIL = "greater-noida-officer@example.com"
 BOUNDARY = {"type": "Polygon", "coordinates": [[
     [77.42, 28.38], [77.62, 28.38], [77.64, 28.57],
     [77.51, 28.62], [77.40, 28.56], [77.42, 28.38],

@@ -19,11 +19,12 @@ from backend.api import (
     routes_core,
     routes_guard,
     routes_jurisdictions,
+    routes_locations,
     routes_operations,
+    routes_push,
     routes_risk,
 )
 from backend.database.session import SessionLocal, validate_runtime_database
-from backend.services.authority_demo import provision_authority_demo_accounts
 from backend.services.media import validate_settings
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -58,23 +59,22 @@ async def lifespan(app: FastAPI):
     if (config.DB_MODE == "local" and config.DEMO_MODE
             and os.getenv("SEED_ON_START", "false").strip().lower() in {"1", "true", "yes", "on"}):
         app.state.seed_result = _seed_if_needed()
-    app.state.authority_demo_roles = set()
-    if config.authority_demo_accounts_allowed():
-        with SessionLocal() as db:
-            accounts = provision_authority_demo_accounts(db)
-        for role, result in accounts.items():
-            logger.info("Authority demo %s: %s", role, result)
-            if result in {"created", "already provisioned"}:
-                app.state.authority_demo_roles.add(role)
     from backend.services.report_analysis import run_worker
     stop = Event()
     worker = Thread(target=run_worker, args=(stop,), daemon=True, name="report-analysis")
-    worker.start()
+    workers = [worker]
+    if config.EXPO_PUSH_ENABLED:
+        from backend.services.citizen_push import run_worker as run_push_worker
+
+        workers.append(Thread(target=run_push_worker, args=(stop,), daemon=True, name="citizen-push"))
+    for worker in workers:
+        worker.start()
     try:
         yield
     finally:
         stop.set()
-        worker.join(timeout=3)
+        for worker in workers:
+            worker.join(timeout=3)
 
 
 app = FastAPI(
@@ -113,6 +113,8 @@ app.include_router(routes_jurisdictions.router)
 app.include_router(routes_operations.router)
 app.include_router(routes_community.router)
 app.include_router(routes_citizen.router)
+app.include_router(routes_locations.router)
+app.include_router(routes_push.router)
 app.include_router(routes_community.citizen_router)
 
 class PublicMedia(StaticFiles):

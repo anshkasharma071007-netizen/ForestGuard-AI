@@ -43,6 +43,7 @@ def create_token(user: User, *, authority_demo: bool = False) -> str:
     payload = {"uid": user.id, "role": user.role, "name": user.name}
     if authority_demo:
         payload["authority_demo"] = True
+        payload["authority_demo_email"] = user.email
     return _serializer.dumps(payload)
 
 
@@ -66,7 +67,7 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="Authentication required.")
     payload = read_token(credentials.credentials)
     user = db.get(User, payload.get("uid"))
-    if not user:
+    if not user or not _demo_user_matches(payload, user, db):
         raise HTTPException(status_code=401, detail="Account not found.")
     return user
 
@@ -81,7 +82,21 @@ def get_optional_user(
         payload = read_token(credentials.credentials)
     except HTTPException:
         return None
-    return db.get(User, payload.get("uid"))
+    user = db.get(User, payload.get("uid"))
+    return user if user and _demo_user_matches(payload, user, db) else None
+
+
+
+def _demo_user_matches(payload, user, db):
+    from backend.services.authority_demo import GREATER_NOIDA_EMAIL, greater_noida_officer
+
+    if user.email == GREATER_NOIDA_EMAIL and config.APP_ENV != "development":
+        return False
+    if not payload.get("authority_demo"):
+        return True
+    if user.role != payload.get("role") or user.email != payload.get("authority_demo_email"):
+        return False
+    return user.email != GREATER_NOIDA_EMAIL or greater_noida_officer(db) is not None
 
 
 def require_roles(*roles: str) -> Callable:

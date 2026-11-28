@@ -4,6 +4,7 @@ import { Feedback, StatusPill, SupportingText } from '@/components/Feedback';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionTitle } from '@/components/SectionTitle';
+import { Surface } from '@/components/Surface';
 import { TextAction } from '@/components/TextAction';
 import { usePublicData } from '@/hooks/usePublicData';
 import { getBackendHealth } from '@/services/api';
@@ -21,16 +22,14 @@ export default function SettingsScreen() {
   const health = usePublicData(getBackendHealth);
 
   return (
-    <Screen>
-      <ScreenHeader title="Settings" back />
-      <View style={styles.section}>
-        <SectionTitle title="Appearance" />
+    <Screen header={<ScreenHeader title="Appearance" back />}>
+      <Surface style={styles.section}>
         <View accessibilityRole="radiogroup" accessibilityLabel="Appearance">
           {options.map(({ id, label }) => <SelectionRow key={id} label={label} selected={mode === id} onPress={() => setMode(id)} />)}
         </View>
         {!!storageError && <SupportingText error>{storageError}</SupportingText>}
-      </View>
-      <View style={styles.section}>
+      </Surface>
+      <Surface style={styles.section}>
         <SectionTitle title="Service status" />
         {health.state.kind === 'loading' && <Feedback title="Checking service…" kind="loading" />}
         {health.state.kind === 'unavailable' && <Feedback title="Service check unavailable" detail={health.state.message} />}
@@ -43,7 +42,7 @@ export default function SettingsScreen() {
             <View style={{ alignItems: 'flex-start' }}><TextAction label="Check again" onPress={health.reload} /></View>
           </>
         )}
-      </View>
+      </Surface>
     </Screen>
   );
 }
