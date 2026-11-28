@@ -24,16 +24,22 @@ export function SupportingText({ children, error = false }: { children: React.Re
     style={[typeScale.supporting, { color: error ? colors.clay : colors.secondaryText }]}>{children}</Text>;
 }
 
-export function StatusPill({ label, tone = 'neutral' }: { label: string; tone?: 'neutral' | 'success' | 'warning' | 'danger' }) {
+export function StatusPill({ label, tone = 'neutral' }: { label: string; tone?: 'neutral' | 'success' | 'warning' | 'danger' | 'info' }) {
   const { colors } = useTheme();
   const tones = {
     neutral: [colors.card, colors.secondaryText],
     success: [colors.successTint, colors.successText],
     warning: [colors.warningTint, colors.warningText],
     danger: [colors.dangerTint, colors.clay],
+    info: [colors.softAccent, colors.infoText],
   };
   const [backgroundColor, color] = tones[tone];
   return <View style={[styles.pill, { backgroundColor }]}><Text style={[typeScale.supporting, { color }]}>{label}</Text></View>;
+}
+
+export function RiskPill({ severity }: { severity: string }) {
+  const tone = severity === 'high' ? 'danger' : severity === 'moderate' ? 'warning' : severity === 'low' ? 'success' : 'neutral';
+  return <StatusPill label={`${severity.charAt(0).toUpperCase()}${severity.slice(1)} risk`} tone={tone} />;
 }
 
 const styles = StyleSheet.create({

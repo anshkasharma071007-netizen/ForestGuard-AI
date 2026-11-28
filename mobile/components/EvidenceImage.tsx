@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Image, Platform, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { containImage, projectBox, type AnimalPrediction, type ImageSize } from '@/identification';
-import { photoViewerColors, spacing, typeScale, useTheme } from '@/theme';
+import { photoViewerColors, spacing, typeScale } from '@/theme';
 
 export type OriginalPhoto = ImageSize & { uri: string };
 
@@ -11,7 +11,6 @@ export function EvidenceImage({ photo, style, overlay, label = 'Original inciden
   overlay?: { image: ImageSize; animals: readonly AnimalPrediction[]; activeId?: string };
   label?: string;
 }) {
-  const { colors } = useTheme();
   const [frame, setFrame] = useState<ImageSize>({ width: 0, height: 0 });
   const aspectMatches = overlay && Math.abs((overlay.image.width / overlay.image.height) / (photo.width / photo.height) - 1) < 0.005;
   const canDraw = aspectMatches && containImage(overlay.image, frame);
@@ -24,8 +23,8 @@ export function EvidenceImage({ photo, style, overlay, label = 'Original inciden
         const rect = animal.box && projectBox(animal.box, overlay.image, frame);
         return rect && (
           <View key={animal.id} pointerEvents="none" accessible={false}
-            style={[styles.box, rect, { borderColor: colors.lime, borderWidth: overlay.activeId === animal.id ? 3 : 2 }]}>
-            <Text style={[styles.marker, { color: colors.deepForest, backgroundColor: colors.lime }]}>{index + 1}</Text>
+            style={[styles.box, rect, { borderColor: photoViewerColors.annotation, borderWidth: overlay.activeId === animal.id ? 3 : 2 }]}>
+            <Text style={[styles.marker, { color: photoViewerColors.onAnnotation, backgroundColor: photoViewerColors.annotation }]}>{index + 1}</Text>
           </View>
         );
       })}

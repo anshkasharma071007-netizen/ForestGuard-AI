@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, ImageIcon, PawPrint, TriangleAlert } from 'lucide-react-native';
+import { Camera, CircleCheck, ImageIcon, PawPrint, Send, TriangleAlert } from 'lucide-react-native';
 import { File } from 'expo-file-system';
 import { useEffect, useRef, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Linking, Platform, StyleSheet, Text, View } from 'react-native';
 import { InputField, SegmentedControl } from '@/components/Controls';
 import { Feedback, SupportingText } from '@/components/Feedback';
 import { PhotoPreview } from '@/components/PhotoPreview';
@@ -16,6 +16,7 @@ import { SpeciesSelector } from '@/components/SpeciesSelector';
 import { PrimaryButton, SecondaryButton } from '@/components/PrimaryButton';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { Surface } from '@/components/Surface';
 import { TextAction } from '@/components/TextAction';
 import { LocationField, locationInput, type LocationChoice } from '@/components/LocationField';
 import { useCitizen } from '@/citizen-context';
@@ -23,7 +24,7 @@ import { otherSpecies, speciesOptions, unknownSpecies, type CatalogSpecies } fro
 import type { IdentificationState } from '@/identification';
 import { ApiError, getCommunityGuidance, isApiConfigured, submitCitizenReport, type ReportSubmissionResponse } from '@/services/api';
 import { submissionKey, finishSubmission } from '@/services/report-storage';
-import { radius, spacing, useTheme } from '@/theme';
+import { radius, spacing, typeScale, useTheme } from '@/theme';
 
 const categories = [
   { id: 'sighting', label: 'Sighting', icon: PawPrint },
@@ -36,6 +37,7 @@ const descriptionLimit = 4000;
 
 export default function ReportScreen() {
   const { access, profile } = useCitizen();
+  const { colors } = useTheme();
   const [category, setCategory] = useState<Category | null>(null);
   const [title, setTitle] = useState('');
   const [species, setSpecies] = useState<CatalogSpecies>(unknownSpecies);
@@ -45,12 +47,14 @@ export default function ReportScreen() {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [animalId, setAnimalId] = useState<string>();
   const [photoError, setPhotoError] = useState('');
+  const [photoSettings, setPhotoSettings] = useState(false);
   const [picking, setPicking] = useState(false);
   const [location, setLocation] = useState<LocationChoice | null>(null);
   const [locating, setLocating] = useState(false);
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [progress, setProgress] = useState('');
+  const submitting = Boolean(progress);
   const [confirmation, setConfirmation] = useState<ReportSubmissionResponse | null>(null);
   const submissionInProgress = useRef(false);
   const photo = attachment?.original;
@@ -72,6 +76,7 @@ export default function ReportScreen() {
 
   async function choosePhoto(source: 'camera' | 'gallery') {
     setPhotoError('');
+    setPhotoSettings(false);
     setPicking(true);
     try {
       if (Platform.OS !== 'web') {
@@ -79,6 +84,7 @@ export default function ReportScreen() {
           ? await ImagePicker.requestCameraPermissionsAsync()
           : await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (permission.status !== 'granted') {
+          setPhotoSettings(!permission.canAskAgain);
           setPhotoError(source === 'camera' ? 'Camera permission was not granted.' : 'Photo library permission was not granted.');
           return;
         }
@@ -118,7 +124,7 @@ export default function ReportScreen() {
     }
     if (!isApiConfigured) { setError('Set EXPO_PUBLIC_API_URL to the Forest Guard API address and reopen the app.'); return; }
     if (!location || !profile) {
-      setError('Capture the incident location or select a village before submitting.');
+      setError('Choose and confirm the incident location before submitting.');
       return;
     }
     const incidentLocation = locationInput(location);
@@ -126,7 +132,7 @@ export default function ReportScreen() {
     const draftLocation = location.type === 'village' ? { village_code: location.village.code } : incidentLocation;
 
     submissionInProgress.current = true;
-    setSubmitting(true);
+    setProgress(photo ? 'Preparing photograph…' : 'Submitting report…');
     try {
       const draft = JSON.stringify([title.trim(), category, species.id, animalNote, description.trim(),
         draftLocation, photo?.assetId, photo?.fileName, photo?.fileSize,
@@ -143,6 +149,7 @@ export default function ReportScreen() {
       formData.append('submission_key', key);
       let response: ReportSubmissionResponse;
       try {
+        if (photo) setProgress('Uploading photograph and submitting report…');
         response = await submitCitizenReport(access, formData);
       } catch (failure) {
         if (failure instanceof ApiError && failure.kind === 'invalid-input') await finishSubmission(key, profile.id);
@@ -153,7 +160,7 @@ export default function ReportScreen() {
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'The report could not be submitted. Please try again.');
     } finally {
-      setSubmitting(false);
+      setProgress('');
       submissionInProgress.current = false;
     }
   }
@@ -161,59 +168,67 @@ export default function ReportScreen() {
   if (confirmation) return <Confirmation response={confirmation} />;
 
   return (
-    <Screen>
-      <ScreenHeader title="New report" back />
+    <Screen header={<ScreenHeader title="Report a sighting" back />}>
       <View style={styles.form}>
-        <InputField label="Title (required)" value={title} onChangeText={value => { setTitle(value); clearError(); }}
-          editable={!submitting} maxLength={120} />
         <View style={styles.field}>
-          <SectionTitle title="Incident category (required)" />
-          <SegmentedControl label="Incident category" options={categories} value={category}
-            onChange={value => { setCategory(value); clearError(); }} disabled={submitting} />
-        </View>
-        <View style={styles.field}>
-          <SectionTitle title="Animal" />
-          <SpeciesSelector catalog={catalog} selection={species} prediction={activeAnimal} disabled={submitting}
-            onSelect={value => { setSpecies(value); clearError(); }} />
-          {species.id === otherSpecies.id && <InputField label="Animal name (optional)" value={otherName}
-            onChangeText={value => { setOtherName(value); clearError(); }} editable={!submitting} maxLength={80} />}
-        </View>
-        <InputField label="Description (optional)" value={description} onChangeText={value => { setDescription(value); clearError(); }} editable={!submitting}
-          multiline maxLength={descriptionBudget} placeholder="Describe what you saw" />
-        <View style={styles.field}>
-          <SectionTitle title="Incident location (required)" />
-          <LocationField label="Incident location" value={location} onChange={value => { setLocation(value); clearError(); }}
-            onLocating={setLocating} disabled={submitting} />
-        </View>
-        <View style={styles.field}>
-          <SectionTitle title="Photograph" />
-          <SupportingText>Optional. Never approach wildlife for a photo.</SupportingText>
-          {photo && <PhotoPreview photo={photo} onExpand={() => setViewerOpen(true)}
-            overlay={result ? { ...result, activeId: activeAnimal?.id } : undefined} />}
+          {photo ? <PhotoPreview photo={photo} label="Selected incident photograph" onExpand={() => setViewerOpen(true)}
+            overlay={result ? { ...result, activeId: activeAnimal?.id } : undefined} /> :
+            <View style={[styles.upload, { backgroundColor: colors.card, borderColor: colors.controlBorder }]}>
+              <Camera size={34} color={colors.accent} strokeWidth={1.7} />
+              <Text style={[typeScale.section, { color: colors.primaryText }]}>Add a photograph</Text>
+              <Text style={[typeScale.supporting, styles.centered, { color: colors.secondaryText }]}>
+                Optional. Keep your distance when photographing wildlife.
+              </Text>
+            </View>}
           <View style={styles.actions}>
             {Platform.OS !== 'web' && <View style={styles.action}>
               <SecondaryButton icon={Camera} label={photo ? 'Retake photo' : 'Camera'}
                 onPress={() => void choosePhoto('camera')} disabled={submitting || picking} />
             </View>}
             <View style={styles.action}>
-              <SecondaryButton icon={ImageIcon} label={photo ? 'Replace photo' : 'Gallery'}
+              <SecondaryButton icon={ImageIcon} label={photo ? 'Replace photo' : 'Choose from gallery'}
                 onPress={() => void choosePhoto('gallery')} disabled={submitting || picking} />
             </View>
           </View>
-          {photo && <View style={{ alignItems: 'flex-start' }}>
-            <TextAction label="Remove photo" onPress={() => {
-              setAttachment(null);
-              setAnimalId(undefined);
-              setPhotoError('');
-            }} disabled={submitting || picking} />
-          </View>}
+          {photo && <TextAction label="Remove photo" onPress={() => {
+            setAttachment(null);
+            setAnimalId(undefined);
+            setPhotoError('');
+            setPhotoSettings(false);
+          }} disabled={submitting || picking} />}
           {picking && <Feedback title="Opening photo picker…" kind="loading" />}
           {!!photoError && <SupportingText error>{photoError}</SupportingText>}
+          {photoSettings && <TextAction label="Open device settings" onPress={() => {
+            void Linking.openSettings().catch(() => setPhotoError('Open device settings to allow photo access.'));
+          }} />}
         </View>
         <IdentificationResult state={analysis} catalog={catalog} activeId={activeAnimal?.id} onSelect={setAnimalId} />
+        <InputField label="Title (required)" value={title} onChangeText={value => { setTitle(value); clearError(); }}
+          placeholder="Briefly describe the sighting" editable={!submitting} maxLength={120} />
+        <View style={styles.field}>
+          <SectionTitle title="Incident category (required)" />
+          <SegmentedControl label="Incident category" options={categories} value={category}
+            onChange={value => { setCategory(value); clearError(); }} disabled={submitting} />
+        </View>
+        <View style={styles.field}>
+          <SectionTitle title="Animal observed" />
+          <SpeciesSelector catalog={catalog} selection={species} prediction={activeAnimal} disabled={submitting}
+            onSelect={value => { setSpecies(value); clearError(); }} />
+          {species.id === otherSpecies.id && <InputField label="Animal name (optional)" value={otherName}
+            onChangeText={value => { setOtherName(value); clearError(); }} editable={!submitting} maxLength={80} />}
+        </View>
+        <View style={styles.field}>
+          <SectionTitle title="Sighting location (required)" />
+          <LocationField label="Sighting location" value={location} onChange={value => { setLocation(value); clearError(); }}
+            onLocating={setLocating} disabled={submitting} />
+        </View>
+        <InputField label="Additional details (optional)" value={description}
+          onChangeText={value => { setDescription(value); clearError(); }} editable={!submitting}
+          multiline maxLength={descriptionBudget} placeholder="Describe what you observed" />
         {!isApiConfigured && <SupportingText>Reporting is unavailable on this device.</SupportingText>}
-        {!!error && <SupportingText error>{error}</SupportingText>}
-        <PrimaryButton label={submitting ? 'Submitting report…' : 'Submit report'} onPress={() => void submitReport()}
+        {!!error && <Feedback title="Check your report" detail={error} kind="error" />}
+        {!!progress && <Feedback title={progress} detail="Keep this screen open until your reference is ready." kind="loading" />}
+        <PrimaryButton label="Submit report" icon={Send} onPress={() => void submitReport()}
           loading={submitting} disabled={locating || picking} />
       </View>
       {photo && viewerOpen && <PhotoViewer photo={photo} onClose={() => setViewerOpen(false)} />}
@@ -244,14 +259,15 @@ async function appendPhoto(formData: FormData, photo: PhotoAsset) {
 function Confirmation({ response }: { response: ReportSubmissionResponse }) {
   const { colors } = useTheme();
   return (
-    <Screen>
-      <ScreenHeader title="Report submitted" onBack={() => router.dismissTo('/')} />
+    <Screen header={<ScreenHeader title="Report submitted" onBack={() => router.dismissTo('/')} />}>
       <View style={styles.form}>
-        <View style={[styles.reminder, { backgroundColor: colors.card, gap: spacing.sm }]}>
-          <SectionTitle title="Reference code" />
+        <Surface style={styles.receipt}>
+          <CircleCheck size={34} color={colors.successText} />
+          <SectionTitle title="Your report was received" />
+          <SupportingText>Use this reference to follow your report.</SupportingText>
           <ReferenceCode code={response.reference_code} />
           <ReportStatusPill status={response.status} />
-        </View>
+        </Surface>
         <PrimaryButton label="View report" onPress={() => router.replace({
           pathname: '/report-detail', params: { code: response.reference_code },
         })} />
@@ -264,8 +280,11 @@ function Confirmation({ response }: { response: ReportSubmissionResponse }) {
 
 const styles = StyleSheet.create({
   form: { gap: spacing.lg },
-  field: { gap: spacing.xs },
-  reminder: { borderRadius: radius.input, padding: spacing.md },
+  field: { gap: spacing.sm },
+  upload: { minHeight: 140, padding: spacing.lg, gap: spacing.xs, borderStyle: 'dashed', borderWidth: 1,
+    borderRadius: radius.card, alignItems: 'center', justifyContent: 'center' },
+  centered: { textAlign: 'center' },
+  receipt: { padding: spacing.lg },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   action: { flexGrow: 1, flexBasis: '40%' },
 });

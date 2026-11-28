@@ -13,11 +13,11 @@ export function SecondaryButton(props: ButtonProps) {
 }
 
 function ActionButton({ label, onPress, icon, disabled = false, loading = false, outlined = false }: ButtonProps & { outlined?: boolean }) {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const inactive = disabled || loading;
   const Icon = icon === 'plus' ? Plus : icon === 'arrow' ? ArrowRight : icon;
   const leading = outlined || icon === 'plus';
-  const iconColor = outlined ? colors.accent : isDark ? colors.onAction : colors.lime;
+  const iconColor = outlined ? colors.accent : colors.onAction;
   return (
     <Pressable accessibilityRole="button" accessibilityState={{ disabled: inactive, busy: loading }}
       onPress={onPress} disabled={inactive}

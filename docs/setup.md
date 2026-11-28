@@ -32,13 +32,13 @@ python3 -m venv .venv
 
 #### Existing macOS checkout and physical-phone testing
 
-Start in the repository root. Use the same database owner and passfile as the original provisioning. The initializer applies migrations through revision `0008`, verifies the schema and checks runtime access. Install PostGIS for your local PostgreSQL version before running it. If the provisioning login cannot create extensions, have the PostgreSQL administrator enable PostGIS in the target database first.
+Start in the repository root. Use the same database owner and passfile as the original provisioning. The initializer applies migrations through revision `0010`, verifies the schema and checks runtime access. Install PostGIS for your local PostgreSQL version before running it. If the provisioning login cannot create extensions, have the PostgreSQL administrator enable PostGIS in the target database first.
 
 ```sh
 brew services start postgresql@17  # only if PostgreSQL is stopped
 .venv/bin/python -m tools.init_database --admin-user "$(id -un)" --use-libpq --no-env
 DATABASE_URL=postgresql+psycopg:///forest_guard_ai .venv/bin/alembic current
-APP_ENV=development AUTHORITY_DEMO_ACCOUNTS_ENABLED=true CITIZEN_DEV_OTP_ENABLED=true \
+APP_ENV=development AUTHORITY_DEMO_ACCOUNTS_ENABLED=true \
   AI_MODE=auto DEMO_MODE=false SEED_ON_START=false \
   .venv/bin/python -m uvicorn backend.main:app --reload --reload-dir backend --reload-dir geospatial --host 0.0.0.0 --port 8000 \
   --env-file .forest-guard-local/backend.env
@@ -80,25 +80,25 @@ The core install uses `AI_MODE=demo` and needs no inference weights. For upload 
 
 ### Authority demo sign-in
 
-From the repository root, start the current backend with authority demos and citizen development OTP enabled. Stop a previous Uvicorn instance on port 8000 first so Vite connects to the current API.
+From the repository root, start the current backend with the authority demo enabled. Configure the citizen email service using [the citizen setup](citizen-services.md). Stop a previous Uvicorn instance on port 8000 first so Vite connects to the current API.
 
 ```sh
-APP_ENV=development AUTHORITY_DEMO_ACCOUNTS_ENABLED=true CITIZEN_DEV_OTP_ENABLED=true \
+APP_ENV=development AUTHORITY_DEMO_ACCOUNTS_ENABLED=true \
   AI_MODE=auto DEMO_MODE=false SEED_ON_START=false \
   .venv/bin/python -m uvicorn backend.main:app --reload --reload-dir backend --reload-dir geospatial --host 127.0.0.1 --port 8000 \
   --env-file .forest-guard-local/backend.env
 ```
 
-Startup provisions the Range Officer (`admin@forestguard.ai`, role `admin`) and Forest Guard (`guard@forestguard.ai`, role `guard`). Use `AI_MODE=demo` with the core-only Python install. Open the Vite site and select **Use a demo account**. The buttons remain disabled while the site checks availability or if the request fails. If the page reports that demo accounts are unavailable, check the backend startup log and select **retry** after the backend is ready.
+The website offers **Range Officer** when the Greater Noida development officer has the expected role and assignment. The demo signs in directly as that officer. Use `AI_MODE=demo` with the core-only Python install.
 
-To provision just the authority accounts without starting the API, run from the repository root:
+Provision the Greater Noida officer and development coverage if the selected development database needs them.
 
 ```sh
 APP_ENV=development AUTHORITY_DEMO_ACCOUNTS_ENABLED=true \
   .venv/bin/python -m tools.provision_authority_demo --env-file .forest-guard-local/backend.env
 ```
 
-Omit `--env-file` if the repository's ignored `.env` already points to the development database. The command uses the restricted runtime login and can be rerun safely. It reports an existing email with different credentials or role and preserves that account. This includes accounts from an earlier synthetic dataset seed. Sign in to those accounts with their existing credentials. After startup, the sign-in page offers matching demo accounts, and each button fills the form for the normal **Sign in** action. Disabling the flag or running outside development hides the buttons and rejects the provided demo credentials and their sessions.
+Omit `--env-file` if the ignored `.env` already selects the development database. The command preserves the existing officer and prompts for a password only when creating the account. Other officers and administrators continue to use their official login.
 
 ### Model weights
 
@@ -144,8 +144,8 @@ Copy `.env.example` to `.env` and edit as needed. `.env` is git-ignored. The dat
 | `SEED_ON_START` | `false` | Operational startup seeding also requires `APP_ENV=development` and `DEMO_MODE=true` |
 | `DEMO_VILLAGES_ENABLED` | `false` | Explicit opt-in for `tools.seed_villages` alongside `APP_ENV=development`. Startup does not provision villages |
 | `APP_ENV` | `production` | Set `development` only for local development sessions |
-| `CITIZEN_DEV_OTP_ENABLED` | `false` | Set `true` together with `APP_ENV=development` to allow the local OTP `1234` |
-| `AUTHORITY_DEMO_ACCOUNTS_ENABLED` | `false` | Set `true` together with `APP_ENV=development` to provision and enable the authority demo sign-ins |
+| `CITIZEN_DEV_OTP_ENABLED` | `false` | Set `true` together with `APP_ENV=development` to allow the legacy phone verification route in local test environments |
+| `AUTHORITY_DEMO_ACCOUNTS_ENABLED` | `false` | Set `true` together with `APP_ENV=development` to enable the existing Greater Noida Range Officer demo |
 | `PGPASSFILE` | Set by the initializer | Path to the private runtime libpq passfile |
 | `AI_MODE` | `demo` in the generated environment | `auto` = load YOLO-World + CLIP; `demo` = no model loading, uploads 503 |
 | `YOLO_WORLD_WEIGHTS` | `yolov8s-worldv2.pt` | Detector weights path (relative to repo root or absolute) |

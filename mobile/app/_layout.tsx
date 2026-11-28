@@ -7,6 +7,7 @@ import { useTheme } from '@/theme';
 import { ThemeProvider, useAppTheme } from '@/theme-context';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { CitizenProvider, useCitizen } from '@/citizen-context';
+import { CitizenPushCoordinator } from '@/citizen-push';
 import { CitizenNotificationsProvider } from '@/citizen-notifications';
 import { Feedback } from '@/components/Feedback';
 import { Screen } from '@/components/Screen';
@@ -23,12 +24,12 @@ function AppShell() {
   const [fontsLoaded, fontError] = useFonts({
     'Inter-Regular': require('../assets/fonts/Inter-Regular.ttf'),
     'Inter-Semibold': require('../assets/fonts/Inter-Semibold.ttf'),
-    'Fraunces-Semibold': require('../assets/fonts/Fraunces-Semibold.ttf'),
+    'Manrope-Semibold': require('../assets/fonts/Manrope-Semibold.ttf'),
   });
   if (!ready || loading || (!fontsLoaded && !fontError)) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
-        <BrandMark fontReady={fontsLoaded} />
+        <BrandMark />
         <StatusBar style={isDark ? 'light' : 'dark'} />
       </View>
     );
@@ -51,12 +52,13 @@ function AppShell() {
           <Stack.Screen name="all-reports" />
           <Stack.Screen name="notifications" />
           <Stack.Screen name="settings" />
+          <Stack.Screen name="profile-settings" />
           <Stack.Screen name="guidelines" />
         </Stack.Protected>
         <Stack.Screen name="+not-found" />
       </Stack>
+      {profile?.location && <CitizenPushCoordinator />}
       </CitizenNotificationsProvider>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
     </>
   );
 }

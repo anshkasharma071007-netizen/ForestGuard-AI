@@ -256,6 +256,7 @@ def serialize_sighting(report: SightingReport, *, public: bool = False) -> dict:
         "description": report.description,
         "village_id": report.village_id,
         "village_name": report.village.name if report.village else None,
+        "location_label": report.location_label,
         "status": report.status,
         "created_at": iso(report.created_at),
         "is_simulated": report.is_simulated,

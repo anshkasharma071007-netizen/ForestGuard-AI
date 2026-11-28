@@ -41,28 +41,30 @@ export function Dropdown({ label, accessibilityLabel, icon: Icon, onPress, expan
   );
 }
 
-export function SegmentedControl<T extends string>({ label, options, value, onChange, disabled = false }: {
+export function SegmentedControl<T extends string>({ label, options, value, onChange, disabled = false, compact = false }: {
   label: string;
   options: readonly { id: T; label: string; icon?: LucideIcon }[];
   value: T | null;
   onChange: (id: T) => void;
   disabled?: boolean;
+  compact?: boolean;
 }) {
   const { colors } = useTheme();
   const { width, fontScale } = useWindowDimensions();
   const stack = Math.min(width, sizing.content) / Math.max(fontScale, 1) < 275;
   return (
-    <View accessibilityRole="radiogroup" accessibilityLabel={label} style={[styles.segments, stack && styles.stacked]}>
+    <View accessibilityRole="radiogroup" accessibilityLabel={label} style={[styles.segments, stack && (compact ? styles.wrapped : styles.stacked)]}>
       {options.map(({ id, label: name, icon: Icon }) => {
         const selected = value === id;
         return (
           <Pressable key={id} accessibilityRole="radio" aria-checked={selected} accessibilityState={{ checked: selected, disabled }}
             disabled={disabled} onPress={() => onChange(id)}
-            style={({ pressed }) => [styles.control, styles.segment, !stack && styles.segmentHorizontal,
-              { backgroundColor: selected || pressed ? colors.successTint : colors.card,
-                borderColor: selected ? colors.focus : colors.controlBorder, opacity: disabled ? 0.6 : 1 }]}>
+            style={({ pressed }) => [styles.control, styles.segment, !stack && styles.segmentHorizontal, stack && compact && styles.segmentWrapped,
+              compact && styles.compact,
+              { backgroundColor: selected && compact ? colors.primaryAction : selected || pressed ? colors.softAccent : colors.card,
+                borderColor: selected && compact ? colors.primaryAction : selected ? colors.focus : compact ? colors.border : colors.controlBorder, opacity: disabled ? 0.6 : 1 }]}>
             {Icon && <Icon size={18} color={selected ? colors.accent : colors.secondaryText} />}
-            <Text style={[typeScale.action, styles.segmentText, { color: selected ? colors.accent : colors.primaryText }]}>{name}</Text>
+            <Text style={[typeScale.action, styles.segmentText, { color: selected && compact ? colors.onAction : selected ? colors.accent : colors.primaryText }]}>{name}</Text>
           </Pressable>
         );
       })}
@@ -70,15 +72,18 @@ export function SegmentedControl<T extends string>({ label, options, value, onCh
   );
 }
 
-export function NavigationRow({ label, icon: Icon, onPress, disabled = false }: {
-  label: string; icon: LucideIcon; onPress: () => void; disabled?: boolean;
+export function NavigationRow({ label, detail, icon: Icon, onPress, disabled = false }: {
+  label: string; detail?: string; icon: LucideIcon; onPress: () => void; disabled?: boolean;
 }) {
   const { colors } = useTheme();
   return (
     <Pressable accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
       style={({ pressed }) => [styles.nav, { borderColor: colors.border, opacity: disabled ? 0.6 : 1, backgroundColor: pressed ? colors.successTint : undefined }]}>
       <Icon size={20} color={colors.accent} />
-      <Text style={[styles.label, typeScale.action, { color: colors.primaryText }]}>{label}</Text>
+      <View style={styles.flex}>
+        <Text style={[typeScale.action, { color: colors.primaryText }]}>{label}</Text>
+        {detail && <Text style={[typeScale.supporting, { color: colors.secondaryText }]}>{detail}</Text>}
+      </View>
       <ChevronRight size={18} color={colors.accent} />
     </Pressable>
   );
@@ -115,6 +120,9 @@ const styles = StyleSheet.create({
   expanded: { transform: [{ rotate: '180deg' }] },
   segments: { flexDirection: 'row', gap: spacing.sm },
   stacked: { flexDirection: 'column' },
+  wrapped: { flexWrap: 'wrap' },
+  compact: { borderRadius: radius.pill, paddingVertical: spacing.xs },
+  segmentWrapped: { flexBasis: '45%', flexGrow: 1 },
   segment: { justifyContent: 'center', paddingHorizontal: spacing.sm },
   segmentHorizontal: { flex: 1, minWidth: 0 },
   segmentText: { flexShrink: 1, textAlign: 'center' },

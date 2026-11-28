@@ -1,16 +1,33 @@
 import { router } from 'expo-router';
-import { ChevronRight, RefreshCw } from 'lucide-react-native';
+import { ChevronRight, CircleCheck, CircleX, ClipboardCheck, FileCheck2, RefreshCw } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { eventLabels, useCitizenNotifications } from '@/citizen-notifications';
-import { Feedback, SupportingText } from '@/components/Feedback';
+import { Feedback, RiskPill, SupportingText } from '@/components/Feedback';
 import { IconAction } from '@/components/IconAction';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { SectionTitle } from '@/components/SectionTitle';
 import { TextAction } from '@/components/TextAction';
 import { formatTimestamp } from '@/format';
 import type { CitizenNotification } from '@/services/api';
 import { radius, spacing, typeScale, useTheme } from '@/theme';
+
+const eventIcons = { submitted: FileCheck2, approved: ClipboardCheck, rejected: CircleX, resolved: CircleCheck };
+const groups = ['Today', 'Yesterday', 'Earlier'] as const;
+
+function groupNotifications(items: CitizenNotification[]) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const grouped: Record<typeof groups[number], CitizenNotification[]> = { Today: [], Yesterday: [], Earlier: [] };
+  for (const item of [...items].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))) {
+    const timestamp = Date.parse(item.createdAt);
+    grouped[timestamp >= today.getTime() ? 'Today' : timestamp >= yesterday.getTime() ? 'Yesterday' : 'Earlier'].push(item);
+  }
+  return grouped;
+}
 
 export default function Notifications() {
   const { inbox, state, saving, markRead, reload, refreshing, refreshError } = useCitizenNotifications();
@@ -18,6 +35,7 @@ export default function Notifications() {
   const [error, setError] = useState('');
   const [opening, setOpening] = useState<string>();
   const busy = useRef(false);
+  const grouped = groupNotifications(inbox?.items ?? []);
 
   async function open(item?: CitizenNotification) {
     if (busy.current) return;
@@ -35,38 +53,56 @@ export default function Notifications() {
     }
   }
 
-  return <Screen>
-    <ScreenHeader title="Notifications" back action={<IconAction icon={RefreshCw} label="Refresh notifications" loading={refreshing} onPress={reload} />} />
+  return <Screen refresh={{ onRefresh: reload, refreshing }} header={
+    <ScreenHeader title="Notifications" back action={<IconAction icon={RefreshCw} tone="header"
+      label="Refresh notifications" loading={refreshing} onPress={reload} />} />
+  }>
     <View style={styles.list}>
-      {inbox && <View style={styles.header}>
+      {!!inbox?.items.length && <View style={styles.header}>
         <SupportingText>{inbox.unread} unread</SupportingText>
         <TextAction label="Mark all as read" onPress={() => void open()} disabled={!inbox.unread || saving} loading={saving && !opening} />
       </View>}
       {state.kind === 'loading' && <Feedback title="Loading notifications…" kind="loading" />}
       {'message' in state && <Feedback title="Could not load notifications" detail={state.message} kind="error" retry={reload} />}
       {!!(error || refreshError) && <SupportingText error>{error || refreshError}</SupportingText>}
-      {inbox?.items.length === 0 && <Feedback title="No notifications" />}
-      {inbox?.items.map((item) => <Pressable key={item.id} accessibilityRole="button"
-        accessibilityLabel={`${eventLabels[item.event] ?? 'Report updated'}, ${item.reportTitle ?? item.code}${item.readAt ? '' : ', unread'}`}
-        accessibilityState={{ busy: opening === item.id, disabled: saving }} disabled={saving}
-        onPress={() => void open(item)} style={({ pressed }) => [styles.item, { borderColor: colors.border,
-          backgroundColor: pressed ? colors.successTint : colors.card }]}>
-        {!item.readAt && <View style={[styles.dot, { backgroundColor: colors.accent }]} />}
-        <View style={styles.info}>
-          <Text style={[typeScale.card, { color: colors.primaryText }]}>{eventLabels[item.event] ?? 'Report updated'}</Text>
-          <Text style={[typeScale.body, { color: colors.primaryText }]}>{item.reportTitle ?? item.code}</Text>
-          <SupportingText>{item.risk ? `${item.risk[0].toUpperCase()}${item.risk.slice(1)} risk · ` : ''}{formatTimestamp(item.createdAt)}</SupportingText>
-        </View>
-        <ChevronRight size={16} color={colors.mutedText} />
-      </Pressable>)}
+      {inbox?.items.length === 0 && <Feedback title="No notifications yet" detail="Updates about your reports will appear here." />}
+      {groups.map(group => grouped[group].length > 0 && <View style={styles.group} key={group}>
+        <SectionTitle title={group} />
+        {grouped[group].map(item => {
+          const Icon = eventIcons[item.event as keyof typeof eventIcons] ?? FileCheck2;
+          const label = eventLabels[item.event] ?? 'Report updated';
+          const rejected = item.event === 'rejected';
+          return <Pressable key={item.id} accessibilityRole="button"
+            accessibilityLabel={`${label}, ${item.reportTitle ?? item.code}${item.readAt ? '' : ', unread'}`}
+            accessibilityState={{ busy: opening === item.id, disabled: saving }} disabled={saving}
+            onPress={() => void open(item)} style={({ pressed }) => [styles.item, {
+              borderColor: item.readAt ? colors.border : colors.controlBorder,
+              backgroundColor: pressed || !item.readAt ? colors.softAccent : colors.card,
+            }]}>
+            <View style={[styles.icon, { backgroundColor: rejected ? colors.dangerTint : colors.card }]}>
+              <Icon size={19} color={rejected ? colors.clay : colors.accent} />
+            </View>
+            <View style={styles.info}>
+              <Text style={[typeScale.card, { color: colors.primaryText }]}>{label}</Text>
+              <SupportingText>{item.reportTitle ?? item.code}</SupportingText>
+              <SupportingText>{formatTimestamp(item.createdAt)}</SupportingText>
+              {item.risk && <RiskPill severity={item.risk} />}
+            </View>
+            {!item.readAt && <View style={[styles.dot, { backgroundColor: colors.accent }]} />}
+            <ChevronRight size={17} color={colors.secondaryText} />
+          </Pressable>;
+        })}
+      </View>)}
     </View>
   </Screen>;
 }
 
 const styles = StyleSheet.create({
-  list: { gap: spacing.sm },
+  list: { gap: spacing.md },
+  group: { gap: spacing.sm },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' },
   item: { borderWidth: 1, borderRadius: radius.input, padding: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  icon: { width: 38, height: 38, borderRadius: radius.input, alignItems: 'center', justifyContent: 'center' },
   info: { flex: 1, gap: spacing.xs },
-  dot: { width: 7, height: 7, borderRadius: 4 },
+  dot: { width: 8, height: 8, borderRadius: 4 },
 });

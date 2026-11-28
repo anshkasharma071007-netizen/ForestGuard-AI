@@ -43,17 +43,19 @@ type ReportIdentity = { reference_code: string; status: ReportStatus };
 export type ReportSubmissionResponse = ReportIdentity & { message: string };
 export type Village = { id: number; code: string; name: string; district?: string; isDemo: boolean; center?: Coordinates };
 export type Coordinates = { lat: number; lon: number };
-export type SavedLocation = ({ type: 'gps' } | { type: 'village'; village: Village }) & Coordinates;
-export type LocationInput = Coordinates | { village_id: number };
-export type CitizenProfile = { id: number; name: string; email: string | null; phone: string; location: SavedLocation | null;
-  savedAlertLocation: SavedLocation | null; alertRadiusKm: AlertRadius };
+export type Place = Coordinates & { label: string };
+export type SavedLocation = ({ type: 'gps'; label?: string } | { type: 'village'; village: Village }) & Coordinates;
+export type LocationInput = (Coordinates & { label?: string }) | { village_id: number };
+export type PushPreferences = { reports: boolean; nearby: boolean };
+export type CitizenProfile = { id: number; name: string; email: string | null; phone: string | null; emailVerified: boolean; location: SavedLocation | null;
+  savedAlertLocation: SavedLocation | null; alertRadiusKm: AlertRadius; push: PushPreferences };
 export type CitizenAccess = {
   token?: string;
   citizenId?: number;
   signal?: AbortSignal;
   expire: () => void;
 };
-export type CitizenReport = ReportIdentity & { title: string; createdAt: string; village?: string };
+export type CitizenReport = ReportIdentity & { title: string; createdAt: string; village?: string; locationLabel?: string };
 export type CitizenNotification = {
   id: string; event: string; code: string; reportTitle?: string; createdAt: string; readAt?: string; risk?: string;
 };
@@ -134,6 +136,19 @@ export async function getNearbyAlerts(access: CitizenAccess, location: AlertLoca
   };
 }
 
+export async function getAllNearbyAlerts(access: CitizenAccess, location: AlertLocation, radius: AlertRadius,
+  sort: AlertSort, signal: AbortSignal): Promise<Advisory[]> {
+  const alerts = new Map<number, Advisory>();
+  let offset = 0;
+  while (!signal.aborted) {
+    const page = await getNearbyAlerts(access, location, radius, sort, offset, signal);
+    page.items.forEach(alert => alerts.set(alert.id, alert));
+    if (page.nextOffset === null) break;
+    offset = page.nextOffset;
+  }
+  return [...alerts.values()];
+}
+
 export async function getCommunityGuidance(signal?: AbortSignal): Promise<CommunityGuidance> {
   const { species, general, source_note } = await request('/api/community/guidelines', { signal });
   const catalog = new Map<string, string>();
@@ -161,27 +176,65 @@ export async function recoverCitizenReceipt(access: CitizenAccess, key: string, 
     { notFound: 'Submission has not been received.' }));
 }
 
-export async function verifyCitizen(input: { phone: string; code: string; name?: string; email?: string }) {
+export async function verifyCitizen(input: { email: string; code: string }) {
   const web = Platform.OS === 'web';
-  const record = await request('/api/citizen/verify', {
+  const record = await request('/api/citizen/email-otp/verify', {
     method: 'POST', credentials: web ? 'include' : 'omit', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ...input, transport: web ? 'cookie' : 'bearer' }),
   });
   return { profile: parseProfile(object(record.profile)), token: web ? undefined : requiredText(record.token) };
 }
 
-export async function validateCitizenPhone(phone: string) {
-  const result = await request('/api/citizen/validate-phone', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone }),
+export async function sendCitizenCode(email: string) {
+  const { retry_after } = await request('/api/citizen/email-otp/send', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }),
   });
-  if (result.valid !== true) throw invalidResponse();
+  if (typeof retry_after !== 'number') throw invalidResponse();
+  return retry_after;
+}
+
+const jsonRequest = (method: string, data: unknown, signal?: AbortSignal): RequestInit =>
+  ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data), signal });
+
+export async function searchCitizenPlaces(access: CitizenAccess, text: string, mode: 'autocomplete' | 'search',
+  signal: AbortSignal): Promise<Place[]> {
+  const { items } = await citizenRequest(access, '/locations/search', jsonRequest('POST', { text, mode }, signal));
+  return list(items).map(item => {
+    const point = coordinates(item);
+    if (!point) throw invalidResponse();
+    return { ...point, label: requiredText(item.label) };
+  });
+}
+
+export async function reverseCitizenLocation(access: CitizenAccess, point: Coordinates, signal: AbortSignal) {
+  const { label } = await citizenRequest(access, '/locations/reverse', jsonRequest('POST', point, signal));
+  return optionalText(label);
+}
+
+export async function savePushPreferences(access: CitizenAccess, preferences: PushPreferences) {
+  return parsePush(await citizenRequest(access, '/push/preferences', jsonRequest('PUT', preferences)));
+}
+
+export async function registerPushDevice(access: CitizenAccess, installation: string, token: string) {
+  await citizenRequest(access, '/push/device', jsonRequest('PUT', { installation, token }));
+}
+
+export async function unregisterPushDevice(access: CitizenAccess, installation: string) {
+  await citizenRequest(access, `/push/device/${installation}`, { method: 'DELETE' });
+}
+
+export async function openPushEvent(access: CitizenAccess, id: string) {
+  const data = await citizenRequest(access, '/push/open', jsonRequest('POST', { id }));
+  if (data.screen === 'report') return { screen: 'report' as const, code: requiredText(data.reference_code) };
+  if (data.screen === 'map' && typeof data.alert_id === 'number') return { screen: 'map' as const, alertId: data.alert_id };
+  throw invalidResponse();
 }
 
 export async function getCitizenProfile(access: CitizenAccess, signal?: AbortSignal) {
   return parseProfile(await citizenRequest(access, '/profile', { signal }));
 }
 
-export async function updateCitizenProfile(access: CitizenAccess, input: { name: string; email: string | null; location?: LocationInput }) {
+export async function updateCitizenProfile(access: CitizenAccess, input: { name: string; phone?: string | null; location?: LocationInput }) {
   return parseProfile(await citizenRequest(access, '/profile', {
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input),
   }));
@@ -324,7 +377,8 @@ async function fetchResponse<T>(path: string, init: RequestInit, read: (response
     if ([400, 403, 409, 413, 415, 422].includes(response.status)) {
       throw new ApiError('invalid-input', validationMessage(value) ?? 'Check the information you entered and try again.');
     }
-    if (response.status === 429) throw new ApiError('request-failed', 'Too many requests. Try again shortly.');
+    if ([410, 429, 502, 503].includes(response.status)) throw new ApiError('request-failed',
+      validationMessage(value) ?? 'The Forest Guard service is temporarily unavailable. Try again shortly.');
     throw new ApiError('request-failed', 'The Forest Guard service could not complete the request. Try again.');
   } catch (error) {
     if (cancelled()) throw cancellation();
@@ -378,7 +432,7 @@ function parseLocation(location: unknown): SavedLocation | null {
   const data = object(location);
   const point = coordinates(data);
   if (!point) throw invalidResponse();
-  if (data.type === 'gps') return { type: 'gps', ...point };
+  if (data.type === 'gps') return { type: 'gps', ...point, label: optionalText(data.label) };
   if (data.type === 'village') {
     const village = object(data.village);
     return { type: 'village', ...point, village: { ...parseVillage(village), center: point } };
@@ -390,15 +444,21 @@ function parseProfile(record: Record<string, unknown>): CitizenProfile {
   const { id, name, email, phone, location, saved_alert_location, alert_radius_km } = record;
   if (typeof id !== 'number' || !Number.isInteger(id)) throw invalidResponse();
   const saved = parseLocation(location);
-  return { id, name: requiredText(name), phone: requiredText(phone), email: optionalText(email) ?? null, location: saved,
+  return { id, name: typeof name === 'string' ? name : '', phone: optionalText(phone) ?? null, emailVerified: record.email_verified === true, email: optionalText(email) ?? null, location: saved,
     savedAlertLocation: saved_alert_location === undefined ? saved : parseLocation(saved_alert_location),
-    alertRadiusKm: isAlertRadius(alert_radius_km) ? alert_radius_km : 25 };
+    alertRadiusKm: isAlertRadius(alert_radius_km) ? alert_radius_km : 25,
+    push: parsePush({ reports: record.push_reports, nearby: record.push_nearby }) };
+}
+
+function parsePush(record: Record<string, unknown>): PushPreferences {
+  return { reports: record.reports === true, nearby: record.nearby === true };
 }
 
 function parseCitizenReport(record: Record<string, unknown>): CitizenReport {
   const createdAt = optionalDate(record.created_at);
   if (!createdAt) throw invalidResponse();
-  return { ...parseIdentity(record), title: requiredText(record.title), createdAt, village: optionalText(record.village_name) };
+  return { ...parseIdentity(record), title: requiredText(record.title), createdAt, village: optionalText(record.village_name),
+    locationLabel: optionalText(record.location_label) };
 }
 
 function object(value: unknown): Record<string, unknown> {

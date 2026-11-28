@@ -42,8 +42,8 @@ export function AuthProvider({ children }) {
     }
   }, [token])
 
-  const login = useCallback(async (email, password) => {
-    const response = await api.post('/api/auth/login', { email, password })
+  const login = useCallback(async (email, password, demo = false) => {
+    const response = demo ? await api.post('/api/auth/demo-login') : await api.post('/api/auth/login', { email, password })
     localStorage.setItem('fg_token', response.data.token)
     localStorage.setItem('fg_user', JSON.stringify(response.data.user))
     setToken(response.data.token)

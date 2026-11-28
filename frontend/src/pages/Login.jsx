@@ -7,7 +7,7 @@ import ThemeToggle from '../components/ThemeToggle'
 import { Logo } from '../components/ui'
 import api, { errorMessage } from '../api/client'
 
-const demoOptions = [['admin', 'Range Officer'], ['guard', 'Forest Guard']]
+const demoOptions = [['range_officer', 'Range Officer']]
 const localPreview = import.meta.env.DEV || ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)
 
 export default function Login() {
@@ -43,24 +43,18 @@ export default function Login() {
 
   if (token) return <Navigate to="/" replace />
 
-  const submit = async (event) => {
+  const submit = async (event, useDemo = false) => {
     event.preventDefault()
     setSubmitting(true)
     setError(null)
     try {
-      await login(email.trim(), password)
+      await login(email.trim(), password, useDemo)
       navigate(location.state?.from?.pathname || '/', { replace: true })
     } catch (err) {
       setError(errorMessage(err))
     } finally {
       setSubmitting(false)
     }
-  }
-
-  const fill = (account) => {
-    setEmail(account.email)
-    setPassword(account.password)
-    setError(null)
   }
 
   const retryDemoAccounts = () => {
@@ -155,7 +149,7 @@ export default function Login() {
                 <h2 id="demo-heading" className="mb-2 text-xs font-medium text-success-8">Use a demo account</h2>
                 <div className="grid grid-cols-2 gap-2">
                   {demoOptions.map(([role, name]) => (
-                    <button key={role} type="button" onClick={() => fill(demo.accounts[role])} disabled={submitting || !demo.accounts[role]} className="btn-outline px-2 text-xs">
+                    <button key={role} type="button" onClick={(event) => void submit(event, true)} disabled={submitting || !demo.accounts[role]} className="btn-outline px-2 text-xs">
                       {name}
                     </button>
                   ))}
@@ -169,7 +163,7 @@ export default function Login() {
                     </p>
                   )}
                   {demo.status === 'enabled' && missingDemoAccount && (
-                    <p className="mt-2">Some demo accounts are unavailable. Check the backend startup log for details.</p>
+                    <p className="mt-2">The Greater Noida Range Officer is unavailable.</p>
                   )}
                 </div>
               </section>

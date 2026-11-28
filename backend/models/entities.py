@@ -10,6 +10,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    Index,
     String,
     Text,
     false,
@@ -75,13 +76,21 @@ class Village(Base):
 
 class Citizen(Base):
     __tablename__ = "citizens"
-    __table_args__ = (CheckConstraint("alert_radius_km IN (5, 10, 20, 25)", name="ck_citizen_alert_radius"),)
+    __table_args__ = (CheckConstraint("alert_radius_km IN (5, 10, 20, 25)", name="ck_citizen_alert_radius"),
+                      Index("uq_citizens_login_email", "login_email", unique=True))
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    phone: Mapped[str] = mapped_column(String(16), unique=True)
+    phone: Mapped[str | None] = mapped_column(String(16), unique=True)
     normalized_phone: Mapped[str | None] = mapped_column(String(13), index=True)
     name: Mapped[str] = mapped_column(String(120))
     email: Mapped[str | None] = mapped_column(String(254))
+    login_email: Mapped[str | None] = mapped_column(String(254))
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime)
+    contact_phone: Mapped[str | None] = mapped_column(String(16))
+    location_label: Mapped[str | None] = mapped_column(String(250))
+    alert_location_label: Mapped[str | None] = mapped_column(String(250))
+    push_reports: Mapped[bool] = mapped_column(Boolean, server_default=false())
+    push_nearby: Mapped[bool] = mapped_column(Boolean, server_default=false())
     village_id: Mapped[int | None] = mapped_column(ForeignKey("villages.id"))
     lat: Mapped[float | None] = mapped_column(Float)
     lon: Mapped[float | None] = mapped_column(Float)
@@ -101,8 +110,50 @@ class CitizenSession(Base):
     token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
     citizen_id: Mapped[int] = mapped_column(ForeignKey("citizens.id", ondelete="CASCADE"), index=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime)
+    auth_method: Mapped[str] = mapped_column(String(8), server_default="legacy")
 
     citizen: Mapped[Citizen] = relationship()
+
+
+class CitizenOtp(Base):
+    __tablename__ = "citizen_otps"
+
+    email_key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    challenge: Mapped[str] = mapped_column(String(32))
+    digest: Mapped[str | None] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    attempts: Mapped[int] = mapped_column(Integer)
+    delivered: Mapped[bool] = mapped_column(Boolean)
+
+
+class CitizenOtpLimit(Base):
+    __tablename__ = "citizen_otp_limits"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    window_start: Mapped[datetime] = mapped_column(DateTime, index=True)
+    count: Mapped[int] = mapped_column(Integer)
+
+
+class CitizenPushDevice(Base):
+    __tablename__ = "citizen_push_devices"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    installation: Mapped[str] = mapped_column(String(36), unique=True)
+    token: Mapped[str] = mapped_column(String(200), unique=True)
+    session_hash: Mapped[str] = mapped_column(ForeignKey("citizen_sessions.token_hash", ondelete="CASCADE"), index=True)
+
+
+class CitizenPushDelivery(Base):
+    __tablename__ = "citizen_push_deliveries"
+    __table_args__ = (Index("ix_citizen_push_deliveries_due", "next_at"),)
+
+    device_id: Mapped[str] = mapped_column(ForeignKey("citizen_push_devices.id", ondelete="CASCADE"), primary_key=True)
+    event_key: Mapped[str] = mapped_column(String(50), primary_key=True)
+    notification_id: Mapped[str] = mapped_column(String(36), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    next_at: Mapped[datetime | None] = mapped_column(DateTime)
+    ticket: Mapped[str | None] = mapped_column(String(100))
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class Camera(Base):
@@ -249,6 +300,7 @@ class SightingReport(Base):
     village_id: Mapped[int | None] = mapped_column(ForeignKey("villages.id"))
     reporter_name: Mapped[str] = mapped_column(String(120))
     contact: Mapped[str | None] = mapped_column(String(80))
+    location_label: Mapped[str | None] = mapped_column(String(250))
     image_path: Mapped[str | None] = mapped_column(String(255))
     status: Mapped[str] = mapped_column(String(20), default="pending")  # pending | forwarded | closed
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)

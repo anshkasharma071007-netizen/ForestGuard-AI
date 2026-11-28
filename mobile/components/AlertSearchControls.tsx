@@ -1,19 +1,26 @@
+import { MapPin } from 'lucide-react-native';
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Modal, View } from 'react-native';
 import { useCitizen } from '@/citizen-context';
-import { SegmentedControl } from '@/components/Controls';
+import { Dropdown, SegmentedControl } from '@/components/Controls';
 import { SupportingText } from '@/components/Feedback';
-import { alertRadii, type AlertRadius, type AlertLocation } from '@/services/nearby-alerts';
+import { LocationField, locationName } from '@/components/LocationField';
+import { Screen } from '@/components/Screen';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { TextAction } from '@/components/TextAction';
+import { alertRadii, type AlertRadius } from '@/services/nearby-alerts';
 import { spacing } from '@/theme';
 
-const gps = { id: 'gps', label: 'Current GPS' } as const;
-const saved = { id: 'saved', label: 'Saved location' } as const;
 const radiusOptions = alertRadii.map(km => ({ id: `${km}` as const, label: `${km} km` }));
 
 export function AlertSearchControls({ onChange }: { onChange?: () => void }) {
-  const { profile, access, alertLocation, alertRadius, selectAlertLocation, saveAlertRadius,
-    savingAlertRadius, locating, locationError } = useCitizen();
+  const { profile, access, alertLocation, alertRadius, selectAlertLocation, saveLocation, saveAlertRadius, savingAlertRadius } = useCitizen();
   const [notice, setNotice] = useState('');
+  const [savingLocation, setSavingLocation] = useState(false);
+  const [locationNotice, setLocationNotice] = useState('');
+  const [choosing, setChoosing] = useState(false);
+  const saved = profile?.savedAlertLocation;
+  const label = alertLocation?.source === 'saved' ? (saved && locationName(saved)) : alertLocation?.label;
 
   async function changeRadius(value: AlertRadius) {
     if (value === alertRadius && !notice) return;
@@ -27,15 +34,45 @@ export function AlertSearchControls({ onChange }: { onChange?: () => void }) {
     }
   }
 
+  async function saveAlertLocation() {
+    if (!alertLocation || alertLocation.source === 'saved' || savingLocation) return;
+    setSavingLocation(true);
+    setLocationNotice('');
+    try {
+      const { lat, lon, label } = alertLocation;
+      await saveLocation({ lat, lon, label });
+      selectAlertLocation({ source: 'saved' });
+    } catch (error) {
+      if (!access.signal?.aborted) setLocationNotice(error instanceof Error ? error.message : 'Could not save this location.');
+    } finally {
+      if (!access.signal?.aborted) setSavingLocation(false);
+    }
+  }
+
   return <View style={{ gap: spacing.sm }}>
-    <SegmentedControl<AlertLocation['source']> label="Alert location" options={profile?.savedAlertLocation ? [gps, saved] : [gps]}
-      value={alertLocation?.source ?? null} disabled={locating} onChange={value => {
-        onChange?.();
-        void selectAlertLocation(value);
-      }} />
-    {locating && <SupportingText>Finding your current location…</SupportingText>}
-    {!!locationError && <SupportingText error>{locationError}</SupportingText>}
-    <SegmentedControl label="Alert radius" options={radiusOptions} value={`${alertRadius}`}
+    <Dropdown label={label || 'Choose alert location'} accessibilityLabel="Choose alert location" icon={MapPin}
+      expanded={choosing} disabled={savingLocation} onPress={() => setChoosing(value => !value)} />
+    <Modal visible={choosing} animationType="slide" onRequestClose={() => setChoosing(false)}>
+      <Screen header={<ScreenHeader title="Alert location" onBack={() => setChoosing(false)} />}>
+        <View style={{ gap: spacing.md }}>
+          <LocationField label="Choose alert location" value={null} disabled={savingLocation} onChange={(point, method) => {
+            if (point.type === 'gps') selectAlertLocation({ ...point, source: method === 'gps' ? 'gps' : 'selected' });
+            onChange?.();
+            setLocationNotice('');
+            setChoosing(false);
+          }} />
+          {saved && <TextAction label="Use saved location" onPress={() => {
+            selectAlertLocation({ source: 'saved' });
+            onChange?.();
+            setChoosing(false);
+          }} />}
+        </View>
+      </Screen>
+    </Modal>
+    {alertLocation && alertLocation.source !== 'saved' && <TextAction label="Save this alert location"
+      disabled={savingLocation} loading={savingLocation} onPress={() => void saveAlertLocation()} />}
+    {!!locationNotice && <SupportingText error>{locationNotice}</SupportingText>}
+    <SegmentedControl compact label="Alert radius" options={radiusOptions} value={`${alertRadius}`}
       onChange={value => void changeRadius(Number(value) as AlertRadius)} disabled={savingAlertRadius} />
     {!!notice && <SupportingText>{notice}</SupportingText>}
   </View>;

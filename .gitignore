@@ -55,3 +55,9 @@ deliverables/_*_preview*
 # Private cloud configuration
 /.env.cloud
 /.forest-guard-local/
+
+# Local Firebase configuration and signing credentials
+/mobile/google-services.json
+/mobile/credentials.json
+*.jks
+*.keystore
