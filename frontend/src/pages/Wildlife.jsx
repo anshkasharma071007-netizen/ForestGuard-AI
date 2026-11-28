@@ -1,3 +1,4 @@
+import { useLanguage } from '../i18n'
 import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowDownToLine,
@@ -29,10 +30,7 @@ import {
 } from '../components/ui'
 import {
   SPECIES_COLOR,
-  compactNumber,
   confidencePercent,
-  directionLabel,
-  formatDateTime,
   speciesImage,
   titleCase,
 } from '../utils/format'
@@ -47,6 +45,7 @@ const SPECIES_FILTERS = [
 ]
 
 export default function Wildlife() {
+  const { t, number, dateTime, term } = useLanguage()
   const analytics = useApi('/api/analytics?days=30&operational=true')
   const catalog = useApi('/api/meta')
   const tracks = useApi('/api/tracks')
@@ -111,48 +110,48 @@ export default function Wildlife() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Wildlife intelligence"
-        title="Animals, signals and inferred movement"
-        description="Detection history, activity by animal and camera-sequence tracking — with explicit confidence and method limitations."
+        eyebrow={t('Wildlife intelligence')}
+        title={t('Animals, signals and inferred movement')}
+        description={t('Detection history, activity by animal and camera-sequence tracking — with explicit confidence and method limitations.')}
         actions={
           <Badge tone="neutral">
-            <Radar className="h-3 w-3" /> 30-day window
+            <Radar className="h-3 w-3" /> {t('30-day window')}
           </Badge>
         }
       />
 
       {analytics.error && <ErrorBox message={analytics.error} onRetry={analytics.reload} />}
       {analytics.loading && !analytics.data ? (
-        <Loading label="Loading animal activity…" height="h-64" />
+        <Loading label={t('Loading animal activity…')} height="h-64" />
       ) : (
         analytics.data && (
           <>
             <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <StatCard
-                label="Animal classes observed"
+                label={t('Animal classes observed')}
                 value={`${totals.species} / 6`}
-                hint="Validated classes in the 30-day window"
+                hint={t('Validated classes in the 30-day window')}
                 icon={PawPrint}
                 tone="forest"
               />
               <StatCard
-                label="Detections"
-                value={compactNumber(totals.detections)}
+                label={t('Detections')}
+                value={number(totals.detections)}
                 hint={`${totals.previous_detections} records exist before this window`}
                 icon={Radar}
                 tone="slate"
               />
               <StatCard
-                label="High-risk signals"
+                label={t('High-risk signals')}
                 value={totals.high_risk}
-                hint="Explainable scores above the high threshold"
+                hint={t('Explainable scores above the high threshold')}
                 icon={TriangleAlert}
                 tone="clay"
               />
               <StatCard
-                label="Inferred tracks"
+                label={t('Inferred tracks')}
                 value={totals.tracked_sequences}
-                hint="Sequential camera associations, not GPS"
+                hint={t('Sequential camera associations, not GPS')}
                 icon={Route}
                 tone="amber"
               />
@@ -160,9 +159,9 @@ export default function Wildlife() {
 
             <section>
               <SectionTitle
-                title="Recognized animals"
-                subtitle="Recorded detections by animal"
-                action={<Badge tone="neutral">click to filter history</Badge>}
+                title={t('Recognized animals')}
+                subtitle={t('Recorded detections by animal')}
+                action={<Badge tone="neutral">{t('click to filter history')}</Badge>}
                 className="mb-3"
               />
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
@@ -179,13 +178,13 @@ export default function Wildlife() {
                       <div className="relative h-[104px] overflow-hidden bg-forest-900">
                         <img
                           src={speciesImage(row.key)}
-                          alt={row.name}
+                          alt={term('species', row.key, row.name)}
                           className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                           loading="lazy"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-forest-950/85 via-forest-950/10 to-transparent" />
                         <div className="absolute bottom-2 left-2.5 right-2 flex items-end justify-between">
-                          <span className="text-[10.5px] font-semibold leading-tight text-white">{row.name}</span>
+                          <span className="text-[10.5px] font-semibold leading-tight text-white">{term('species', row.key, row.name)}</span>
                           <span className="font-mono text-[14px] font-bold text-lime">{row.count}</span>
                         </div>
                         <span
@@ -195,15 +194,15 @@ export default function Wildlife() {
                       </div>
                       {row.count ? <div className="p-2.5">
                         <div className="flex items-center justify-between text-[9px] text-muted-11">
-                          <span>{row.share}% of records</span>
+                          <span>{row.share}{t('% of records')}</span>
                           {thresholds && <RiskBadge level={row.avg_risk >= thresholds.high ? 'high' : row.avg_risk >= thresholds.moderate ? 'moderate' : 'low'} score={row.avg_risk} />}
                         </div>
-                        <div className="mt-1 text-[9px] text-muted-16">{row.high_risk} high-risk signals</div>
-                      </div> : <div className="p-2.5 text-[10px] text-muted-8">No detections in this period.</div>}
+                        <div className="mt-1 text-[9px] text-muted-16">{row.high_risk} {t('high-risk signals')}</div>
+                      </div> : <div className="p-2.5 text-[10px] text-muted-8">{t('No detections in this period.')}</div>}
                     </button>
                   )
                 })}
-                {catalog.loading && !roster.length && <Loading label="Loading wildlife roster…" height="h-24" />}
+                {catalog.loading && !roster.length && <Loading label={t('Loading wildlife roster…')} height="h-24" />}
                 {catalog.error && <ErrorBox message={catalog.error} onRetry={catalog.reload} />}
               </div>
             </section>
@@ -211,29 +210,29 @@ export default function Wildlife() {
             <section className="grid gap-4 xl:grid-cols-12">
               <div className="card p-5 xl:col-span-7">
                 <SectionTitle
-                  title="Animal distribution"
-                  subtitle="30-day records by validated class"
-                  action={<span className="font-mono text-[10px] text-muted-13">{totalSpeciesSignals} records</span>}
+                  title={t('Animal distribution')}
+                  subtitle={t('30-day records by validated class')}
+                  action={<span className="font-mono text-[10px] text-muted-13">{totalSpeciesSignals} {t('records')}</span>}
                 />
                 <div className="mt-3">
                   <SpeciesBars data={speciesRows} height={236} />
                 </div>
               </div>
               <div className="card p-5 xl:col-span-5">
-                <SectionTitle title="Diel activity" subtitle="Detection time-of-day, all animals" />
+                <SectionTitle title={t('Diel activity')} subtitle={t('Detection time-of-day, all animals')} />
                 <div className="mt-3">
                   <HourBars data={analytics.data.hours} height={206} />
                 </div>
                 <div className="mt-2 text-[9.5px] leading-relaxed text-muted-9">
-                  Temporal distribution of wildlife detections across morning, day, and nocturnal periods.
+                  {t('Temporal distribution of wildlife detections across morning, day, and nocturnal periods.')}
                 </div>
               </div>
             </section>
 
             <section className="card p-5">
               <SectionTitle
-                title="Detection history"
-                subtitle="Filter by animal and risk class; open the GIS layer for geospatial context"
+                title={t('Detection history')}
+                subtitle={t('Filter by animal and risk class; open the GIS layer for geospatial context')}
                 action={
                   <div className="flex flex-wrap items-center gap-1.5">
                     <button
@@ -246,11 +245,11 @@ export default function Wildlife() {
                       className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${!species && !risk ? 'border-forest-500 bg-success-surface-5 text-success-8' : 'border-control-line-8 bg-raised text-muted-5'
                         }`}
                     >
-                      All
+                      {t('All')}
                     </button>
                     {['high', 'moderate', 'low'].map((level) => (
                       <button
-                        key={level}
+                        key={term('risk', level)}
                         type="button"
                         onClick={() => handleRisk(level)}
                         className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold capitalize ${risk === level ? `border-transparent ${level === 'moderate' ? 'text-forest-950' : 'text-white'}` : 'border-control-line-8 bg-raised text-muted-5'
@@ -261,7 +260,7 @@ export default function Wildlife() {
                             : undefined
                         }
                       >
-                        {level}
+                        {term('risk', level)}
                       </button>
                     ))}
                   </div>
@@ -269,10 +268,10 @@ export default function Wildlife() {
               />
               {species && (
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="text-[10px] text-muted-9">Animal filter</span>
+                  <span className="text-[10px] text-muted-9">{t('Animal filter')}</span>
                   <SpeciesTag species={species} name={speciesRows.find((row) => row.key === species)?.name || titleCase(species)} />
                   <button type="button" className="text-[9.5px] text-success-7 hover:underline" onClick={() => handleSpecies(species)}>
-                    remove
+                    {t('remove')}
                   </button>
                 </div>
               )}
@@ -287,8 +286,8 @@ export default function Wildlife() {
               </div>
               <div className="mt-3 flex items-center justify-between border-t border-line-13 pt-3">
                 <span className="text-[10px] text-muted-9">
-                  Page {detections.data?.pagination?.page || page} of {detections.data?.pagination?.pages || 1} ·{' '}
-                  {detections.data?.pagination?.total || 0} records
+                  {t('Page')} {detections.data?.pagination?.page || page} {t('of')} {detections.data?.pagination?.pages || 1} ·{' '}
+                  {detections.data?.pagination?.total || 0} {t('records')}
                 </span>
                 <div className="flex gap-1.5">
                   <button
@@ -297,7 +296,7 @@ export default function Wildlife() {
                     disabled={page <= 1}
                     onClick={() => setPage((value) => Math.max(1, value - 1))}
                   >
-                    <ChevronLeft className="h-3 w-3" /> Previous
+                    <ChevronLeft className="h-3 w-3" /> {t('Previous')}
                   </button>
                   <button
                     type="button"
@@ -305,7 +304,7 @@ export default function Wildlife() {
                     disabled={page >= (detections.data?.pagination?.pages || 1)}
                     onClick={() => setPage((value) => value + 1)}
                   >
-                    Next <ChevronRight className="h-3 w-3" />
+                    {t('Next')} <ChevronRight className="h-3 w-3" />
                   </button>
                 </div>
               </div>
@@ -314,12 +313,12 @@ export default function Wildlife() {
             <section className="card overflow-hidden">
               <div className="flex flex-col gap-2 border-b border-line-10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <div className="eyebrow">Camera-sequence tracking</div>
-                  <h2 className="mt-1 font-display text-[19px] text-ink">Inferred movement, not GPS telemetry</h2>
+                  <div className="eyebrow">{t('Camera-sequence tracking')}</div>
+                  <h2 className="mt-1 font-display text-[19px] text-ink">{t('Inferred movement, not GPS telemetry')}</h2>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge tone="forest">{trackItems.length} tracks</Badge>
-                  <Badge tone="warning">inferred only</Badge>
+                  <Badge tone="forest">{trackItems.length} {t('tracks')}</Badge>
+                  <Badge tone="warning">{t('inferred only')}</Badge>
                 </div>
               </div>
               <div className="grid gap-4 p-5 xl:grid-cols-12">
@@ -341,8 +340,8 @@ export default function Wildlife() {
                       {!trackItems.length && (
                         <EmptyState
                           icon={Footprints}
-                          title="No tracking evidence"
-                          description="A track is created only when at least three detections of the same animal class link across multiple cameras within 24-hour gaps."
+                          title={t('No tracking evidence')}
+                          description={t('A track is created only when at least three detections of the same animal class link across multiple cameras within 24-hour gaps.')}
                         />
                       )}
                     </div>
@@ -370,26 +369,26 @@ export default function Wildlife() {
                     />
                   ) : (
                     <div className="flex h-[390px] items-center justify-center rounded-2xl border border-line-7 bg-parchment text-[12px] text-muted-8">
-                      Loading track geometry…
+                      {t('Loading track geometry…')}
                     </div>
                   )}
                   {selectedTrack && (
                     <div className="mt-3 grid gap-2 sm:grid-cols-4">
                       {[
-                        ['Animal', selectedTrack.species_name],
-                        ['Direction', directionLabel(selectedTrack.direction)],
-                        ['Distance', `${selectedTrack.distance_km} km`],
-                        ['Camera points', selectedTrack.point_count],
+                        [t('Animal'), term('species', selectedTrack.species, selectedTrack.species_name)],
+                        [t('Direction'), term('direction', selectedTrack.direction)],
+                        [t('Distance'), t('{distance} km', { distance: selectedTrack.distance_km })],
+                        [t('Camera points'), selectedTrack.point_count],
                       ].map(([label, value]) => (
                         <div key={label} className="rounded-xl border border-line-10 bg-inset-14 px-3 py-2">
-                          <div className="text-[8.5px] uppercase tracking-[0.12em] text-muted-16">{label}</div>
+                          <div className="text-[8.5px] uppercase tracking-[0.12em] text-muted-16">{t(label)}</div>
                           <div className="mt-0.5 text-[10.5px] font-semibold text-secondary-3">{value}</div>
                         </div>
                       ))}
                       <div className="sm:col-span-4 flex items-start gap-2 rounded-lg bg-inset-1 px-3 py-2 text-[9.5px] leading-relaxed text-muted-5">
                         <Compass className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                        Detection chain: {formatDateTime(selectedTrack.started_at)} →{' '}
-                        {formatDateTime(selectedTrack.ended_at)} · mean confidence {confidencePercent(selectedTrack.confidence)}.
+                        {t('Detection chain:')} {dateTime(selectedTrack.started_at)} →{' '}
+                        {dateTime(selectedTrack.ended_at)} {t('· mean confidence')} {confidencePercent(selectedTrack.confidence)}.
                       </div>
                     </div>
                   )}
@@ -403,25 +402,22 @@ export default function Wildlife() {
               <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="max-w-2xl">
                   <div className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.2em] text-lime/80">
-                    <ShieldAlert className="h-3 w-3" /> Method note
+                    <ShieldAlert className="h-3 w-3" /> {t('Method note')}
                   </div>
-                  <h3 className="mt-2 font-display text-[21px] text-brand-light">What a “track” means here</h3>
+                  <h3 className="mt-2 font-display text-[21px] text-brand-light">{t('What a “track” means here')}</h3>
                   <p className="mt-2 text-[11px] leading-relaxed text-forest-100/65">
-                    A track links sequential detections of the same animal class that are close in space and time. It
-                    estimates a path and a direction relative to the nearest village boundary. It does not identify an
-                    individual animal, and it is not GPS telemetry. Direction is withheld when a sequence is
-                    ambiguous.
+                    {t('A track links sequential detections of the same animal class that are close in space and time. It estimates a path and a direction relative to the nearest village boundary. It does not identify an individual animal, and it is not GPS telemetry. Direction is withheld when a sequence is ambiguous.')}
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-5">
                   {[
-                    ['3+', 'minimum points'],
-                    ['24h', 'maximum gap'],
-                    ['7 km', 'maximum step'],
+                    ['3+', t('minimum points')],
+                    ['24h', t('maximum gap')],
+                    ['7 km', t('maximum step')],
                   ].map(([value, label]) => (
                     <div key={label} className="text-center">
                       <div className="font-display text-[24px] text-lime">{value}</div>
-                      <div className="mt-0.5 text-[8px] uppercase tracking-[0.12em] text-muted-21/55">{label}</div>
+                      <div className="mt-0.5 text-[8px] uppercase tracking-[0.12em] text-muted-21/55">{t(label)}</div>
                     </div>
                   ))}
                 </div>

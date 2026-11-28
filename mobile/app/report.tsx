@@ -1,3 +1,4 @@
+import { useLanguage } from '@/i18n';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera, CircleCheck, ImageIcon, PawPrint, Send, TriangleAlert } from 'lucide-react-native';
@@ -36,6 +37,7 @@ type Attachment = { original: PhotoAsset; analysis: IdentificationState };
 const descriptionLimit = 4000;
 
 export default function ReportScreen() {
+  const { t } = useLanguage();
   const { access, profile } = useCitizen();
   const { colors } = useTheme();
   const [category, setCategory] = useState<Category | null>(null);
@@ -168,67 +170,67 @@ export default function ReportScreen() {
   if (confirmation) return <Confirmation response={confirmation} />;
 
   return (
-    <Screen header={<ScreenHeader title="Report a sighting" back />}>
+    <Screen header={<ScreenHeader title={t('Report a sighting')} back />}>
       <View style={styles.form}>
         <View style={styles.field}>
-          {photo ? <PhotoPreview photo={photo} label="Selected incident photograph" onExpand={() => setViewerOpen(true)}
+          {photo ? <PhotoPreview photo={photo} label={t('Selected incident photograph')} onExpand={() => setViewerOpen(true)}
             overlay={result ? { ...result, activeId: activeAnimal?.id } : undefined} /> :
             <View style={[styles.upload, { backgroundColor: colors.card, borderColor: colors.controlBorder }]}>
               <Camera size={34} color={colors.accent} strokeWidth={1.7} />
-              <Text style={[typeScale.section, { color: colors.primaryText }]}>Add a photograph</Text>
+              <Text style={[typeScale.section, { color: colors.primaryText }]}>{t('Add a photograph')}</Text>
               <Text style={[typeScale.supporting, styles.centered, { color: colors.secondaryText }]}>
-                Optional. Keep your distance when photographing wildlife.
+                {t('Optional. Keep your distance when photographing wildlife.')}
               </Text>
             </View>}
           <View style={styles.actions}>
             {Platform.OS !== 'web' && <View style={styles.action}>
-              <SecondaryButton icon={Camera} label={photo ? 'Retake photo' : 'Camera'}
+              <SecondaryButton icon={Camera} label={photo ? t('Retake photo') : t('Camera')}
                 onPress={() => void choosePhoto('camera')} disabled={submitting || picking} />
             </View>}
             <View style={styles.action}>
-              <SecondaryButton icon={ImageIcon} label={photo ? 'Replace photo' : 'Choose from gallery'}
+              <SecondaryButton icon={ImageIcon} label={photo ? t('Replace photo') : t('Choose from gallery')}
                 onPress={() => void choosePhoto('gallery')} disabled={submitting || picking} />
             </View>
           </View>
-          {photo && <TextAction label="Remove photo" onPress={() => {
+          {photo && <TextAction label={t('Remove photo')} onPress={() => {
             setAttachment(null);
             setAnimalId(undefined);
             setPhotoError('');
             setPhotoSettings(false);
           }} disabled={submitting || picking} />}
-          {picking && <Feedback title="Opening photo picker…" kind="loading" />}
-          {!!photoError && <SupportingText error>{photoError}</SupportingText>}
-          {photoSettings && <TextAction label="Open device settings" onPress={() => {
+          {picking && <Feedback title={t('Opening photo picker…')} kind="loading" />}
+          {!!photoError && <SupportingText error>{t(photoError)}</SupportingText>}
+          {photoSettings && <TextAction label={t('Open device settings')} onPress={() => {
             void Linking.openSettings().catch(() => setPhotoError('Open device settings to allow photo access.'));
           }} />}
         </View>
         <IdentificationResult state={analysis} catalog={catalog} activeId={activeAnimal?.id} onSelect={setAnimalId} />
-        <InputField label="Title (required)" value={title} onChangeText={value => { setTitle(value); clearError(); }}
-          placeholder="Briefly describe the sighting" editable={!submitting} maxLength={120} />
+        <InputField label={t('Title (required)')} value={title} onChangeText={value => { setTitle(value); clearError(); }}
+          placeholder={t('Briefly describe the sighting')} editable={!submitting} maxLength={120} />
         <View style={styles.field}>
-          <SectionTitle title="Incident category (required)" />
-          <SegmentedControl label="Incident category" options={categories} value={category}
+          <SectionTitle title={t('Incident category (required)')} />
+          <SegmentedControl label={t('Incident category')} options={categories.map(option => ({ ...option, label: t(option.label) }))} value={category}
             onChange={value => { setCategory(value); clearError(); }} disabled={submitting} />
         </View>
         <View style={styles.field}>
-          <SectionTitle title="Animal observed" />
+          <SectionTitle title={t('Animal observed')} />
           <SpeciesSelector catalog={catalog} selection={species} prediction={activeAnimal} disabled={submitting}
             onSelect={value => { setSpecies(value); clearError(); }} />
-          {species.id === otherSpecies.id && <InputField label="Animal name (optional)" value={otherName}
+          {species.id === otherSpecies.id && <InputField label={t('Animal name (optional)')} value={otherName}
             onChangeText={value => { setOtherName(value); clearError(); }} editable={!submitting} maxLength={80} />}
         </View>
         <View style={styles.field}>
-          <SectionTitle title="Sighting location (required)" />
-          <LocationField label="Sighting location" value={location} onChange={value => { setLocation(value); clearError(); }}
+          <SectionTitle title={t('Sighting location (required)')} />
+          <LocationField label={t('Sighting location')} value={location} onChange={value => { setLocation(value); clearError(); }}
             onLocating={setLocating} disabled={submitting} />
         </View>
-        <InputField label="Additional details (optional)" value={description}
+        <InputField label={t('Additional details (optional)')} value={description}
           onChangeText={value => { setDescription(value); clearError(); }} editable={!submitting}
-          multiline maxLength={descriptionBudget} placeholder="Describe what you observed" />
-        {!isApiConfigured && <SupportingText>Reporting is unavailable on this device.</SupportingText>}
-        {!!error && <Feedback title="Check your report" detail={error} kind="error" />}
-        {!!progress && <Feedback title={progress} detail="Keep this screen open until your reference is ready." kind="loading" />}
-        <PrimaryButton label="Submit report" icon={Send} onPress={() => void submitReport()}
+          multiline maxLength={descriptionBudget} placeholder={t('Describe what you observed')} />
+        {!isApiConfigured && <SupportingText>{t('Reporting is unavailable on this device.')}</SupportingText>}
+        {!!error && <Feedback title={t('Check your report')} detail={error} kind="error" />}
+        {!!progress && <Feedback title={t(progress)} detail={t('Keep this screen open until your reference is ready.')} kind="loading" />}
+        <PrimaryButton label={t('Submit report')} icon={Send} onPress={() => void submitReport()}
           loading={submitting} disabled={locating || picking} />
       </View>
       {photo && viewerOpen && <PhotoViewer photo={photo} onClose={() => setViewerOpen(false)} />}
@@ -257,22 +259,23 @@ async function appendPhoto(formData: FormData, photo: PhotoAsset) {
 }
 
 function Confirmation({ response }: { response: ReportSubmissionResponse }) {
+  const { t } = useLanguage();
   const { colors } = useTheme();
   return (
-    <Screen header={<ScreenHeader title="Report submitted" onBack={() => router.dismissTo('/')} />}>
+    <Screen header={<ScreenHeader title={t('Report submitted')} onBack={() => router.dismissTo('/')} />}>
       <View style={styles.form}>
         <Surface style={styles.receipt}>
           <CircleCheck size={34} color={colors.successText} />
-          <SectionTitle title="Your report was received" />
-          <SupportingText>Use this reference to follow your report.</SupportingText>
+          <SectionTitle title={t('Your report was received')} />
+          <SupportingText>{t('Use this reference to follow your report.')}</SupportingText>
           <ReferenceCode code={response.reference_code} />
           <ReportStatusPill status={response.status} />
         </Surface>
-        <PrimaryButton label="View report" onPress={() => router.replace({
+        <PrimaryButton label={t('View report')} onPress={() => router.replace({
           pathname: '/report-detail', params: { code: response.reference_code },
         })} />
-        <TextAction label="Back to home" onPress={() => router.dismissTo('/')} />
-        <SupportingText>Immediate danger? Call 112 or the forest helpline (1926).</SupportingText>
+        <TextAction label={t('Back to home')} onPress={() => router.dismissTo('/')} />
+        <SupportingText>{t('Immediate danger? Call 112 or the forest helpline (1926).')}</SupportingText>
       </View>
     </Screen>
   );

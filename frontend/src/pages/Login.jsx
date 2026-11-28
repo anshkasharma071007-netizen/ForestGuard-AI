@@ -1,3 +1,4 @@
+import { useLanguage } from '../i18n'
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, Loader2 } from 'lucide-react'
@@ -11,6 +12,7 @@ const demoOptions = [['range_officer', 'Range Officer']]
 const localPreview = import.meta.env.DEV || ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)
 
 export default function Login() {
+  const { t, errorText } = useLanguage()
   const { token, login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -69,7 +71,7 @@ export default function Login() {
       <aside className="relative hidden flex-col justify-between gap-8 overflow-hidden bg-forest-950 p-[clamp(1.5rem,5vh,3.5rem)] md:flex">
         <img
           src="/images/tiger.webp"
-          alt="Bengal tiger in a forest"
+          alt={t('Bengal tiger in a forest')}
           className="absolute inset-0 h-full w-full object-cover opacity-[0.72]"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-forest-950 via-forest-950/20 to-forest-950/65" />
@@ -77,11 +79,11 @@ export default function Login() {
           <Logo light />
         </div>
         <p className="relative font-display text-[clamp(2rem,4vw,3.375rem)] leading-[1.08] tracking-[-0.03em] text-brand-light">
-          Protecting forests.
+          {t('Protecting forests.')}
           <br />
-          Preventing conflict.
+          {t('Preventing conflict.')}
           <br />
-          <span className="text-lime">Saving lives.</span>
+          <span className="text-lime">{t('Saving lives.')}</span>
         </p>
       </aside>
 
@@ -99,13 +101,13 @@ export default function Login() {
         <div className="mx-auto grid w-full max-w-[26rem] flex-1 content-center gap-4 py-4 sm:py-6 [@media(max-height:650px)]:gap-2 [@media(max-height:650px)]:py-2">
           <section aria-labelledby="login-heading" className="rounded-2xl border border-control-line-7 bg-raised p-5 shadow-sm sm:p-7 [@media(max-height:650px)]:p-4">
             <h1 id="login-heading" className="font-display text-[28px] leading-tight tracking-tight text-ink sm:text-[32px]">
-              Field operations sign in
+              {t('Field operations sign in')}
             </h1>
 
             <form onSubmit={submit} className="mt-5 grid gap-3 [@media(max-height:650px)]:mt-3 [@media(max-height:650px)]:gap-2">
               <div>
                 <label className="field-label" htmlFor="email">
-                  Official email
+                  {t('Official email')}
                 </label>
                 <input
                   id="email"
@@ -119,7 +121,7 @@ export default function Login() {
               </div>
               <div>
                 <label className="field-label" htmlFor="password">
-                  Password
+                  {t('Password')}
                 </label>
                 <input
                   id="password"
@@ -134,36 +136,36 @@ export default function Login() {
 
               {error && (
                 <div role="alert" className="break-words rounded-xl border border-danger-line-1 bg-danger-surface-3 px-3 py-2 text-xs leading-relaxed text-danger-2">
-                  {error}
+                  {errorText(error)}
                 </div>
               )}
 
               <button type="submit" className="btn-primary mt-1 w-full" disabled={submitting}>
                 {submitting && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />}
-                {submitting ? 'Signing in…' : 'Sign in'}
+                {submitting ? t('Signing in…') : t('Sign in')}
               </button>
             </form>
 
             {showDemo && (
               <section aria-labelledby="demo-heading" className="mt-5 border-t border-control-line-7 pt-3 [@media(max-height:650px)]:mt-3 [@media(max-height:650px)]:pt-2">
-                <h2 id="demo-heading" className="mb-2 text-xs font-medium text-success-8">Use a demo account</h2>
+                <h2 id="demo-heading" className="mb-2 text-xs font-medium text-success-8">{t('Use a demo account')}</h2>
                 <div className="grid grid-cols-2 gap-2">
                   {demoOptions.map(([role, name]) => (
                     <button key={role} type="button" onClick={(event) => void submit(event, true)} disabled={submitting || !demo.accounts[role]} className="btn-outline px-2 text-xs">
-                      {name}
+                      {t(name)}
                     </button>
                   ))}
                 </div>
                 <div role="status" className="text-xs text-muted-3">
-                  {demo.status === 'loading' && <p className="mt-2">Checking demo account availability…</p>}
+                  {demo.status === 'loading' && <p className="mt-2">{t('Checking demo account availability…')}</p>}
                   {demo.status === 'unavailable' && (
                     <p className="mt-2">
-                      Demo accounts are unavailable. Check that the local backend is running with authority demo accounts enabled, then{' '}
-                      <button type="button" onClick={retryDemoAccounts} className="font-semibold text-success-8 underline">retry</button>.
+                      {t('Demo accounts are unavailable. Check that the local backend is running with authority demo accounts enabled, then')}{' '}
+                      <button type="button" onClick={retryDemoAccounts} className="font-semibold text-success-8 underline">{t('retry')}</button>.
                     </p>
                   )}
                   {demo.status === 'enabled' && missingDemoAccount && (
-                    <p className="mt-2">The Greater Noida Range Officer is unavailable.</p>
+                    <p className="mt-2">{t('The Greater Noida Range Officer is unavailable.')}</p>
                   )}
                 </div>
               </section>
@@ -171,7 +173,7 @@ export default function Login() {
           </section>
 
           <Link to="/community" className="mx-auto inline-flex items-center gap-1.5 py-1 text-sm font-semibold text-success-8 hover:underline">
-            Village safety portal <ArrowRight aria-hidden="true" className="h-3.5 w-3.5" />
+            {t('Village safety portal')} <ArrowRight aria-hidden="true" className="h-3.5 w-3.5" />
           </Link>
         </div>
       </main>

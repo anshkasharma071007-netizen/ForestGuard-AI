@@ -1,3 +1,5 @@
+import { useLanguage } from '@/i18n';
+import type { Translate } from '@/i18n/translate';
 import { LocateFixed, MapPin, Search } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, View } from 'react-native';
@@ -20,8 +22,8 @@ export function locationInput(value: LocationChoice): LocationInput {
   return value.type === 'gps' ? { lat: value.lat, lon: value.lon, label: value.label } : { village_id: value.village.id };
 }
 
-export function locationName(value: LocationChoice) {
-  return value.type === 'village' ? value.village.name : value.label || 'Selected coordinates';
+export function locationName(value: LocationChoice, t: Translate) {
+  return value.type === 'village' ? value.village.name : displayCoordinateLabel(value.label, value, t) ?? t('Selected coordinates');
 }
 
 const methods = [
@@ -33,10 +35,15 @@ const methods = [
 const india = { lat: 22.4, lon: 79.2 };
 const pointLabel = ({ lat, lon }: Coordinates) => `Map point (${lat.toFixed(5)}, ${lon.toFixed(5)})`;
 
+export function displayCoordinateLabel(label: string | undefined, point: Coordinates, t: Translate) {
+  return label === pointLabel(point) ? t('Map point ({lat}, {lon})', { lat: point.lat.toFixed(5), lon: point.lon.toFixed(5) }) : label;
+}
+
 export function LocationField({ label, value, onChange, disabled, onLocating }: {
   label: string; value: LocationChoice | null; onChange: (value: LocationChoice, method: Method) => void;
   disabled?: boolean; onLocating?: (locating: boolean) => void;
 }) {
+  const { t, errorText } = useLanguage();
   const { profile, access } = useCitizen();
   const { colors } = useTheme();
   const initialCenter = value ?? profile?.location ?? india;
@@ -156,16 +163,16 @@ export function LocationField({ label, value, onChange, disabled, onLocating }: 
 
   return <View style={{ gap: spacing.sm }}>
     {value && <Surface style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.softAccent }}>
-      <MapPin size={18} color={colors.accent} /><View style={{ flex: 1 }}><SupportingText>{locationName(value)}</SupportingText></View>
+      <MapPin size={18} color={colors.accent} /><View style={{ flex: 1 }}><SupportingText>{locationName(value, t)}</SupportingText></View>
     </Surface>}
-    <SegmentedControl<Method> label={label} options={methods} value={method} onChange={changeMethod} disabled={disabled} />
+    <SegmentedControl<Method> label={label} options={methods.map(option => ({ ...option, label: t(option.label) }))} value={method} onChange={changeMethod} disabled={disabled} />
     {method === 'search' && <>
-      <InputField label="Address, area or landmark" value={text} editable={!disabled} autoCapitalize="words"
+      <InputField label={t('Address, area or landmark')} value={text} editable={!disabled} autoCapitalize="words"
         maxLength={160} returnKeyType="search" onSubmitEditing={() => searchFor(text, 'search')}
         onChangeText={input => { setText(input); searchFor(input, 'autocomplete'); }} />
-      <TextAction label="Search" disabled={disabled || text.trim().length < 3} onPress={() => searchFor(text, 'search')} />
-      {searching && <Feedback title="Searching addresses…" kind="loading" />}
-      {searched && !places.length && !candidate && <SupportingText>No matching places in India.</SupportingText>}
+      <TextAction label={t('Search')} disabled={disabled || text.trim().length < 3} onPress={() => searchFor(text, 'search')} />
+      {searching && <Feedback title={t('Searching addresses…')} kind="loading" />}
+      {searched && !places.length && !candidate && <SupportingText>{t('No matching places in India.')}</SupportingText>}
       {places.map((place, index) => <NavigationRow key={`${place.lat},${place.lon},${index}`} label={place.label}
         disabled={disabled} icon={MapPin} onPress={() => {
           setPlaces([]);
@@ -175,22 +182,22 @@ export function LocationField({ label, value, onChange, disabled, onLocating }: 
         }} />)}
     </>}
     {(method === 'map' || candidate) && <>
-      <SupportingText>Tap the map to adjust the selected point.</SupportingText>
+      <SupportingText>{t('Tap the map to adjust the selected point.')}</SupportingText>
       <RiskMapSurface scene={{ ...camera, picker: true, pin: candidate ?? undefined, radiusM: 0, zones: [] }}
         onPick={pickPoint} />
     </>}
-    {locating && <Feedback title={candidate ? 'Looking up the location name…' : 'Finding your location…'} kind="loading" />}
-    {!!error && <SupportingText error>{error}</SupportingText>}
-    {!!error && method === 'search' && <TextAction label="Retry search" disabled={disabled || text.trim().length < 3}
+    {locating && <Feedback title={candidate ? t('Looking up the location name…') : t('Finding your location…')} kind="loading" />}
+    {!!error && <SupportingText error>{errorText(error)}</SupportingText>}
+    {!!error && method === 'search' && <TextAction label={t('Retry search')} disabled={disabled || text.trim().length < 3}
       onPress={() => searchFor(text, 'search')} />}
-    {settings && <TextAction label="Open Settings" onPress={() => {
+    {settings && <TextAction label={t('Open Settings')} onPress={() => {
       void openLocationSettings().catch(() => setError('Open device Settings to allow location access.'));
     }} />}
     {candidate && <>
-      <InputField label="Location name" value={candidate.label} maxLength={250} editable={!locating && !disabled}
+      <InputField label={t('Location name')} value={displayCoordinateLabel(candidate.label, candidate, t)} maxLength={250} editable={!locating && !disabled}
         onChangeText={name => setCandidate({ ...candidate, label: name })} />
       <SupportingText>{candidate.lat.toFixed(5)}, {candidate.lon.toFixed(5)}</SupportingText>
-      <PrimaryButton label="Confirm location" disabled={disabled || locating || !candidate.label.trim()}
+      <PrimaryButton label={t('Confirm location')} disabled={disabled || locating || !candidate.label.trim()}
         onPress={() => {
           if (!method) return;
           onChange({ ...candidate, type: 'gps', label: candidate.label.trim() }, method);

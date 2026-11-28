@@ -1,3 +1,4 @@
+import { useLanguage } from '@/i18n';
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
 import { ArrowLeft } from 'lucide-react-native';
@@ -9,10 +10,11 @@ import { spacing, typeScale, useTheme } from '../theme';
 export function ScreenHeader({ title, back = false, onBack, action }: {
   title?: string; back?: boolean; onBack?: () => void; action?: ReactNode;
 }) {
+  const { t } = useLanguage();
   const { colors } = useTheme();
   return (
     <View style={styles.row}>
-      {(back || onBack) && <IconAction icon={ArrowLeft} label="Back" tone="header"
+      {(back || onBack) && <IconAction icon={ArrowLeft} label={t('Back')} tone="header"
         onPress={onBack ?? (() => router.canGoBack() ? router.back() : router.replace('/'))} />}
       {title
         ? <Text accessibilityRole="header" style={[typeScale.header, styles.title, { color: colors.onHeader }]}>{title}</Text>

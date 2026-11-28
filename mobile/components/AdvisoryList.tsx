@@ -1,7 +1,7 @@
+import { useLanguage } from '@/i18n';
 import { ChevronDown, ChevronRight, PawPrint } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { formatTimestamp } from '@/format';
 import type { Advisory } from '@/services/api';
 import { radius, spacing, typeScale, useTheme } from '@/theme';
 import { RiskPill, SupportingText } from './Feedback';
@@ -15,17 +15,18 @@ export function AdvisoryList({ items, onSelect }: { items: Advisory[]; onSelect?
 }
 
 function AdvisoryRow({ item, expanded, onPress }: { item: Advisory; expanded: boolean; onPress: () => void }) {
+  const { t, advisoryTitle, dateTime } = useLanguage();
   const { colors } = useTheme();
   const distance = item.distanceKm === undefined ? undefined
-    : item.distanceKm === 0 ? 'Under 1 km away' : `About ${item.distanceKm} km away`;
+    : item.distanceKm === 0 ? t('Under 1 km away') : t('About {distance} km away', { distance: item.distanceKm });
   return <Pressable accessibilityRole="button" accessibilityState={{ expanded }} onPress={onPress}
     style={({ pressed }) => [styles.row, { backgroundColor: pressed ? colors.softAccent : colors.card, borderColor: colors.border }]}>
     <View style={styles.heading}>
       <View style={[styles.icon, { backgroundColor: colors.softAccent }]}><PawPrint size={21} color={colors.accent} /></View>
       <View style={styles.info}>
-        <Text style={[typeScale.card, { color: colors.primaryText }]}>{item.title ?? item.speciesName}</Text>
+        <Text style={[typeScale.card, { color: colors.primaryText }]}>{advisoryTitle(item.title, item.speciesName)}</Text>
         <RiskPill severity={item.severity} />
-        <SupportingText>{[distance, formatTimestamp(item.publishedAt), item.isSimulated ? 'Simulated' : null].filter(Boolean).join(' · ')}</SupportingText>
+        <SupportingText>{[distance, dateTime(item.publishedAt), item.isSimulated ? t('Simulated') : null].filter(Boolean).join(' · ')}</SupportingText>
       </View>
       {expanded ? <ChevronDown size={18} color={colors.mutedText} /> : <ChevronRight size={18} color={colors.mutedText} />}
     </View>
@@ -34,13 +35,14 @@ function AdvisoryRow({ item, expanded, onPress }: { item: Advisory; expanded: bo
 }
 
 export function AdvisoryDetails({ item }: { item: Advisory }) {
+  const { t, term, advisorySummary } = useLanguage();
   const { colors } = useTheme();
   return <View style={styles.details}>
-    <SupportingText>{[item.area, ...item.villageNames.filter(name => name !== item.area),
-      item.status === 'responding' ? 'Response underway' : item.status === 'acknowledged' ? 'Acknowledged' : 'Active'].join(' · ')}</SupportingText>
-    {item.summary && <Text style={[typeScale.body, { color: colors.primaryText }]}>{item.summary}</Text>}
+    <SupportingText>{[item.villageNames.length && !item.isSimulated ? item.area : t(item.area), ...item.villageNames.filter(name => name !== item.area),
+      term('alertStatus', item.status ?? 'active')].join(' · ')}</SupportingText>
+    {item.summary && <Text style={[typeScale.body, { color: colors.primaryText }]}>{advisorySummary(item.summary)}</Text>}
     {!item.summary?.includes(item.advice ?? '') && item.advice &&
-      <Text style={[typeScale.body, { color: colors.primaryText }]}>{item.advice}</Text>}
+      <Text style={[typeScale.body, { color: colors.primaryText }]}>{t(item.advice)}</Text>}
   </View>;
 }
 

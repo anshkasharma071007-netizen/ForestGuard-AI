@@ -26,7 +26,7 @@ import {
   SectionTitle,
   StatCard,
 } from '../components/ui'
-import { SPECIES_COLOR, compactNumber, csvFilename, formatDateTime } from '../utils/format'
+import { SPECIES_COLOR, csvFilename } from '../utils/format'
 
 const WINDOWS = [
   [7, '7 days'],
@@ -36,7 +36,7 @@ const WINDOWS = [
 ]
 
 export default function Analytics() {
-  const { lang } = useLanguage()
+  const { t, number, dateTime, term } = useLanguage()
   const [days, setDays] = useState(30)
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState(null)
@@ -85,9 +85,9 @@ export default function Analytics() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Analytics & reports"
-        title="Evidence you can review, export and defend"
-        description="Detection trends, animal composition, explainable risk drivers and response performance over a selectable window — with CSV and JSON exports for offline review."
+        eyebrow={t('Analytics & reports')}
+        title={t('Evidence you can review, export and defend')}
+        description={t('Detection trends, animal composition, explainable risk drivers and response performance over a selectable window — with CSV and JSON exports for offline review.')}
         actions={
           <>
             <div className="flex overflow-hidden rounded-lg border border-control-line-3 bg-raised">
@@ -100,13 +100,13 @@ export default function Analytics() {
                     days === value ? 'bg-forest-900 text-brand-light' : 'text-muted-5 hover:bg-inset-2'
                   }`}
                 >
-                  {label}
+                  {t(label)}
                 </button>
               ))}
             </div>
             <button type="button" className="btn-primary !py-2" onClick={exportCsv} disabled={exporting}>
               {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowDownToLine className="h-3.5 w-3.5" />}
-              Export CSV
+              {t('Export CSV')}
             </button>
           </>
         }
@@ -115,36 +115,36 @@ export default function Analytics() {
       {exportError && <ErrorBox message={exportError} />}
       {error && <ErrorBox message={error} onRetry={reload} />}
       {loading && !data ? (
-        <Loading label="Compiling analytics…" height="h-80" />
+        <Loading label={t('Compiling analytics…')} height="h-80" />
       ) : (
         data && (
           <>
             <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <StatCard
-                label="Detections"
-                value={compactNumber(totals.detections)}
-                hint={`${totals.previous_detections} earlier records exist outside this window`}
+                label={t('Detections')}
+                value={number(totals.detections)}
+                hint={t('{count} earlier records exist outside this window', { count: totals.previous_detections })}
                 icon={PawPrint}
                 tone="forest"
               />
               <StatCard
-                label="High-risk share"
+                label={t('High-risk share')}
                 value={`${highShare}%`}
-                hint={`${totals.high_risk} of ${compactNumber(totals.detections)} records scored high risk`}
+                hint={t('{high} of {total} records scored high risk', { high: totals.high_risk, total: number(totals.detections) })}
                 icon={TriangleAlert}
                 tone="clay"
               />
               <StatCard
-                label="Alerts generated"
+                label={t('Alerts generated')}
                 value={totals.alerts}
-                hint={`${totals.open_alerts} still open · ${response?.acknowledgement_rate ?? 0}% acknowledged`}
+                hint={t('{open} still open · {rate}% acknowledged', { open: totals.open_alerts, rate: response?.acknowledgement_rate ?? 0 })}
                 icon={Siren}
                 tone="amber"
               />
               <StatCard
-                label="Inferred tracks"
+                label={t('Inferred tracks')}
                 value={totals.tracked_sequences}
-                hint="Camera-sequence associations — never GPS telemetry"
+                hint={t('Camera-sequence associations — never GPS telemetry')}
                 icon={Radar}
                 tone="slate"
               />
@@ -153,22 +153,21 @@ export default function Analytics() {
             <section className="grid gap-4 xl:grid-cols-12">
               <div className="card p-5 xl:col-span-8">
                 <SectionTitle
-                  title="Detection trend"
-                  subtitle={`Daily detections over the ${data.window_days}-day window`}
-                  action={<Badge tone="forest">Landscape data</Badge>}
+                  title={t('Detection trend')}
+                  subtitle={t('Daily detections over the {days}-day window', { days: data.window_days })}
+                  action={<Badge tone="forest">{t('Landscape data')}</Badge>}
                 />
                 <div className="mt-3">
                   <ActivityArea data={data.timeline} height={252} />
                 </div>
               </div>
               <div className="card p-5 xl:col-span-4">
-                <SectionTitle title="Risk composition" subtitle="Explainable classification of the window" />
+                <SectionTitle title={t('Risk composition')} subtitle={t('Explainable classification of the window')} />
                 <div className="mt-2">
                   <RiskDonut data={data.risk_distribution} height={188} />
                 </div>
                 <div className="mt-2 text-[9.5px] leading-relaxed text-muted-9">
-                  Risk is a prioritisation aid derived from proximity, recency, activity, verified incidents and —
-                  only where a sequence supports it — movement evidence.
+                  {t('Risk is a prioritisation aid derived from proximity, recency, activity, verified incidents and — only where a sequence supports it — movement evidence.')}
                 </div>
               </div>
             </section>
@@ -176,20 +175,20 @@ export default function Analytics() {
             <section className="grid gap-4 xl:grid-cols-12">
               <div className="card p-5 xl:col-span-7">
                 <SectionTitle
-                  title="Animal composition"
-                  subtitle="Validated classes, counts and average risk"
-                  action={<span className="font-mono text-[10px] text-muted-13">{totalSignals} records</span>}
+                  title={t('Animal composition')}
+                  subtitle={t('Validated classes, counts and average risk')}
+                  action={<span className="font-mono text-[10px] text-muted-13">{totalSignals} {t('records')}</span>}
                 />
                 <div className="mt-3 overflow-x-auto">
                   <table className="data-table min-w-[520px]">
                     <thead>
                       <tr>
-                        <th>Animal</th>
-                        <th>Records</th>
-                        <th>Share</th>
-                        <th>Avg. risk</th>
-                        <th>High risk</th>
-                        <th>Earlier records</th>
+                        <th>{t('Animal')}</th>
+                        <th>{t('Records')}</th>
+                        <th>{t('Share')}</th>
+                        <th>{t('Avg. risk')}</th>
+                        <th>{t('High risk')}</th>
+                        <th>{t('Earlier records')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -198,7 +197,7 @@ export default function Analytics() {
                           <td>
                             <div className="flex items-center gap-2">
                               <span className="h-2 w-2 rounded-full" style={{ background: SPECIES_COLOR[row.key] || '#64748B' }} />
-                              <span className="text-[12px] font-semibold text-ink">{row.name}</span>
+                              <span className="text-[12px] font-semibold text-ink">{term('species', row.key, row.name)}</span>
                             </div>
                           </td>
                           <td className="font-mono text-[11px]">{row.count}</td>
@@ -226,7 +225,7 @@ export default function Analytics() {
                       {!speciesRows.length && (
                         <tr>
                           <td colSpan={6} className="py-8 text-center text-[12px] text-muted-8">
-                            No detections in this window.
+                            {t('No detections in this window.')}
                           </td>
                         </tr>
                       )}
@@ -234,12 +233,11 @@ export default function Analytics() {
                   </table>
                 </div>
                 <div className="mt-2 text-[9px] text-muted-16">
-                  “Earlier records” counts the same animal class before the selected window; it is a baseline count, not a
-                  population estimate or growth rate.
+                  {t('“Earlier records” counts the same animal class before the selected window; it is a baseline count, not a population estimate or growth rate.')}
                 </div>
               </div>
               <div className="card p-5 xl:col-span-5">
-                <SectionTitle title="Animal distribution" subtitle="Records by validated class" />
+                <SectionTitle title={t('Animal distribution')} subtitle={t('Records by validated class')} />
                 <div className="mt-3">
                   <SpeciesBars data={speciesRows} height={252} />
                 </div>
@@ -248,20 +246,19 @@ export default function Analytics() {
 
             <section className="grid gap-4 xl:grid-cols-12">
               <div className="card p-5 xl:col-span-6">
-                <SectionTitle title="Risk evidence basis" subtitle="How the explainable score is supported" />
+                <SectionTitle title={t('Risk evidence basis')} subtitle={t('How the explainable score is supported')} />
                 <div className="mt-3">
                   <BasisBars data={data.risk_basis} height={222} />
                 </div>
                 <div className="mt-2 text-[9.5px] leading-relaxed text-muted-9">
-                  Movement-supported records require a linked camera sequence. Proximity signals never claim that an
-                  animal is approaching a village.
+                  {t('Movement-supported records require a linked camera sequence. Proximity signals never claim that an animal is approaching a village.')}
                 </div>
               </div>
               <div className="card p-5 xl:col-span-6">
                 <SectionTitle
-                  title="Field incidents"
-                  subtitle="Reported categories in the window"
-                  action={<Badge tone="warning">{totals.incidents} incidents</Badge>}
+                  title={t('Field incidents')}
+                  subtitle={t('Reported categories in the window')}
+                  action={<Badge tone="warning">{totals.incidents} {t('incidents')}</Badge>}
                 />
                 <div className="mt-3">
                   <CategoryBars items={data.incidents.by_category} height={222} />
@@ -269,34 +266,34 @@ export default function Analytics() {
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {data.incidents.by_severity.map((row) => (
                     <Badge key={row.severity} tone={row.severity === 'high' ? 'danger' : row.severity === 'moderate' ? 'warning' : 'success'}>
-                      {row.severity}: {row.count}
+                      {term('risk', row.severity)}: {row.count}
                     </Badge>
                   ))}
-                  {!data.incidents.by_severity.length && <Badge tone="neutral">no incidents</Badge>}
+                  {!data.incidents.by_severity.length && <Badge tone="neutral">{t('no incidents')}</Badge>}
                 </div>
               </div>
             </section>
 
             <section className="grid gap-4 xl:grid-cols-12">
               <div className="card p-5 xl:col-span-7">
-                <SectionTitle title="Diel activity" subtitle="Detection time-of-day across all animals" />
+                <SectionTitle title={t('Diel activity')} subtitle={t('Detection time-of-day across all animals')} />
                 <div className="mt-3">
                   <HourBars data={data.hours} height={206} />
                 </div>
                 <div className="mt-2 text-[9.5px] leading-relaxed text-muted-9">
-                  Detection distribution patterns across the 24-hour cycle.
+                  {t('Detection distribution patterns across the 24-hour cycle.')}
                 </div>
               </div>
               <div className="card p-5 xl:col-span-5">
                 <SectionTitle
-                  title="Response performance"
-                  subtitle="Acknowledgement and closure times"
-                  action={<Badge tone="neutral">{response?.resolved ?? 0} resolved</Badge>}
+                  title={t('Response performance')}
+                  subtitle={t('Acknowledgement and closure times')}
+                  action={<Badge tone="neutral">{response?.resolved ?? 0} {t('resolved')}</Badge>}
                 />
                 <div className="mt-3 space-y-3">
                   <div>
                     <div className="flex items-center justify-between text-[10.5px]">
-                      <span className="text-secondary-8">Acknowledgement rate</span>
+                      <span className="text-secondary-8">{t('Acknowledgement rate')}</span>
                       <span className="font-mono font-semibold text-ink">{response?.acknowledgement_rate ?? 0}%</span>
                     </div>
                     <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-line-4">
@@ -308,12 +305,12 @@ export default function Analytics() {
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {[
-                      ['Avg. ack. time', response?.avg_ack_minutes != null ? `${response.avg_ack_minutes} min` : '—', Clock3],
-                      ['Avg. closure', response?.avg_resolve_hours != null ? `${response.avg_resolve_hours} h` : '—', CheckCircle2],
+                      [t('Avg. ack. time'), response?.avg_ack_minutes != null ? `${response.avg_ack_minutes} min` : '—', Clock3],
+                      [t('Avg. closure'), response?.avg_resolve_hours != null ? `${response.avg_resolve_hours} h` : '—', CheckCircle2],
                     ].map(([label, value, Icon]) => (
                       <div key={label} className="rounded-xl border border-line-10 bg-inset-14 px-3 py-2">
                         <div className="flex items-center gap-1.5 text-[8.5px] uppercase tracking-[0.1em] text-muted-16">
-                          <Icon className="h-3 w-3" /> {label}
+                          <Icon className="h-3 w-3" /> {t(label)}
                         </div>
                         <div className="mt-1 font-mono text-[15px] font-semibold text-ink">{value}</div>
                       </div>
@@ -321,18 +318,18 @@ export default function Analytics() {
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     {[
-                      ['Total', totals.alerts],
-                      ['Open', totals.open_alerts],
-                      ['Acknowledged', response?.acknowledged ?? 0],
+                      [t('Total'), totals.alerts],
+                      [t('Open'), totals.open_alerts],
+                      [t('Acknowledged'), response?.acknowledged ?? 0],
                     ].map(([label, value]) => (
                       <div key={label} className="rounded-lg border border-line-13 bg-raised/60 px-2 py-1.5 text-center">
                         <div className="font-mono text-[13px] font-semibold text-ink">{value}</div>
-                        <div className="text-[8px] uppercase tracking-[0.1em] text-muted-16">{label}</div>
+                        <div className="text-[8px] uppercase tracking-[0.1em] text-muted-16">{t(label)}</div>
                       </div>
                     ))}
                   </div>
                   <div className="rounded-lg bg-inset-1 px-2.5 py-2 text-[9px] leading-relaxed text-muted-5">
-                    Times are measured from alert dispatch to recorded acknowledgement or resolution.
+                    {t('Times are measured from alert dispatch to recorded acknowledgement or resolution.')}
                   </div>
                 </div>
               </div>
@@ -340,14 +337,14 @@ export default function Analytics() {
 
             <section className="grid gap-4 xl:grid-cols-12">
               <div className="card p-5 xl:col-span-7">
-                <SectionTitle title="Zone activity" subtitle="Detection records grouped by operational zone" />
+                <SectionTitle title={t('Zone activity')} subtitle={t('Detection records grouped by operational zone')} />
                 <div className="mt-3 overflow-x-auto">
                   <table className="data-table min-w-[420px]">
                     <thead>
                       <tr>
-                        <th>Zone</th>
-                        <th>Detections</th>
-                        <th>Share</th>
+                        <th>{t('Zone')}</th>
+                        <th>{t('Detections')}</th>
+                        <th>{t('Share')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -376,14 +373,14 @@ export default function Analytics() {
               </div>
               <div className="card p-5 xl:col-span-5">
                 <SectionTitle
-                  title="Camera network health"
-                  subtitle="Registry status and busiest stations"
-                  action={<Badge tone="forest">{data.cameras.online} online</Badge>}
+                  title={t('Camera network health')}
+                  subtitle={t('Registry status and busiest stations')}
+                  action={<Badge tone="forest">{data.cameras.online} {t('online')}</Badge>}
                 />
                 <div className="mt-3 flex flex-wrap gap-1.5">
-                  <Badge tone="success">{data.cameras.online} online</Badge>
-                  <Badge tone="warning">{data.cameras.maintenance} maintenance</Badge>
-                  <Badge tone="danger">{data.cameras.offline} offline</Badge>
+                  <Badge tone="success">{data.cameras.online} {t('online')}</Badge>
+                  <Badge tone="warning">{data.cameras.maintenance} {t('maintenance')}</Badge>
+                  <Badge tone="danger">{data.cameras.offline} {t('offline')}</Badge>
                 </div>
                 <div className="mt-3 space-y-1.5">
                   {data.cameras.top.map((camera) => (
@@ -400,8 +397,7 @@ export default function Analytics() {
                   ))}
                 </div>
                 <div className="mt-3 border-t border-line-13 pt-2 text-[9px] text-muted-16">
-                  {data.guards.total} guards recorded · {data.guards.available} available · {data.guards.on_patrol} on
-                  patrol
+                  {data.guards.total} {t('guards recorded ·')} {data.guards.available} {t('available ·')} {data.guards.on_patrol} {t('on patrol')}
                 </div>
               </div>
             </section>
@@ -409,63 +405,51 @@ export default function Analytics() {
             <section className="card overflow-hidden">
               <div className="flex flex-col gap-3 border-b border-line-10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <div className="eyebrow">Report builder</div>
-                  <h2 className="mt-1 font-display text-[19px] text-ink">Operational snapshot</h2>
+                  <div className="eyebrow">{t('Report builder')}</div>
+                  <h2 className="mt-1 font-display text-[19px] text-ink">{t('Operational snapshot')}</h2>
                   <p className="mt-0.5 text-[11px] text-muted-2">
-                    Print this page or export the underlying records for a written briefing.
+                    {t('Print this page or export the underlying records for a written briefing.')}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   <button type="button" className="btn-outline !py-2" onClick={() => window.print()}>
-                    <Printer className="h-3.5 w-3.5" /> Print view
+                    <Printer className="h-3.5 w-3.5" /> {t('Print view')}
                   </button>
                   <button type="button" className="btn-outline !py-2" onClick={exportJson} disabled={!data}>
-                    <FileText className="h-3.5 w-3.5" /> Download JSON
+                    <FileText className="h-3.5 w-3.5" /> {t('Download JSON')}
                   </button>
                   <button type="button" className="btn-primary !py-2" onClick={exportCsv} disabled={exporting}>
-                    <ArrowDownToLine className="h-3.5 w-3.5" /> Detection CSV
+                    <ArrowDownToLine className="h-3.5 w-3.5" /> {t('Detection CSV')}
                   </button>
                 </div>
               </div>
               <div className="grid gap-4 p-5 lg:grid-cols-3">
                 <div className="rounded-xl border border-line-10 bg-inset-14 p-4 lg:col-span-2">
                   <div className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-16">
-                    <BarChart3 className="h-3.5 w-3.5" /> Summary
+                    <BarChart3 className="h-3.5 w-3.5" /> {t('Summary')}
                   </div>
                   <p className="mt-2 text-[11.5px] leading-relaxed text-secondary-8">
-                    {lang === 'hi' ? (
-                      <>
-                        {data.window_days} दिनों की निगरानी विंडो में {totals.detections} वन्यजीव डिटेक्शन दर्ज हुए और{' '}
-                        {data.species.length} सत्यापित प्रजातियाँ पाई गईं। {totals.high_risk} रिकॉर्ड उच्च जोखिम
-                        वर्गीकृत हुए और {totals.alerts} अलर्ट बने, जिनमें से {totals.open_alerts} अभी खुले हैं।{' '}
-                        {totals.tracked_sequences} कैमरा-क्रम ट्रैक अनुमानित किए गए। सबसे व्यस्त क्षेत्र{' '}
-                        <span className="font-semibold text-ink">{data.zones[0]?.name || 'उपलब्ध नहीं'}</span> रहा,
-                        जहाँ {data.zones[0]?.count ?? 0} रिकॉर्ड दर्ज हुए।
-                      </>
-                    ) : (
-                      <>
-                        In the {data.window_days}-day monitoring window, {totals.detections} wildlife detections were
-                        recorded across {data.species.length} recognized animal classes. {totals.high_risk} records were classified
-                        high risk and {totals.alerts} alerts were generated, of which {totals.open_alerts} remain open.{' '}
-                        {totals.tracked_sequences} camera-sequence tracks were inferred. The busiest zone was{' '}
-                        <span className="font-semibold text-ink">{data.zones[0]?.name || 'unavailable'}</span> with{' '}
-                        {data.zones[0]?.count ?? 0} records.
-                      </>
-                    )}
+                    {
+                      t('In the {days}-day monitoring window, {detections} wildlife detections were recorded across {species} recognized animal classes. {high} records were classified high risk and {alerts} alerts were generated, of which {open} remain open. {tracks} camera-sequence tracks were inferred. The busiest zone was {zone} with {count} records.', {
+                        days: data.window_days, detections: totals.detections, species: data.species.length,
+                        high: totals.high_risk, alerts: totals.alerts, open: totals.open_alerts, tracks: totals.tracked_sequences,
+                        zone: data.zones[0]?.name || t('Unavailable'), count: data.zones[0]?.count ?? 0,
+                      })
+                    }
                   </p>
                   <p className="mt-2 text-[9.5px] leading-relaxed text-muted-9">
-                    Generated {formatDateTime(data.generated_at)} from Forest Guard AI intelligence records.
+                    {t('Generated {time} from Forest Guard AI intelligence records.', { time: dateTime(data.generated_at) })}
                   </p>
                 </div>
                 <div className="rounded-xl border border-line-10 bg-raised/60 p-4">
-                  <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-16">Export contents</div>
+                  <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-16">{t('Export contents')}</div>
                   <ul className="mt-2 space-y-1.5 text-[10px] leading-relaxed text-secondary-15">
-                    <li>Detection CSV: timestamp, animal, confidence, camera, coordinates, score, basis and source.</li>
-                    <li>JSON summary: aggregates, charts series, incidents and response metrics.</li>
-                    <li>No credentials or private datasets are included.</li>
+                    <li>{t('Detection CSV: timestamp, animal, confidence, camera, coordinates, score, basis and source.')}</li>
+                    <li>{t('JSON summary: aggregates, charts series, incidents and response metrics.')}</li>
+                    <li>{t('No credentials or private datasets are included.')}</li>
                   </ul>
                   <div className="mt-3 flex items-center gap-1.5 text-[9px] text-muted-13">
-                    <ShieldAlert className="h-3 w-3" /> Operational records · landscape intelligence
+                    <ShieldAlert className="h-3 w-3" /> {t('Operational records · landscape intelligence')}
                   </div>
                 </div>
               </div>

@@ -1,3 +1,4 @@
+import { useLanguage } from '../i18n'
 import EvidenceImage from '../components/EvidenceImage'
 import { useRef, useState } from 'react'
 import {
@@ -27,7 +28,7 @@ import {
   SpeciesTag,
   StatCard,
 } from '../components/ui'
-import { confidencePercent, formatDateTime, speciesImage } from '../utils/format'
+import { confidencePercent, speciesImage } from '../utils/format'
 
 const STAGES = [
   'Uploading media…',
@@ -37,6 +38,7 @@ const STAGES = [
 ]
 
 export default function LiveMonitoring() {
+  const { t, dateTime, term } = useLanguage()
   const cameras = useApi('/api/cameras')
   const ai = useApi('/api/ai/status')
   const recent = useApi('/api/detections?page_size=8')
@@ -122,12 +124,12 @@ export default function LiveMonitoring() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Field inputs · AI inference"
-        title="From camera frame to risk signal"
-        description="Upload a camera-trap image or short video for real two-stage inference: open-vocabulary localisation followed by zero-shot animal classification."
+        eyebrow={t('Field inputs · AI inference')}
+        title={t('From camera frame to risk signal')}
+        description={t('Upload a camera-trap image or short video for real two-stage inference: open-vocabulary localisation followed by zero-shot animal classification.')}
         actions={
           <Badge tone={engineReady ? 'forest' : engine ? 'warning' : 'neutral'} dot>
-            {engineReady ? `AI engine ready · ${engine.device}` : engine ? engine.mode : 'Checking engine'}
+            {engineReady ? t('AI engine ready · {device}', { device: engine.device }) : engine ? t(engine.mode) : t('Checking engine')}
           </Badge>
         }
       />
@@ -135,9 +137,9 @@ export default function LiveMonitoring() {
       <div className="grid gap-4 xl:grid-cols-12">
         <section className="card p-5 xl:col-span-8">
           <SectionTitle
-            title="Media analyser"
-            subtitle="JPEG, PNG, WebP or a short MP4/MOV clip"
-            action={<span className="font-mono text-[9.5px] uppercase tracking-wider text-muted-16">max 25 MB</span>}
+            title={t('Media analyser')}
+            subtitle={t('JPEG, PNG, WebP or a short MP4/MOV clip')}
+            action={<span className="font-mono text-[9.5px] uppercase tracking-wider text-muted-16">{t('max 25 MB')}</span>}
           />
 
           <div
@@ -154,11 +156,11 @@ export default function LiveMonitoring() {
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                 <div className="relative h-28 w-full overflow-hidden rounded-xl border border-control-line-7 bg-inset-4 sm:w-40">
                   {preview ? (
-                    <img src={preview} alt="Selected upload preview" className="h-full w-full object-cover" />
+                    <img src={preview} alt={t('Selected upload preview')} className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full flex-col items-center justify-center gap-1 text-muted-6">
                       <Video className="h-6 w-6" />
-                      <span className="text-[10px] font-semibold uppercase tracking-wider">Video file</span>
+                      <span className="text-[10px] font-semibold uppercase tracking-wider">{t('Video file')}</span>
                     </div>
                   )}
                 </div>
@@ -172,10 +174,10 @@ export default function LiveMonitoring() {
                   </div>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <button type="button" className="btn-outline !px-3 !py-1.5 !text-[11px]" onClick={() => fileRef.current?.click()}>
-                      Replace
+                      {t('Replace')}
                     </button>
                     <button type="button" className="btn-ghost !px-3 !py-1.5 !text-[11px]" onClick={clearFile}>
-                      <X className="h-3 w-3" /> Clear
+                      <X className="h-3 w-3" /> {t('Clear')}
                     </button>
                   </div>
                 </div>
@@ -189,10 +191,9 @@ export default function LiveMonitoring() {
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-raised text-success-7 shadow-sm">
                   <UploadCloud className="h-5 w-5" />
                 </div>
-                <div className="text-[13px] font-semibold text-ink">Drop an image or video, or browse files</div>
+                <div className="text-[13px] font-semibold text-ink">{t('Drop an image or video, or browse files')}</div>
                 <div className="max-w-sm text-[10.5px] leading-relaxed text-muted-9">
-                  Use a wildlife photo or video footage. The original and an annotated copy are
-                  stored locally.
+                  {t('Use a wildlife photo or video footage. The original and an annotated copy are stored locally.')}
                 </div>
               </button>
             )}
@@ -208,10 +209,10 @@ export default function LiveMonitoring() {
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <div>
               <label className="field-label" htmlFor="camera">
-                Attribute to station
+                {t('Attribute to station')}
               </label>
               <select id="camera" className="field" value={cameraCode} onChange={(event) => setCameraCode(event.target.value)}>
-                <option value="">Unassigned</option>
+                <option value="">{t('Unassigned')}</option>
                 {cameras.data?.items?.map((camera) => (
                   <option key={camera.id} value={camera.code}>
                     {camera.code} · {camera.name}
@@ -221,33 +222,32 @@ export default function LiveMonitoring() {
             </div>
             <div>
               <label className="field-label" htmlFor="notes">
-                Field note (optional)
+                {t('Field note (optional)')}
               </label>
               <input
                 id="notes"
                 className="field"
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
-                placeholder="e.g. Night capture, buffer track"
+                placeholder={t('e.g. Night capture, buffer track')}
               />
             </div>
           </div>
 
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-[10px] leading-relaxed text-muted-9">
-              Animal labels are only applied above a calibrated confidence floor. Low-confidence crops are
-              recorded as <span className="font-semibold">unidentified</span>.
+              {t('Animal labels are only applied above a calibrated confidence floor. Low-confidence crops are recorded as')} <span className="font-semibold">{t('unidentified')}</span>.
             </div>
             <button type="button" className="btn-primary shrink-0" onClick={analyze} disabled={analyzing || !file}>
               {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanSearch className="h-4 w-4" />}
-              {analyzing ? 'Analysing…' : 'Run AI analysis'}
+              {analyzing ? 'Analysing…' : t('Run AI analysis')}
             </button>
           </div>
 
           {analyzing && (
             <div className="mt-4 rounded-xl border border-success-line-3 bg-success-surface-5 p-4">
               <div className="flex items-center gap-2 text-[11.5px] font-semibold text-success-9">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" /> {STAGES[stage]}
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t(STAGES[stage])}
               </div>
               <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-success-surface-1">
                 <div
@@ -256,7 +256,7 @@ export default function LiveMonitoring() {
                 />
               </div>
               <div className="mt-2 text-[9.5px] text-success-8/70">
-                First analysis can take longer while the local models load.
+                {t('First analysis can take longer while the local models load.')}
               </div>
             </div>
           )}
@@ -270,42 +270,42 @@ export default function LiveMonitoring() {
 
         <aside className="space-y-4 xl:col-span-4">
           <section className="card p-5">
-            <SectionTitle title="Inference engine" subtitle="Actual local model configuration" />
+            <SectionTitle title={t('Inference engine')} subtitle={t('Actual local model configuration')} />
             {ai.loading && !engine ? (
-              <Loading label="Loading engine status…" height="h-40" />
+              <Loading label={t('Loading engine status…')} height="h-40" />
             ) : engine ? (
               <div className="mt-3 space-y-2.5">
                 <div className="flex items-center justify-between rounded-lg bg-inset-12 px-3 py-2">
-                  <span className="text-[10.5px] text-muted-5">Mode</span>
+                  <span className="text-[10.5px] text-muted-5">{t('Mode')}</span>
                   <span className="font-mono text-[10.5px] font-semibold text-success-8">{engine.mode}</span>
                 </div>
                 <div className="flex items-center justify-between rounded-lg bg-inset-12 px-3 py-2">
-                  <span className="text-[10.5px] text-muted-5">Weights loaded</span>
+                  <span className="text-[10.5px] text-muted-5">{t('Weights loaded')}</span>
                   <span className="font-mono text-[10.5px] font-semibold text-success-8">
-                    {engine.loaded ? 'yes' : 'on first analysis'}
+                    {engine.loaded ? t('yes') : t('on first analysis')}
                   </span>
                 </div>
                 {engine.device && (
                   <div className="flex items-center justify-between rounded-lg bg-inset-12 px-3 py-2">
-                    <span className="text-[10.5px] text-muted-5">Device</span>
+                    <span className="text-[10.5px] text-muted-5">{t('Device')}</span>
                     <span className="font-mono text-[10.5px] font-semibold text-success-8">{engine.device}</span>
                   </div>
                 )}
                 <div className="rounded-lg border border-line-10 px-3 py-2">
-                  <div className="text-[9px] uppercase tracking-[0.14em] text-muted-16">Stage 1</div>
+                  <div className="text-[9px] uppercase tracking-[0.14em] text-muted-16">{t('Stage 1')}</div>
                   <div className="mt-0.5 text-[10.5px] font-medium leading-relaxed text-secondary-3">
-                    {engine.detector || 'YOLO-World open-vocabulary animal localisation'}
+                    {t(engine.detector || 'YOLO-World open-vocabulary animal localisation')}
                   </div>
                 </div>
                 <div className="rounded-lg border border-line-10 px-3 py-2">
-                  <div className="text-[9px] uppercase tracking-[0.14em] text-muted-16">Stage 2</div>
+                  <div className="text-[9px] uppercase tracking-[0.14em] text-muted-16">{t('Stage 2')}</div>
                   <div className="mt-0.5 text-[10.5px] font-medium leading-relaxed text-secondary-3">
-                    {engine.classifier?.replace(/\bspecies\b/i, 'animal') || 'CLIP zero-shot animal classifier'}
+                    {t(engine.classifier?.replace(/\bspecies\b/i, 'animal') || 'CLIP zero-shot animal classifier')}
                   </div>
                 </div>
                 {engine.message && (
                   <div className="rounded-lg border border-warning-line-2 bg-warning-surface-3 px-3 py-2 text-[10px] leading-relaxed text-warning-3">
-                    {engine.message}
+                    {t(engine.message)}
                   </div>
                 )}
                 <div className="rounded-lg bg-forest-900 px-3 py-2.5 text-[9.5px] leading-relaxed text-forest-100/70">
@@ -313,23 +313,22 @@ export default function LiveMonitoring() {
                 </div>
               </div>
             ) : (
-              <ErrorBox message="Engine status unavailable." onRetry={ai.reload} />
+              <ErrorBox message={"Engine status unavailable."} onRetry={ai.reload} />
             )}
           </section>
 
           <section className="card p-5">
-            <SectionTitle title="Validated classes" subtitle="Only these labels are emitted" />
+            <SectionTitle title={t('Validated classes')} subtitle={t('Only these labels are emitted')} />
             <div className="mt-3 flex flex-wrap gap-1.5">
               {ai.data?.supported_species?.map((species) => (
                 <SpeciesTag key={species.key} species={species.key} name={species.name} color={species.color} />
               ))}
               <span className="inline-flex items-center gap-2 rounded-full border border-line-6 bg-raised/80 px-2.5 py-1 text-[11px] font-semibold text-secondary-12">
-                <span className="h-2 w-2 rounded-full bg-[#64748B]" /> Unidentified fallback
+                <span className="h-2 w-2 rounded-full bg-[#64748B]" /> {t('Unidentified fallback')}
               </span>
             </div>
             <div className="mt-3 text-[9.5px] leading-relaxed text-muted-9">
-              The classifier is zero-shot: it can mislabel similar-looking animals. Always treat detections as
-              decision support, not a confirmed identification.
+              {t('The classifier is zero-shot: it can mislabel similar-looking animals. Always treat detections as decision support, not a confirmed identification.')}
             </div>
           </section>
 
@@ -338,11 +337,10 @@ export default function LiveMonitoring() {
             <div className="absolute inset-0 bg-gradient-to-t from-forest-950 to-forest-950/60" />
             <div className="relative z-10">
               <div className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.18em] text-lime/80">
-                <ShieldCheck className="h-3 w-3" /> Storage & privacy
+                <ShieldCheck className="h-3 w-3" /> {t('Storage & privacy')}
               </div>
               <p className="mt-2 text-[10.5px] leading-relaxed text-forest-100/70">
-                Uploads stay on the local server. Public community pages never receive exact
-                detection coordinates, camera positions or patrol locations.
+                {t('Uploads stay on the local server. Public community pages never receive exact detection coordinates, camera positions or patrol locations.')}
               </p>
             </div>
           </section>
@@ -353,17 +351,17 @@ export default function LiveMonitoring() {
         <section className="card overflow-hidden">
           <div className="flex flex-col gap-2 border-b border-line-10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <div className="eyebrow">Analysis complete</div>
+              <div className="eyebrow">{t('Analysis complete')}</div>
               <h2 className="mt-1 font-display text-[20px] text-ink">
-                {result.analysis.primary_species || 'No animal above threshold'}
+                {result.analysis.primary_species || t('No animal above threshold')}
               </h2>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Badge tone="forest" dot>
-                {result.analysis.elapsed_seconds}s inference
+                {result.analysis.elapsed_seconds}{t('s inference')}
               </Badge>
               <Badge tone="neutral">{result.analysis.media_type}</Badge>
-              <Badge tone="warning">not a live feed</Badge>
+              <Badge tone="warning">{t('not a live feed')}</Badge>
             </div>
           </div>
           <div className="grid gap-5 p-5 lg:grid-cols-12">
@@ -372,20 +370,20 @@ export default function LiveMonitoring() {
                 {result.analysis.annotated_url ? (
                   <EvidenceImage
                     path={result.analysis.annotated_url}
-                    alt="Annotated AI analysis result"
+                    alt={t('Annotated AI analysis result')}
                     className="max-h-[460px] w-full object-contain"
                   />
                 ) : (
                   <img
                     src={preview || speciesImage(result.analysis.primary_species?.toLowerCase() || 'forest')}
-                    alt="Uploaded media"
+                    alt={t('Uploaded media')}
                     className="max-h-[460px] w-full object-contain"
                   />
                 )}
               </div>
               <div className="mt-2 flex items-center justify-between text-[9.5px] text-muted-13">
-                <span>Annotated copy generated by the local pipeline.</span>
-                <span className="font-mono">stored {uploaded.length} record(s)</span>
+                <span>{t('Annotated copy generated by the local pipeline.')}</span>
+                <span className="font-mono">{t('stored')} {uploaded.length} {t('record(s)')}</span>
               </div>
               {result.analysis.warnings?.length > 0 && (
                 <div className="mt-2 rounded-lg border border-warning-line-2 bg-warning-surface-3 px-3 py-2 text-[10px] leading-relaxed text-warning-3">
@@ -396,14 +394,14 @@ export default function LiveMonitoring() {
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {result.analysis.frame_samples.map((frame) => (
                     <span key={frame.frame} className="rounded-md bg-inset-1 px-2 py-1 font-mono text-[9px] text-secondary-14">
-                      frame {frame.frame} · {frame.seconds}s · {frame.detections} det.
+                      {t('frame')} {frame.frame} · {frame.seconds}{t('s ·')} {frame.detections} {t('det.')}
                     </span>
                   ))}
                 </div>
               )}
             </div>
             <div className="lg:col-span-5">
-              <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-16">Detections returned</div>
+              <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-16">{t('Detections returned')}</div>
               <div className="mt-2 space-y-2">
                 {result.analysis.detections?.length ? (
                   result.analysis.detections.map((detection, index) => (
@@ -416,48 +414,48 @@ export default function LiveMonitoring() {
                       </div>
                       <div className="mt-2 grid grid-cols-2 gap-2 text-[9.5px] text-muted-5">
                         <div>
-                          AI confidence
+                          {t('AI confidence')}
                           <div className="font-mono text-[10.5px] font-semibold text-ink">
                             {confidencePercent(detection.species_confidence)}
                           </div>
                         </div>
                         <div>
-                          Detector confidence
+                          {t('Detector confidence')}
                           <div className="font-mono text-[10.5px] font-semibold text-ink">
                             {confidencePercent(detection.detector_confidence)}
                           </div>
                         </div>
                       </div>
                       <div className="mt-1.5 text-[9px] text-muted-13">
-                        {detection.is_full_frame ? 'Full-frame classification fallback' : 'Localised bounding box'}
+                        {detection.is_full_frame ? t('Full-frame classification fallback') : t('Localised bounding box')}
                       </div>
                     </div>
                   ))
                 ) : (
                   <div className="rounded-xl border border-dashed border-control-line-5 px-4 py-6 text-center text-[11px] text-muted-8">
-                    No animal was detected above the confidence floor. Nothing was stored as a detection.
+                    {t('No animal was detected above the confidence floor. Nothing was stored as a detection.')}
                   </div>
                 )}
               </div>
               {uploaded.length > 0 && (
                 <div className="mt-3 rounded-xl border border-line-8 bg-inset-13 p-3">
                   <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-16">
-                    Stored records
+                    {t('Stored records')}
                   </div>
                   <div className="mt-1.5 space-y-1">
                     {uploaded.map((record) => (
                       <div key={record.id} className="flex items-center justify-between text-[10.5px]">
                         <span className="text-secondary-4">
-                          <span className="font-mono">#{record.id}</span> · {record.species_name}
+                          <span className="font-mono">#{record.id}</span> · {term('species', record.species, record.species_name)}
                         </span>
                         <span className="font-mono text-[9.5px] text-muted-5">
-                          risk {Math.round(record.risk_score)} · {record.risk_level}
+                          {t('risk')} {Math.round(record.risk_score)} · {term('risk', record.risk_level)}
                         </span>
                       </div>
                     ))}
                   </div>
                   <div className="mt-2 text-[9px] leading-relaxed text-muted-9">
-                    Stored at {formatDateTime(uploaded[0].detected_at)} and included in the detection history.
+                    {t('Stored at')} {dateTime(uploaded[0].detected_at)} {t('and included in the detection history.')}
                   </div>
                 </div>
               )}
@@ -468,21 +466,21 @@ export default function LiveMonitoring() {
 
       <section className="card p-5">
         <SectionTitle
-          title="Camera station registry"
-          subtitle="Illustrative positions and statuses; no live government feed is connected"
+          title={t('Camera station registry')}
+          subtitle={t('Illustrative positions and statuses; no live government feed is connected')}
           action={
             cameras.data ? (
               <div className="flex gap-1.5">
-                <Badge tone="forest">{cameras.data.summary.online} online</Badge>
-                <Badge tone="warning">{cameras.data.summary.maintenance} maintenance</Badge>
-                <Badge tone="danger">{cameras.data.summary.offline} offline</Badge>
+                <Badge tone="forest">{cameras.data.summary.online} {t('online')}</Badge>
+                <Badge tone="warning">{cameras.data.summary.maintenance} {t('maintenance')}</Badge>
+                <Badge tone="danger">{cameras.data.summary.offline} {t('offline')}</Badge>
               </div>
             ) : null
           }
         />
         {cameras.loading && !cameras.data ? (
           <div className="mt-4">
-            <Loading label="Loading station registry…" height="h-48" />
+            <Loading label={t('Loading station registry…')} height="h-48" />
           </div>
         ) : cameras.error ? (
           <div className="mt-4">
@@ -500,9 +498,9 @@ export default function LiveMonitoring() {
       <div className="grid gap-4 xl:grid-cols-12">
         <section className="card p-5 xl:col-span-8">
           <SectionTitle
-            title="Recent detections"
-            subtitle="Every record carries source, confidence and risk context"
-            action={<Badge tone="neutral">latest 8</Badge>}
+            title={t('Recent detections')}
+            subtitle={t('Every record carries source, confidence and risk context')}
+            action={<Badge tone="neutral">{t('latest 8')}</Badge>}
           />
           <div className="mt-3">
             {recent.loading && !recent.data ? (
@@ -515,26 +513,26 @@ export default function LiveMonitoring() {
           </div>
         </section>
         <section className="card p-5 xl:col-span-4">
-          <SectionTitle title="Processing notes" subtitle="What this module does and does not do" />
+          <SectionTitle title={t('Processing notes')} subtitle={t('What this module does and does not do')} />
           <div className="mt-3 space-y-2.5 text-[11px] leading-relaxed text-secondary-10">
             {[
-              ['Images', 'One localisation and classification pass. An annotated copy is stored.'],
-              ['Video', 'Up to five frames are sampled. This is not continuous tracking.'],
-              ['Confidence', 'Animal labels require a calibrated CLIP floor; otherwise unidentified.'],
-              ['Tracking', 'Inferred only from sequential camera records, never from GPS.'],
-              ['Privacy', 'Exact camera and detection positions stay behind guard authentication.'],
+              [t('Images'), t('One localisation and classification pass. An annotated copy is stored.')],
+              [t('Video'), t('Up to five frames are sampled. This is not continuous tracking.')],
+              [t('Confidence'), t('Animal labels require a calibrated CLIP floor; otherwise unidentified.')],
+              [t('Tracking'), t('Inferred only from sequential camera records, never from GPS.')],
+              [t('Privacy'), t('Exact camera and detection positions stay behind guard authentication.')],
             ].map(([title, detail]) => (
               <div key={title} className="flex items-start gap-2.5">
                 <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success-6" />
                 <div>
-                  <span className="font-semibold text-ink">{title}. </span>
+                  <span className="font-semibold text-ink">{t(title)}. </span>
                   {detail}
                 </div>
               </div>
             ))}
           </div>
           <div className="mt-4 flex items-center gap-2 rounded-lg bg-inset-1 px-3 py-2 text-[9.5px] text-muted-5">
-            <Cpu className="h-3.5 w-3.5" /> Local CPU inference · on-premise execution
+            <Cpu className="h-3.5 w-3.5" /> {t('Local CPU inference · on-premise execution')}
           </div>
         </section>
       </div>

@@ -1,10 +1,12 @@
+import { useLanguage } from '../i18n'
 import { useEffect, useState } from 'react'
 import api, { errorMessage } from '../api/client'
 import { ErrorBox, Loading, SectionTitle } from '../components/ui'
 import JurisdictionSettings from '../components/JurisdictionSettings'
 import { useAuth } from '../context/AuthContext'
 import { useApi } from '../hooks/useApi'
-import { titleCase } from '../utils/format'
+import LanguageSwitcher from '../components/LanguageSwitcher'
+import ThemeToggle from '../components/ThemeToggle'
 
 const fields = [
   ['alert_threshold', 'Automated alert trigger score', 0, 100, 1],
@@ -15,6 +17,7 @@ const fields = [
 ]
 
 export default function Settings() {
+  const { t, term } = useLanguage()
   const { user, isAdmin, logout } = useAuth()
   const config = useApi('/api/risk/config')
   const [form, setForm] = useState(null)
@@ -29,7 +32,7 @@ export default function Settings() {
   async function save(event, reset = false) {
     event.preventDefault()
     if (busy || !isAdmin) return
-    if (reset && !window.confirm('Restore default risk settings and recalculate scores?')) return
+    if (reset && !window.confirm(t('Restore default risk settings and recalculate scores?'))) return
     setBusy(true)
     setFeedback(null)
     try {
@@ -51,39 +54,47 @@ export default function Settings() {
   }
 
   return <>
-    <header className="operations-heading"><h1>Settings</h1></header>
+    <header className="operations-heading"><h1>{t('Settings')}</h1></header>
     <div className="grid items-start gap-4 lg:grid-cols-2">
       <div className="space-y-5">
         <section className="operations-panel space-y-3 p-4">
-          <SectionTitle title="Authority account" />
+          <SectionTitle title={t('Authority account')} />
           <dl className="space-y-2 text-sm">
-            <div><dt className="text-muted-3">Name</dt><dd>{user?.name}</dd></div>
-            <div><dt className="text-muted-3">Email</dt><dd>{user?.email}</dd></div>
-            <div><dt className="text-muted-3">Role</dt><dd>{isAdmin ? 'Central administrator' : titleCase(user?.role)}</dd></div>
-            <div><dt className="text-muted-3">Jurisdictions</dt><dd>{isAdmin ? 'All jurisdictions and central review'
-              : user?.jurisdictions?.map(item => item.name).join(', ') || 'No jurisdiction assigned'}</dd></div>
+            <div><dt className="text-muted-3">{t('Name')}</dt><dd>{user?.name}</dd></div>
+            <div><dt className="text-muted-3">{t('Email')}</dt><dd>{user?.email}</dd></div>
+            <div><dt className="text-muted-3">{t('Role')}</dt><dd>{isAdmin ? t('Central administrator') : term('role', user?.role)}</dd></div>
+            <div><dt className="text-muted-3">{t('Jurisdictions')}</dt><dd>{isAdmin ? t('All jurisdictions and central review')
+              : user?.jurisdictions?.map(item => item.name).join(', ') || t('No jurisdiction assigned')}</dd></div>
           </dl>
-          <button type="button" className="btn-outline" onClick={logout}>Sign out</button>
+          <button type="button" className="btn-outline" onClick={logout}>{t('Sign out')}</button>
+        </section>
+        <section className="operations-panel space-y-3 p-4">
+          <SectionTitle title={t('Appearance')} />
+          <ThemeToggle />
+        </section>
+        <section className="operations-panel space-y-3 p-4">
+          <SectionTitle title={t('Language')} />
+          <LanguageSwitcher />
         </section>
       </div>
       <section className="operations-panel space-y-4 p-4">
-        <SectionTitle title="Risk configuration" subtitle={!isAdmin ? 'Only administrators can edit these settings.' : undefined} />
+        <SectionTitle title={t('Risk configuration')} subtitle={!isAdmin ? t('Only administrators can edit these settings.') : undefined} />
         {config.error && <ErrorBox message={config.error} onRetry={config.reload} />}
         {!form && config.loading && <Loading />}
         {form && <form className="space-y-3" onSubmit={save}>
           <fieldset disabled={!isAdmin || busy} className="space-y-3">
-            {fields.map(([key, label, min, max, step]) => <label className="field-label block" key={key}>{label}
+            {fields.map(([key, label, min, max, step]) => <label className="field-label block" key={key}>{t(label)}
               <input className="field mt-1" type="number" min={min} max={max} step={step} required value={form[key]}
                 onChange={(event) => setForm({ ...form, [key]: event.target.value })} />
             </label>)}
             {isAdmin && <div className="flex gap-2">
-              <button type="submit" className="btn-primary">{busy ? 'Saving…' : 'Save and recalculate'}</button>
-              <button type="button" className="btn-outline" onClick={(event) => save(event, true)}>Restore defaults</button>
+              <button type="submit" className="btn-primary">{busy ? t('Saving…') : t('Save and recalculate')}</button>
+              <button type="button" className="btn-outline" onClick={(event) => save(event, true)}>{t('Restore defaults')}</button>
             </div>}
           </fieldset>
         </form>}
         {feedback?.error && <ErrorBox message={feedback.error} />}
-        {feedback?.message && <p role="status" className="text-sm text-success-7">{feedback.message}</p>}
+        {feedback?.message && <p role="status" className="text-sm text-success-7">{t(feedback.message)}</p>}
       </section>
     </div>
     {isAdmin && <JurisdictionSettings />}

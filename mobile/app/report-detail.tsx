@@ -1,9 +1,10 @@
+import { displayCoordinateLabel } from '@/components/LocationField';
+import { useLanguage } from '@/i18n';
 import { useIsFocused, useLocalSearchParams } from 'expo-router';
 import { CircleCheck, CircleX, ClipboardCheck, FileCheck2, MapPin, RefreshCw } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { useCitizen } from '@/citizen-context';
-import { eventLabels } from '@/citizen-notifications';
 import type { OriginalPhoto } from '@/components/EvidenceImage';
 import { Feedback, RiskPill, SupportingText } from '@/components/Feedback';
 import { IconAction } from '@/components/IconAction';
@@ -15,7 +16,6 @@ import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionTitle } from '@/components/SectionTitle';
 import { Surface } from '@/components/Surface';
-import { formatTimestamp } from '@/format';
 import { useAppActive } from '@/hooks/useAppActive';
 import { usePublicData } from '@/hooks/usePublicData';
 import { getCitizenEvidence, getCitizenReport } from '@/services/api';
@@ -32,6 +32,7 @@ const analysisLabels: Record<string, string> = {
 };
 
 export default function ReportDetail() {
+  const { t, term, errorText, dateTime } = useLanguage();
   const { code } = useLocalSearchParams<{ code: string }>();
   const { access } = useCitizen();
   const { colors } = useTheme();
@@ -41,7 +42,7 @@ export default function ReportDetail() {
   const { state, reload, refreshing, refreshError } = usePublicData(fetchReport, focused && active && !!code, 10000);
   const report = state.kind === 'ready' ? state.data : null;
   const point = report?.coordinates;
-  const location = report?.locationLabel ?? report?.village ?? (point && `${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}`);
+  const location = (point ? displayCoordinateLabel(report?.locationLabel, point, t) : report?.locationLabel) ?? report?.village ?? (point && `${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}`);
   const source = report?.locationSource ?? (point ? 'gps' : report?.village ? 'village' : undefined);
   const risk = report?.risk;
   const hasResponse = report && (report.confirmedSpecies || risk || report.reviewNote || report.resolutionNote);
@@ -51,32 +52,32 @@ export default function ReportDetail() {
 
   return (
     <Screen refresh={{ onRefresh: reload, refreshing }} header={
-      <ScreenHeader title="Report details" back action={code && <IconAction icon={RefreshCw} tone="header"
-        label="Refresh report details" loading={refreshing} onPress={reload} />} />
+      <ScreenHeader title={t('Report details')} back action={code && <IconAction icon={RefreshCw} tone="header"
+        label={t('Refresh report details')} loading={refreshing} onPress={reload} />} />
     }>
-      {!code ? <Feedback title="Report unavailable" /> : state.kind === 'loading' && <Feedback title="Loading report…" kind="loading" />}
-      {'message' in state && <Feedback title="Could not load report" detail={state.message} kind="error" retry={reload} />}
-      {!!refreshError && <SupportingText error>{refreshError}</SupportingText>}
+      {!code ? <Feedback title={t('Report unavailable')} /> : state.kind === 'loading' && <Feedback title={t('Loading report…')} kind="loading" />}
+      {'message' in state && <Feedback title={t('Could not load report')} detail={state.message} kind="error" retry={reload} />}
+      {!!refreshError && <SupportingText error>{errorText(refreshError)}</SupportingText>}
       {report && (
         <View style={styles.report}>
           {focused && report.hasPhoto && <IncidentPhoto key={report.reference_code} code={report.reference_code} />}
           <View style={styles.identity}>
             <Text accessibilityRole="header" style={[typeScale.screen, { color: colors.primaryText }]}>{report.title}</Text>
-            <Text style={[typeScale.body, { color: colors.secondaryText }]}>{report.confirmedSpecies ?? report.species}</Text>
+            <Text style={[typeScale.body, { color: colors.secondaryText }]}>{t(report.confirmedSpecies ?? report.species)}</Text>
             <View style={styles.badges}>
               <ReportStatusPill status={report.status} />
               {risk && <RiskPill severity={risk} />}
             </View>
             <View style={styles.badges}>
               <ReferenceCode key={report.reference_code} code={report.reference_code} />
-              <SupportingText>{formatTimestamp(report.createdAt)}</SupportingText>
+              <SupportingText>{dateTime(report.createdAt)}</SupportingText>
             </View>
             {location && <View style={styles.location}>
               <MapPin size={16} color={colors.accent} /><View style={{ flex: 1 }}><SupportingText>{location}</SupportingText></View>
             </View>}
           </View>
           {events.length > 0 && <Surface>
-            <SectionTitle title="Report progress" />
+            <SectionTitle title={t('Report progress')} />
             {events.map(({ event, at }, index) => {
               const Icon = activityIcons[event as keyof typeof activityIcons] ?? FileCheck2;
               const ink = event === 'rejected' ? colors.clay : colors.successText;
@@ -88,34 +89,34 @@ export default function ReportDetail() {
                   {index < events.length - 1 && <View style={[styles.connector, { backgroundColor: colors.border }]} />}
                 </View>
                 <View style={styles.stepText}>
-                  <Text style={[typeScale.action, { color: colors.primaryText }]}>{eventLabels[event] ?? 'Report updated'}</Text>
-                  <SupportingText>{formatTimestamp(at)}</SupportingText>
+                  <Text style={[typeScale.action, { color: colors.primaryText }]}>{term('event', event, 'Report updated')}</Text>
+                  <SupportingText>{dateTime(at)}</SupportingText>
                 </View>
               </View>;
             })}
           </Surface>}
           {!!report.rejectionReason && <Surface style={{ backgroundColor: colors.dangerTint }}>
-            <Field label="Rejection reason" value={report.rejectionReason} />
+            <Field label={t('Rejection reason')} value={report.rejectionReason} />
           </Surface>}
           <Surface>
-            <SectionTitle title="Your observation" />
+            <SectionTitle title={t('Your observation')} />
             <View style={styles.fields}>
-              <Field label="Category" value={report.category === 'conflict' ? 'Conflict' : 'Sighting'} />
-              <Field label="Reported animal" value={report.species} />
-              <Field label="Location source" value={source === 'gps' ? 'Selected coordinates' : source === 'village' ? 'Village selection' : undefined} />
+              <Field label={t('Category')} value={term('category', report.category)} />
+              <Field label={t('Reported animal')} value={t(report.species)} />
+              <Field label={t('Location source')} value={source === 'gps' ? t('Selected coordinates') : source === 'village' ? t('Village selection') : undefined} />
             </View>
-            <Field label="Description" value={report.description} />
+            <Field label={t('Description')} value={report.description} />
           </Surface>
           {analysisLabel && <Surface>
-            <SectionTitle title="AI photo analysis" />
-            <SupportingText>{analysisLabel}</SupportingText>
-            {report.suggestions.length > 0 && <Field label="Suggested animals" value={report.suggestions.join(', ')} />}
+            <SectionTitle title={t('AI photo analysis')} />
+            <SupportingText>{t(analysisLabel)}</SupportingText>
+            {report.suggestions.length > 0 && <Field label={t('Suggested animals')} value={report.suggestions.map(animal => t(animal)).join(', ')} />}
           </Surface>}
           {!!hasResponse && <Surface>
-            <SectionTitle title="Authority findings" />
-            <Field label="Confirmed animal" value={report.confirmedSpecies} />
-            <Field label="Review note" value={report.reviewNote} />
-            <Field label="Resolution" value={report.resolutionNote} />
+            <SectionTitle title={t('Authority findings')} />
+            <Field label={t('Confirmed animal')} value={report.confirmedSpecies && t(report.confirmedSpecies)} />
+            <Field label={t('Review note')} value={report.reviewNote} />
+            <Field label={t('Resolution')} value={report.resolutionNote} />
           </Surface>}
         </View>
       )}
@@ -133,6 +134,7 @@ function Field({ label, value }: { label: string; value?: string }) {
 }
 
 function IncidentPhoto({ code }: { code: string }) {
+  const { t } = useLanguage();
   const { access } = useCitizen();
   const [imageError, setImageError] = useState(false);
   const [photo, setPhoto] = useState<OriginalPhoto>();
@@ -177,11 +179,11 @@ function IncidentPhoto({ code }: { code: string }) {
     };
   }, [access, code, attempt]);
 
-  if (imageError) return <Feedback title="Could not load photograph" kind="error" retry={() => {
+  if (imageError) return <Feedback title={t('Could not load photograph')} kind="error" retry={() => {
     setImageError(false);
     setAttempt(attempt + 1);
   }} />;
-  if (!photo) return <Feedback title="Loading photograph…" kind="loading" />;
+  if (!photo) return <Feedback title={t('Loading photograph…')} kind="loading" />;
   return <>
     <PhotoPreview photo={photo} onExpand={() => setViewing(true)} />
     {viewing && <PhotoViewer photo={photo} onClose={() => setViewing(false)} />}

@@ -1,8 +1,10 @@
+import { useLanguage } from '../i18n'
 import { useEffect } from 'react'
 import { AlertTriangle, Info, Loader2, ShieldAlert, X } from 'lucide-react'
-import { RISK_COLOR, statusTone, titleCase } from '../utils/format'
+import { RISK_COLOR, statusTone } from '../utils/format'
 
 export function Logo({ compact = false, light = false }) {
+  const { t } = useLanguage()
   return (
     <div className="flex items-center gap-3">
       <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-lime text-forest-950 shadow-[0_8px_24px_-10px_rgba(196,232,122,0.9)]">
@@ -29,7 +31,7 @@ export function Logo({ compact = false, light = false }) {
               light ? 'text-forest-200/80' : 'text-muted-7'
             }`}
           >
-            Conservation intelligence
+            {t('Conservation intelligence')}
           </div>
         </div>
       )}
@@ -56,11 +58,12 @@ export function Badge({ children, tone = 'neutral', dot = false, className = '' 
 }
 
 export function RiskBadge({ level, score, className = '' }) {
+  const { term } = useLanguage()
   const tone = statusTone(level)
   return (
     <span className={`chip ${TONES[tone]} ${className}`}>
       <span className="h-1.5 w-1.5 rounded-full" style={{ background: RISK_COLOR[level] || RISK_COLOR.low }} />
-      <span>{titleCase(level)}</span>
+      <span>{term('risk', level)}</span>
       {score !== undefined && score !== null && (
         <span className="font-mono text-[10px] opacity-75">{score}</span>
       )}
@@ -68,21 +71,23 @@ export function RiskBadge({ level, score, className = '' }) {
   )
 }
 
-export function StatusBadge({ status }) {
+export function StatusBadge({ status, domain = 'report' }) {
+  const { term } = useLanguage()
   return (
     <Badge tone={statusTone(status)} dot>
-      {titleCase(status)}
+      {term(domain, status)}
     </Badge>
   )
 }
 
 export function SpeciesTag({ species, name, color, className = '' }) {
+  const { term } = useLanguage()
   return (
     <span
       className={`inline-flex items-center gap-2 rounded-full border border-line-6 bg-raised/80 px-2.5 py-1 text-[11px] font-semibold text-secondary-1 ${className}`}
     >
       <span className="h-2 w-2 rounded-full" style={{ background: color || '#64748B' }} />
-      {name || titleCase(species)}
+      {term('species', species, name)}
     </span>
   )
 }
@@ -144,6 +149,7 @@ export function StatCard({ label, value, hint, icon: Icon, tone = 'forest', mono
 }
 
 export function DemoNotice({ compact = false, children }) {
+  const { t } = useLanguage()
   return (
     <div
       className={`flex items-start gap-2.5 rounded-xl border border-control-line-2 bg-inset-10 text-warning-1 ${
@@ -154,9 +160,7 @@ export function DemoNotice({ compact = false, children }) {
       <div className="leading-relaxed">
         {children || (
           <>
-            <strong className="font-semibold">Demonstration dataset.</strong> All detections, alerts and
-            incidents are synthetic and clearly labelled. Images are AI-processed reference evidence, not
-            live camera-trap feeds.
+            <strong className="font-semibold">{t('Demonstration dataset.')}</strong> {t('All detections, alerts and incidents are synthetic and clearly labelled. Images are AI-processed reference evidence, not live camera-trap feeds.')}
           </>
         )}
       </div>
@@ -165,10 +169,11 @@ export function DemoNotice({ compact = false, children }) {
 }
 
 export function Loading({ label = 'Loading intelligence…', height = 'h-64' }) {
+  const { t } = useLanguage()
   return (
     <div className={`flex ${height} flex-col items-center justify-center gap-3 rounded-2xl border border-line-7 bg-parchment`}>
       <Loader2 className="h-5 w-5 animate-spin text-success-5" />
-      <div className="text-[12px] font-medium text-muted-3">{label}</div>
+      <div className="text-[12px] font-medium text-muted-3">{t(label)}</div>
     </div>
   )
 }
@@ -184,16 +189,17 @@ export function SkeletonRows({ rows = 5 }) {
 }
 
 export function ErrorBox({ message, onRetry }) {
+  const { t, errorText } = useLanguage()
   return (
     <div className="flex items-start gap-3 rounded-2xl border border-danger-line-1 bg-danger-surface-3 p-4">
       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-danger-5" />
       <div className="flex-1">
-        <div className="text-[12.5px] font-semibold text-danger-1">Could not load this view</div>
-        <div className="mt-0.5 text-[11.5px] leading-relaxed text-danger-3">{message}</div>
+        <div className="text-[12.5px] font-semibold text-danger-1">{t('Could not load this view')}</div>
+        <div className="mt-0.5 text-[11.5px] leading-relaxed text-danger-3">{errorText(message)}</div>
       </div>
       {onRetry && (
         <button type="button" className="btn-outline !px-3 !py-1.5 !text-[11px]" onClick={onRetry}>
-          Retry
+          {t('Retry')}
         </button>
       )}
     </div>
@@ -214,6 +220,7 @@ export function EmptyState({ icon: Icon = ShieldAlert, title, description, actio
 }
 
 export function Modal({ open, onClose, title, subtitle, children, footer, width = 'max-w-2xl' }) {
+  const { t } = useLanguage()
   useEffect(() => {
     if (!open) return undefined
     const onKey = (event) => event.key === 'Escape' && onClose?.()
@@ -240,7 +247,7 @@ export function Modal({ open, onClose, title, subtitle, children, footer, width 
             type="button"
             onClick={onClose}
             className="rounded-lg p-1.5 text-muted-3 transition hover:bg-hover-1 hover:text-ink"
-            aria-label="Close"
+            aria-label={t('Close')}
           >
             <X className="h-4 w-4" />
           </button>
@@ -277,12 +284,13 @@ const SOFT_RISK_TONES = {
 }
 
 export function SoftRisk({ level }) {
+  const { term } = useLanguage()
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10.5px] font-semibold ${SOFT_RISK_TONES[level] || SOFT_RISK_TONES.low}`}
     >
       <span className="h-1.5 w-1.5 rounded-full bg-current" />
-      {titleCase(level)}
+      {term('risk', level)}
     </span>
   )
 }

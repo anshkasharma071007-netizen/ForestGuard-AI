@@ -1,3 +1,4 @@
+import { useLanguage } from '@/i18n';
 import * as Clipboard from 'expo-clipboard';
 import { Check, Copy } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
@@ -7,6 +8,7 @@ import { SupportingText } from './Feedback';
 import { IconAction } from './IconAction';
 
 export function ReferenceCode({ code }: { code: string }) {
+  const { t } = useLanguage();
   const { colors } = useTheme();
   const [feedback, setFeedback] = useState('');
   const [busy, setBusy] = useState(false);
@@ -36,10 +38,10 @@ export function ReferenceCode({ code }: { code: string }) {
   return <View style={styles.wrapper}>
     <View style={styles.row}>
       <Text selectable style={[typeScale.supporting, styles.reference, { color: colors.secondaryText }]}>{code}</Text>
-      <IconAction icon={feedback === 'Copied' ? Check : Copy} label="Copy reference code"
+      <IconAction icon={feedback === 'Copied' ? Check : Copy} label={t('Copy reference code')}
         onPress={() => void copy()} loading={busy} />
     </View>
-    {!!feedback && <View accessibilityLiveRegion="polite"><SupportingText error={feedback !== 'Copied'}>{feedback}</SupportingText></View>}
+    {!!feedback && <View accessibilityLiveRegion="polite"><SupportingText error={feedback !== 'Copied'}>{t(feedback)}</SupportingText></View>}
   </View>;
 }
 

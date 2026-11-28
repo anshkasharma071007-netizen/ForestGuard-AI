@@ -1,6 +1,5 @@
-// Hindi UI dictionary. Keys must match the rendered English text exactly
-// (leading/trailing whitespace is handled by translateText).
-const HI = {
+// Fixed application copy. Source strings are the English fallback.
+export const hi = {
   // ---------- Navigation & chrome ----------
   'Switch to dark theme': 'डार्क थीम चुनें',
   'Switch to light theme': 'लाइट थीम चुनें',
@@ -45,17 +44,17 @@ const HI = {
   'Demonstration prototype · synthetic advisories · illustrative geography':
     'प्रदर्शन प्रोटोटाइप · सिंथेटिक सलाह · सांकेतिक भूगोल',
   'Forest Guard AI · Protecting Forests. Preventing Conflict. Saving Lives.':
-    'फ़ॉरेस्ट गार्ड AI · वनों की रक्षा। संघर्ष की रोकथाम। जीवन की सुरक्षा।',
+    'Forest Guard AI · वनों की रक्षा। संघर्ष की रोकथाम। जीवन की सुरक्षा।',
   'Protecting Forests. Preventing Conflict. Saving Lives.':
     'वनों की रक्षा। संघर्ष की रोकथाम। जीवन की सुरक्षा।',
   'Protecting forests.': 'वनों की रक्षा।',
   'Preventing conflict.': 'संघर्ष की रोकथाम।',
   'Saving lives.': 'जीवन की सुरक्षा।',
   'v1.0 · demo': 'v1.0 · डेमो',
-  'Forest Guard AI / Operations': 'फ़ॉरेस्ट गार्ड AI / ऑपरेशन्स',
+  'Forest Guard AI / Operations': 'Forest Guard AI / ऑपरेशन्स',
   'Operations overview': 'ऑपरेशन्स अवलोकन',
   'Seoni · Madhya Pradesh': 'सिवनी · मध्य प्रदेश',
-  'Sign out': 'साइन आउट',
+  'Sign out': "साइन आउट करें",
   'Range officer': 'रेंज अधिकारी',
   'Range officer (admin)': 'रेंज अधिकारी (एडमिन)',
   'Forest guard': 'फ़ॉरेस्ट गार्ड',
@@ -77,7 +76,7 @@ const HI = {
   'Animal composition': 'प्रजाति संरचना',
   'Animal distribution': 'प्रजाति वितरण',
   'Animal classes observed': 'देखी गई प्रजातियाँ',
-  'Recognized animals': 'प्रजाति सूची',
+  'Recognized animals': "मान्यता प्राप्त प्रजातियाँ",
   'Species detected': 'पहचानी गई प्रजातियाँ',
   'Risk': 'जोखिम',
   'Risk zones': 'जोखिम क्षेत्र',
@@ -90,13 +89,13 @@ const HI = {
   'Risk zone': 'जोखिम क्षेत्र',
   'High': 'उच्च',
   'Moderate': 'मध्यम',
-  'Low': 'निम्न',
+  'Low': "कम",
   'high': 'उच्च',
   'moderate': 'मध्यम',
   'low': 'निम्न',
   'Mod.': 'मध्यम',
   'High risk': 'उच्च जोखिम',
-  'Low risk': 'निम्न जोखिम',
+  'Low risk': "कम जोखिम",
   'High-risk signals': 'उच्च-जोखिम संकेत',
   'High-risk cells': 'उच्च-जोखिम सेल',
   'High-risk share': 'उच्च-जोखिम हिस्सा',
@@ -111,14 +110,14 @@ const HI = {
   'Open task': 'कार्य खोलें',
   'Active': 'सक्रिय',
   'active': 'सक्रिय',
-  'Acknowledged': 'स्वीकृत',
-  'Responding': 'प्रतिक्रिया जारी',
-  'Resolved': 'हल किया गया',
+  'Acknowledged': "देख लिया गया",
+  'Responding': "कार्रवाई जारी",
+  'Resolved': "समाधान पूर्ण",
   'resolved': 'हल किया गया',
   'Verified': 'सत्यापित',
   'Ended': 'समाप्त',
-  'Unassigned': 'अनाथित',
-  'Unidentified': 'अपहचाना',
+  'Unassigned': "बिना आवंटन",
+  'Unidentified': "अज्ञात",
   'unidentified': 'अपहचाना',
   'unidentified fallback': 'अपहचाना फ़ॉलबैक',
   'Unidentified fallback': 'अपहचाना फ़ॉलबैक',
@@ -221,7 +220,7 @@ const HI = {
   'Workflow': 'कार्यप्रवाह',
   'Report builder': 'रिपोर्ट बिल्डर',
   'Report reference code': 'रिपोर्ट संदर्भ कोड',
-  'Report a sighting': 'दृश्य की रिपोर्ट करें',
+  'Report a sighting': "वन्यजीव दिखने की रिपोर्ट करें",
   'Report a sighting or conflict': 'दृश्य या संघर्ष की रिपोर्ट करें',
   'Reported categories in the window': 'विंडो में रिपोर्ट की गई श्रेणियाँ',
   'Check a report': 'रिपोर्ट जाँचें',
@@ -256,8 +255,8 @@ const HI = {
   'Export contents': 'निर्यात सामग्री',
   'Refresh board': 'बोर्ड रीफ़्रेश करें',
   'Refresh layers': 'लेयर रीफ़्रेश करें',
-  'Zoom in': 'ज़ूम इन',
-  'Zoom out': 'ज़ूम आउट',
+  'Zoom in': "बड़ा करें",
+  'Zoom out': "छोटा करें",
   'Layers & legend': 'लेयर और लीजेंड',
   'How to read this map': 'यह मैप कैसे पढ़ें',
   'Select a marker for its record': 'रिकॉर्ड देखने के लिए मार्कर चुनें',
@@ -317,7 +316,7 @@ const HI = {
   'Inference engine': 'इन्फ़रेंस इंजन',
   'AI engine ready · cpu': 'AI इंजन तैयार · CPU',
   'cpu': 'CPU',
-  'auto': 'ऑटो',
+  'auto': "स्वचालित",
   'Device': 'डिवाइस',
   'Mode': 'मोड',
   'Media analyser': 'मीडिया विश्लेषक',
@@ -338,7 +337,7 @@ const HI = {
   // ---------- Species ----------
   'Tiger': 'बाघ',
   'tiger': 'बाघ',
-  'Bengal tiger': 'बंगाल बाघ',
+  'Bengal tiger': "बंगाल का बाघ",
   'Bengal tiger · High': 'बंगाल बाघ · उच्च',
   'Leopard': 'तेंदुआ',
   'leopard': 'तेंदुआ',
@@ -353,14 +352,14 @@ const HI = {
   'deer': 'हिरण',
   'deer)': 'हिरण)',
   'Chital': 'चीतल',
-  'Chital (spotted deer)': 'चीतल (धब्बेदार हिरण)',
+  'Chital (spotted deer)': "चीतल (चित्तीदार हिरण)",
   'Chital (spotted deer) · Low': 'चीतल (धब्बेदार हिरण) · निम्न',
-  'Sloth bear': 'स्लॉथ बियर',
+  'Sloth bear': "भालू",
   'Sloth bear · High': 'स्लॉथ बियर · उच्च',
   'Wild boar': 'जंगली सूअर',
   'Wild boar · Moderate': 'जंगली सूअर · मध्यम',
   'Wild boar · Moderate': 'जंगली सूअर · मध्यम',
-  'Unidentified animal': 'अपहचाना पशु',
+  'Unidentified animal': "अज्ञात जानवर",
   'Panthera tigris tigris': 'पैंथेरा टाइग्रिस टाइग्रिस',
   'Panthera pardus fusca': 'पैंथेरा पार्डस फ़ुस्का',
   'Elephas maximus': 'एलिफ़ास मैक्सिमस',
@@ -421,7 +420,7 @@ const HI = {
 
   // ---------- Login ----------
   'Authorised access': 'अधिकृत प्रवेश',
-  'Field operations sign in': 'फ़ील्ड ऑपरेशन्स साइन इन',
+  'Field operations sign in': "मैदानी संचालन के लिए साइन इन करें",
   'Range officers and forest guards can access detections, risk intelligence and alert response tools. Community members do not need an account.':
     'रेंज अधिकारी और फ़ॉरेस्ट गार्ड डिटेक्शन, जोखिम इंटेलिजेंस और अलर्ट प्रतिक्रिया उपकरण देख सकते हैं। समुदाय के सदस्यों को खाते की आवश्यकता नहीं है।',
   'Official email': 'आधिकारिक ईमेल',
@@ -435,7 +434,7 @@ const HI = {
   'An AI-assisted monitoring ecosystem that connects wildlife, forest authorities and buffer-zone communities — turning camera observations into explainable, geospatial early warning.':
     'एक AI-सहायित निगरानी पारिस्थितिकी तंत्र जो वन्यजीवों, वन अधिकारियों और बफ़र-क्षेत्र समुदायों को जोड़ता है — कैमरा अवलोकनों को व्याख्या-योग्य, भू-स्थानिक पूर्व चेतावनी में बदलता है।',
   'Detect': 'पहचानें',
-  'Map': 'मैप करें',
+  'Map': "मानचित्र",
   'Protect': 'सुरक्षित रखें',
   'GIS risk intelligence': 'जीआईएस जोखिम इंटेलिजेंस',
   'Guard + village alerts': 'गार्ड + गाँव अलर्ट',
@@ -572,7 +571,7 @@ const HI = {
   'Empty habitat cells are omitted. Zones are indicative prioritisation aids, not predictions.':
     'खाली आवास सेल छोड़े गए हैं। क्षेत्र सांकेतिक प्राथमिकता सहायक हैं, भविष्यवाणियाँ नहीं।',
   'Illustrative geography; no live surveillance layer.': 'सांकेतिक भूगोल; कोई लाइव निगरानी लेयर नहीं।',
-  'C camera · G guard · ! incident. Zones are indicative.': 'C कैमरा · G गार्ड · ! घटना। क्षेत्र सांकेतिक हैं।',
+  'C camera · G guard · ! incident. Zones are indicative.': "C कैमरा · G वन रक्षक · ! घटना। क्षेत्र अनुमानित हैं।",
   'A JavaScript library for interactive maps': 'इंटरैक्टिव मैप के लिए एक JavaScript लाइब्रेरी',
   'Dashed lines only appear where three or more sequential camera observations are close in space and time. No GPS or individual ID is implied.':
     'बिंदुकित रेखाएँ केवल वहीं दिखती हैं जहाँ तीन या अधिक क्रमिक कैमरा अवलोकन स्थान और समय में निकट हों। कोई जीपीएस या व्यक्तिगत आईडी निहित नहीं है।',
@@ -700,7 +699,7 @@ const HI = {
   'Attach a JPEG, PNG or WebP image': 'JPEG, PNG या WebP छवि संलग्न करें',
   'Remove photo': 'फ़ोटो हटाएँ',
   'Report preview': 'रिपोर्ट पूर्वावलोकन',
-  'Submitting report…': 'रिपोर्ट सबमिट हो रही है…',
+  'Submitting report…': "रिपोर्ट भेजी जा रही है…",
   'Submit report to range office': 'रिपोर्ट रेंज ऑफ़िस को सबमिट करें',
   'For immediate danger to life call 112. Reports are queued for review; they do not trigger an automated emergency response.':
     'जीवन पर तत्काल खतरे के लिए 112 पर कॉल करें। रिपोर्ट समीक्षा के लिए कतार में जाती हैं; वे स्वचालित आपातकालीन प्रतिक्रिया ट्रिगर नहीं करतीं।',
@@ -718,11 +717,11 @@ const HI = {
   'Early reports protect people and wildlife.': 'शीघ्र रिपोर्ट लोगों और वन्यजीवों की रक्षा करती है।',
   'Report sightings promptly and from a safe distance. Do not chase, surround or feed animals, and never enter restricted forest areas to verify a sighting.':
     'सुरक्षित दूरी से और शीघ्र दृश्य की रिपोर्ट करें। पशुओं का पीछा, घेराव या भोजन न करें, और दृश्य सत्यापित करने के लिए प्रतिबंधित वन क्षेत्रों में कभी न जाएँ।',
-  'Forest Guard AI · Community portal': 'फ़ॉरेस्ट गार्ड AI · समुदाय पोर्टल',
-  'Forest Guard AI community portal': 'फ़ॉरेस्ट गार्ड AI समुदाय पोर्टल',
+  'Forest Guard AI · Community portal': 'Forest Guard AI · समुदाय पोर्टल',
+  'Forest Guard AI community portal': 'Forest Guard AI समुदाय पोर्टल',
   'No government surveillance access is implied or provided.':
     'कोई सरकारी निगरानी पहुँच निहित या प्रदान नहीं की गई है।',
-  'Report received': 'रिपोर्ट प्राप्त हुई',
+  'Report received': "रिपोर्ट मिली",
   'Reference code': 'संदर्भ कोड',
   'Copy code': 'कोड कॉपी करें',
   'Copied': 'कॉपी हो गया',
@@ -738,7 +737,7 @@ const HI = {
   'livestock depredation': 'पशुधन हानि',
   'Human Injury': 'मानव हानि',
   'human injury': 'मानव हानि',
-  'Sighting': 'दृश्य',
+  'Sighting': "वन्यजीव दिखना",
   'sighting': 'दृश्य',
   'Wildlife Sighting': 'वन्यजीव दृश्य',
   'Wildlife sighting': 'वन्यजीव दृश्य',
@@ -754,63 +753,63 @@ const HI = {
   'Advisories describe a coarse buffer area and the villages likely to be affected. They deliberately omit camera positions, detection coordinates, patrol routes and individual animal identities.':
     'सलाह मोटा बफ़र क्षेत्र और संभावित प्रभावित गाँव बताती हैं। इनमें जानबूझकर कैमरा स्थितियाँ, डिटेक्शन निर्देशांक, गश्त मार्ग और व्यक्तिगत पशु पहचान छोड़ी जाती हैं।',
   'Guidance summarises common forest-department safety advice for the demonstration region. It is not a substitute for local instructions or emergency services.':
-    'यह मार्गदर्शन प्रदर्शन क्षेत्र के लिए सामान्य वन-विभागीय सुरक्षा सलाह का सारांश है। यह स्थानीय निर्देशों या आपातकालीन सेवाओं का विकल्प नहीं है।',
+    "यह सलाह उदाहरण वाले क्षेत्र के लिए वन विभाग की सामान्य सावधानियों का सार है। स्थानीय निर्देश मानें और आपात स्थिति में आपात सेवाओं से संपर्क करें।",
   'Visit the community portal for public advisories and reporting, or contact your range office.':
     'सार्वजनिक सलाह और रिपोर्टिंग के लिए समुदाय पोर्टल देखें, या अपने रेंज ऑफ़िस से संपर्क करें।',
   'Report sightings through this portal or the forest helpline. Do not attempt to intervene.':
-    'इस पोर्टल या वन हेल्पलाइन के माध्यम से दृश्य की रिपोर्ट करें। हस्तक्षेप करने का प्रयास न करें।',
+    "वन्यजीव दिखने पर इस सेवा या वन हेल्पलाइन पर सूचना दें। खुद दखल देने की कोशिश न करें।",
   'Do not approach, chase, surround or corner a wild animal. Give it a clear escape route.':
-    'जंगली पशु के पास न जाएँ, उसका पीछा, घेराव या कोना न बनाएँ। उसे स्पष्ट भागने का रास्ता दें।',
+    "जंगली जानवर के पास न जाएँ, उसका पीछा न करें और उसे न घेरें। उसके निकलने का रास्ता खुला रखें।",
   'Move indoors or into a vehicle in a group, and keep children and livestock supervised.':
-    'समूह में घर या वाहन के भीतर जाएँ, और बच्चों व पशुधन की निगरानी रखें।',
+    "समूह में किसी इमारत या गाड़ी के अंदर जाएँ। बच्चों और मवेशियों की निगरानी करें।",
   'Avoid forest roads and field edges after dusk; travel in groups and carry a light.':
-    'शाम के बाद वन सड़कों और खेतों के किनारों से बचें; समूह में यात्रा करें और रोशनी साथ रखें।',
+    "अँधेरे के बाद जंगल की सड़कों और खेतों के किनारों से बचें। समूह में निकलें और रोशनी का साधन रखें।",
   'Do not use firecrackers, flashlights or loudspeakers near elephants — these can provoke charges.':
-    'हाथियों के पास पटाखे, टॉर्च या लाउडस्पीकर का उपयोग न करें — ये हमले भड़का सकते हैं।',
+    "हाथियों के पास पटाखे, टॉर्च या लाउडस्पीकर का इस्तेमाल न करें। इससे वे हमला कर सकते हैं।",
   'Never feed wildlife or leave crop, compost or food waste exposed at the forest edge.':
-    'कभी वन्यजीवों को भोजन न दें और वन किनारे फ़सल, खाद या भोजन का कचरा खुला न छोड़ें।',
+    "वन्यजीवों को खाना न दें। जंगल के किनारे फसल, खाद या खाने का कचरा खुला न छोड़ें।",
   'Keep livestock secured and do not chase predators or elephants with vehicles.':
-    'पशुधन सुरक्षित बाँधकर रखें और परभक्षियों या हाथियों का वाहनों से पीछा न करें।',
+    "मवेशियों को सुरक्षित रखें। शिकारी जानवरों या हाथियों का गाड़ी से पीछा न करें।",
   'If a wild animal is inside a settlement, do not surround it. Clear the area and call the forest helpline.':
-    'यदि जंगली पशु बस्ती के भीतर हो, उसे घेरें नहीं। क्षेत्र खाली करें और वन हेल्पलाइन को कॉल करें।',
+    "बस्ती में जंगली जानवर आए तो उसे न घेरें। इलाका खाली करें और वन हेल्पलाइन पर फ़ोन करें।",
   'If someone is injured, call 112 first, then inform the range office.':
-    'यदि कोई घायल हो, पहले 112 पर कॉल करें, फिर रेंज ऑफ़िस को सूचित करें।',
+    "कोई घायल हो तो पहले 112 पर फ़ोन करें, फिर रेंज कार्यालय को बताएँ।",
   'Report received. Your range office will review it. If there is an immediate danger to life, call 112 or the forest helpline (1926).':
     'रिपोर्ट प्राप्त हुई। आपका रेंज ऑफ़िस इसकी समीक्षा करेगा। जीवन पर तत्काल खतरा हो तो 112 या वन हेल्पलाइन (1926) पर कॉल करें।',
   'Keep the reference code to check the status of this report.':
     'इस रिपोर्ट की स्थिति जाँचने के लिए संदर्भ कोड सुरक्षित रखें।',
-  'Received and queued for range-office review.': 'प्राप्त और रेंज-ऑफ़िस समीक्षा के लिए कतार में।',
-  'Forwarded to a field team for verification.': 'सत्यापन के लिए फ़ील्ड टीम को अग्रेषित।',
-  'Reviewed and closed by the range office.': 'रेंज ऑफ़िस द्वारा समीक्षा और समापन।',
-  'Status under review.': 'स्थिति समीक्षाधीन।',
+  'Received and queued for range-office review.': "रिपोर्ट रेंज कार्यालय की समीक्षा के लिए कतार में है।",
+  'Forwarded to a field team for verification.': "सत्यापन के लिए मैदानी टीम को भेजी गई।",
+  'Reviewed and closed by the range office.': "रेंज कार्यालय ने समीक्षा करके बंद किया।",
+  'Status under review.': "समीक्षा जारी है।",
   'Apex predator. Camera detections near habitation trigger the highest priority review because of livestock and human-safety risk.':
-    'शीर्ष परभक्षी। आवास के पास कैमरा डिटेक्शन पशुधन और मानव-सुरक्षा जोखिम के कारण सर्वोच्च प्राथमिकता समीक्षा ट्रिगर करते हैं।',
+    "शीर्ष शिकारी। बस्ती के पास कैमरे में दिखने पर लोगों और मवेशियों की सुरक्षा के लिए प्राथमिकता से समीक्षा होती है।",
   'Do not approach or chase the animal. Move indoors in groups, illuminate paths, and inform the forest helpline immediately.':
-    'पशु के पास न जाएँ और उसका पीछा न करें। समूह में घर के भीतर जाएँ, रास्ते रोशन करें, और तुरंत वन हेल्पलाइन को सूचित करें।',
+    "जानवर के पास न जाएँ और उसका पीछा न करें। समूह में किसी इमारत के अंदर जाएँ, रास्तों पर रोशनी रखें और तुरंत वन हेल्पलाइन को सूचना दें।",
   'Leopards frequently use forest edges and agricultural land, making buffer-zone detections especially relevant for village safety.':
-    'तेंदुए अक्सर वन किनारों और कृषि भूमि का उपयोग करते हैं, इसलिए बफ़र-क्षेत्र के डिटेक्शन गाँव की सुरक्षा के लिए विशेष रूप से प्रासंगिक हैं।',
+    "तेंदुए अक्सर जंगल के किनारे और खेतों में आते हैं। इसलिए बफ़र क्षेत्र में उनकी पहचान गाँव की सुरक्षा के लिए खास मायने रखती है।",
   'Keep children and livestock supervised after dusk. Never corner an animal; report sightings rather than intervening.':
-    'शाम के बाद बच्चों और पशुधन की निगरानी रखें। पशु को कभी कोने में न घेरें; हस्तक्षेप के बजाय दृश्य की रिपोर्ट करें।',
+    "अँधेरे के बाद बच्चों और मवेशियों की निगरानी करें। जानवर को न घेरें। खुद दखल देने की जगह उसकी सूचना दें।",
   'Elephant movements can cross crop fields and roads. Early warning helps villages secure grain, avoid night travel, and prevent retaliation.':
-    'हाथियों की गति फ़सल खेतों और सड़कों को पार कर सकती है। पूर्व चेतावनी गाँवों को अनाज सुरक्षित रखने, रात्रि यात्रा से बचने और प्रतिशोध रोकने में मदद करती है।',
+    "हाथी खेतों और सड़कों को पार कर सकते हैं। समय पर चेतावनी से गाँव अनाज सुरक्षित रख सकते हैं, रात की यात्रा टाल सकते हैं और हाथियों के खिलाफ़ जवाबी कार्रवाई से बच सकते हैं।",
   'Stay clear of the herd and do not use firecrackers or flashlights. Avoid blocking known movement corridors.':
-    'झुंड से दूर रहें और पटाखे या टॉर्च का उपयोग न करें। ज्ञात गति कॉरिडोर अवरुद्ध न करें।',
+    "झुंड से दूर रहें और पटाखे या टॉर्च का इस्तेमाल न करें। जानवरों के आने-जाने के रास्ते खुले रखें।",
   'Abundant prey. Chital activity is a useful indicator of predator presence and overall habitat use, but is not itself a safety threat.':
-    'प्रचुर शिकार प्रजाति। चीतल की गतिविधि परभक्षी की उपस्थिति और समग्र आवास उपयोग का उपयोगी संकेतक है, लेकिन स्वयं सुरक्षा खतरा नहीं।',
+    "चीतल बहुतायत में पाया जाने वाला शिकार है। उसकी गतिविधि से शिकारी जानवरों की मौजूदगी और आवास के उपयोग का संकेत मिलता है। चीतल से आम तौर पर सुरक्षा का खतरा नहीं होता।",
   'No special action required. Report unusual aggregations or distress calls.':
-    'किसी विशेष कार्रवाई की आवश्यकता नहीं। असामान्य समूह या संकट की आवाज़ें रिपोर्ट करें।',
+    "खास कार्रवाई की ज़रूरत नहीं है। असामान्य झुंड या परेशानी की आवाज़ की सूचना दें।",
   'Frequently raids crops at forest edges. Detections close to fields inform crop-protection advisories rather than emergency alerts.':
-    'अक्सर वन किनारों पर फ़सलें नष्ट करता है। खेतों के पास डिटेक्शन आपातकालीन अलर्ट के बजाय फ़सल-संरक्षण सलाह के लिए होते हैं।',
+    "जंगली सूअर अक्सर जंगल के किनारे की फसलों को नुकसान पहुँचाता है। खेतों के पास उसकी पहचान से फसल बचाने की सलाह तैयार होती है।",
   'Do not corner or feed the animal. Secure compost and crop storage; travel in groups after dark.':
-    'पशु को कोने में न घेरें और भोजन न दें। खाद और फ़सल भंडारण सुरक्षित करें; अंधेरे के बाद समूह में यात्रा करें।',
+    "जानवर को न घेरें और खाना न दें। खाद और फसल के भंडार सुरक्षित रखें। अँधेरे के बाद समूह में निकलें।",
   'Mostly insectivorous but can react aggressively when surprised. Detections near trails and villages are flagged for precautionary review.':
-    'मुख्यतः कीटभक्षी, लेकिन चौंकने पर आक्रामक प्रतिक्रिया दे सकता है। ट्रेल और गाँव के पास डिटेक्शन एहतियाती समीक्षा के लिए चिह्नित होते हैं।',
+    "भालू मुख्य रूप से कीड़े खाता है। अचानक आमना-सामना होने पर आक्रामक हो सकता है। रास्तों और गाँवों के पास दिखने की पहचान सावधानी से जाँची जाती है।",
   'Make noise while walking, never run, and back away slowly if encountered. Keep distance from fruiting trees at night.':
-    'चलते समय शोर करें, कभी दौड़ें नहीं, और सामना होने पर धीरे-धीरे पीछे हटें। रात में फलदार पेड़ों से दूरी रखें।',
+    "चलते समय आवाज़ करें। भालू दिखे तो दौड़ें नहीं और धीरे-धीरे पीछे हटें। रात में फल वाले पेड़ों से दूर रहें।",
   'The detector localised an animal but the classifier confidence was below the review threshold. Manual verification is required.':
-    'डिटेक्टर ने पशु की स्थिति पहचानी लेकिन वर्गीकरणकर्ता का विश्वास समीक्षा सीमा से नीचे था। मैन्युअल सत्यापन आवश्यक है।',
+    "मॉडल ने जानवर की जगह पाई, लेकिन प्रजाति की पहचान तय विश्वास स्तर से कम रही। अधिकारी की पुष्टि ज़रूरी है।",
   'Treat with general wildlife caution until the record is verified.':
-    'रिकॉर्ड सत्यापित होने तक सामान्य वन्यजीव सावधानी बरतें।',
+    "रिकॉर्ड की पुष्टि होने तक वन्यजीवों से जुड़ी सामान्य सावधानियाँ बरतें।",
   'Tiger sighting reported by a tourist vehicle on the Turia approach road; no photograph or track evidence supplied.':
     'तुरिया एप्रोच रोड पर एक पर्यटक वाहन ने बाघ दृश्य की रिपोर्ट की; कोई फ़ोटो या ट्रैक प्रमाण नहीं दिया गया।',
   'A goat was killed at the northern edge of Turia during the night. Pugmarks were recorded by the village watcher.':
@@ -889,11 +888,11 @@ const HI = {
   'available ·': 'उपलब्ध ·',
   'Generated': 'जनरेट किया गया',
   'from the Forest Guard AI demo database. All records are synthetic; this snapshot must not be cited as field evidence or as proof of deployment.':
-    'फ़ॉरेस्ट गार्ड AI डेमो डेटाबेस से। सभी रिकॉर्ड सिंथेटिक हैं; इस स्नैपशॉट को फ़ील्ड प्रमाण या तैनाती के सबूत के रूप में उद्धृत नहीं किया जाना चाहिए।',
+    'Forest Guard AI डेमो डेटाबेस से। सभी रिकॉर्ड सिंथेटिक हैं; इस स्नैपशॉट को फ़ील्ड प्रमाण या तैनाती के सबूत के रूप में उद्धृत नहीं किया जाना चाहिए।',
   'Contact the range office listed by your village committee':
     'अपनी ग्राम समिति द्वारा सूचीबद्ध रेंज ऑफ़िस से संपर्क करें',
   'Follow forest-department safety guidance and avoid travelling on forest roads after dusk.':
-    'वन विभाग के सुरक्षा मार्गदर्शन का पालन करें और शाम के बाद वन सड़कों पर यात्रा से बचें।',
+    "वन विभाग के सुरक्षा निर्देश मानें और अँधेरे के बाद जंगल की सड़कों पर जाने से बचें।",
   '/ 100 weight': '/ 100 भार',
   'km': 'किमी',
   'wild boar': 'जंगली सूअर',
@@ -912,187 +911,4 @@ const HI = {
   'Open governance': 'शासन देखें',
   'Total alerts': 'कुल अलर्ट',
   'High severity': 'उच्च गंभीरता',
-}
-
-// Species / village helpers for sentence-level patterns.
-const SPECIES_HI = {
-  'Bengal tiger': 'बंगाल बाघ',
-  'Asian elephant': 'एशियाई हाथी',
-  'Indian leopard': 'भारतीय तेंदुआ',
-  'Sloth bear': 'स्लॉथ बियर',
-  'Wild boar': 'जंगली सूअर',
-  'Chital (spotted deer)': 'चीतल (धब्बेदार हिरण)',
-  'Unidentified animal': 'अपहचाना पशु',
-  'Tiger': 'बाघ',
-  'Leopard': 'तेंदुआ',
-  'Elephant': 'हाथी',
-  'Deer': 'हिरण',
-  'Chital': 'चीतल',
-}
-
-const VILLAGE_HI = {
-  Piparia: 'पिपरिया',
-  Sillari: 'सिल्लारी',
-  Turia: 'तुरिया',
-  Kohka: 'कोहका',
-  Awarghani: 'अवरघनी',
-  Seoni: 'सिवनी',
-}
-
-const MONTHS_HI = {
-  Jan: 'जन', Feb: 'फ़र', Mar: 'मार्च', Apr: 'अप्रै', May: 'मई', Jun: 'जून',
-  Jul: 'जुल', Aug: 'अग', Sep: 'सित', Sept: 'सित', Oct: 'अक्तू', Nov: 'नव', Dec: 'दिस',
-}
-
-const WEEKDAYS_HI = {
-  Mon: 'सोम', Tue: 'मंगल', Wed: 'बुध', Thu: 'गुरु', Fri: 'शुक्र', Sat: 'शनि', Sun: 'रवि',
-}
-
-function translateVillages(value) {
-  return value
-    .split(',')
-    .map((part) => VILLAGE_HI[part.trim()] || part.trim())
-    .join(', ')
-}
-
-function translateSpecies(value) {
-  const clean = value.trim()
-  return SPECIES_HI[clean] || null
-}
-
-// Devanagari oblique form for possessive sentences (… का/की …).
-function speciesPossessive(name) {
-  return name.replace('तेंदुआ', 'तेंदुए')
-}
-
-const MONTH_RE = '(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)'
-const WEEKDAY_RE = '(Mon|Tue|Wed|Thu|Fri|Sat|Sun)'
-
-const PATTERNS = [
-  // "Wed, 11 Nov, 2026"
-  [
-    new RegExp(`^${WEEKDAY_RE}, (\\d{1,2}) ${MONTH_RE}, (\\d{4})$`),
-    (m) => `${WEEKDAYS_HI[m[1]]}, ${m[2]} ${MONTHS_HI[m[3]]}, ${m[4]}`,
-  ],
-  // "11 Nov 2026" / "08 Oct 2026"
-  [
-    new RegExp(`^(\\d{1,2}) ${MONTH_RE} (\\d{4})$`),
-    (m) => `${m[1]} ${MONTHS_HI[m[2]]} ${m[3]}`,
-  ],
-  // "10 Nov · 02:34 pm"
-  [
-    new RegExp(`^(\\d{1,2}) ${MONTH_RE} · (\\d{1,2}:\\d{2}) (am|pm)$`),
-    (m) => `${m[1]} ${MONTHS_HI[m[2]]} · ${m[3]} ${m[4]}`,
-  ],
-  // "11 Nov"
-  [
-    new RegExp(`^(\\d{1,2}) ${MONTH_RE}$`),
-    (m) => `${m[1]} ${MONTHS_HI[m[2]]}`,
-  ],
-  // Relative time
-  [/^just now$/, () => 'अभी'],
-  [/^(Good morning|Good afternoon|Good evening) · (.+)$/, (m) => `${HI[m[1]]} · ${translateCore(m[2]) ?? m[2]}`],
-  [/^(\d+)\s*min ago$/, (m) => `${m[1]} मिनट पहले`],
-  [/^(\d+)\s*h ago$/, (m) => `${m[1]} घंटे पहले`],
-  [/^(\d+)\s*d ago$/, (m) => `${m[1]} दिन पहले`],
-  [/^Last (\d+)\s*days?$/, (m) => `पिछले ${m[1]} दिन`],
-  [/^Last (.+)$/, (m) => `अंतिम बार ${translateCore(m[1]) ?? m[1]}`],
-  // Durations & distances
-  [/^([\d.]+)\s*min$/, (m) => `${m[1]} मिनट`],
-  [/^([\d.]+)\s*h$/, (m) => `${m[1]} घं.`],
-  [/^([\d.]+)\s*km$/, (m) => `${m[1]} किमी`],
-  [/^(\d+)\s*days$/, (m) => `${m[1]} दिन`],
-  [/^(\d+)\s*day$/, (m) => `${m[1]} दिन`],
-  [/^(\d+)-day window$/, (m) => `${m[1]}-दिन विंडो`],
-  [/^(\d+)-day demonstration window$/, (m) => `${m[1]}-दिन प्रदर्शन विंडो`],
-  // Counts / composite labels
-  [/^(\d+) in the last 24 hours · all-time records$/, (m) => `पिछले 24 घंटों में ${m[1]} · कुल रिकॉर्ड`],
-  [/^(\d+) of (\d+) camera stations reporting$/, (m) => `${m[2]} में से ${m[1]} कैमरा स्टेशन रिपोर्ट कर रहे हैं`],
-  [/^(\d+) of (\d+) records scored high risk$/, (m) => `${m[2]} में से ${m[1]} रिकॉर्ड उच्च जोखिम वर्गीकृत`],
-  [/^(\d+) of (\d+)$/, (m) => `${m[2]} में से ${m[1]}`],
-  [/^(\d+) still open · ([\d.]+)% acknowledged$/, (m) => `${m[1]} अभी खुले · ${m[2]}% स्वीकृत`],
-  [/^(\d+) indicative grid cells in (\d+) days$/, (m) => `${m[2]} दिनों में ${m[1]} सांकेतिक ग्रिड सेल`],
-  [/^(\d+) earlier records exist outside this window$/, (m) => `इस विंडो से बाहर ${m[1]} पुराने रिकॉर्ड मौजूद हैं`],
-  [/^(\d+) records exist before this window$/, (m) => `इस विंडो से पहले ${m[1]} रिकॉर्ड मौजूद हैं`],
-  [/^(\d+) of (\d+) camera stations reporting$/, (m) => `${m[2]} में से ${m[1]} कैमरा स्टेशन रिपोर्ट कर रहे हैं`],
-  // Reader fragments
-  [/^(\d+)\s*guards recorded ·$/, (m) => `${m[1]} गार्ड दर्ज ·`],
-  [/^(\d+)\s*available ·$/, (m) => `${m[1]} उपलब्ध ·`],
-  [/^(\d+)\s*on patrol$/, (m) => `${m[1]} गश्त पर`],
-  [/^(\d+)\s*residents ·$/, (m) => `${m[1]} निवासी ·`],
-  [/^(\d+)\s*households$/, (m) => `${m[1]} परिवार`],
-  [/^(\d+)\s*records$/, (m) => `${m[1]} रिकॉर्ड`],
-  [/^(\d+)\s*signals$/, (m) => `${m[1]} संकेत`],
-  [/^(\d+)\s*signals shown$/, (m) => `${m[1]} संकेत दिखाए गए`],
-  [/^(\d+)\s*risk cells ·$/, (m) => `${m[1]} जोखिम सेल ·`],
-  [/^(\d+)\s*tracks$/, (m) => `${m[1]} ट्रैक`],
-  [/^(\d+)\s*tasks$/, (m) => `${m[1]} कार्य`],
-  // Species · severity
-  [/^(.+) · (High|Moderate|Low)$/, (m) => {
-    const species = translateSpecies(m[1])
-    if (!species) return null
-    return `${species} · ${HI[m[2]]}`
-  }],
-  [/^(High|Moderate|Low) priority$/, (m) => `${HI[m[1]]} प्राथमिकता`],
-  // Detection reasons
-  [
-    /^(.+?) detection (.+?) from (.+?) boundary\. Open the detection record for the full, explainable risk breakdown\.$/,
-    (m) => {
-      const species = translateSpecies(m[1])
-      if (!species) return null
-      const distance = m[2] === 'an unspecified distance' ? 'अज्ञात दूरी' : translateCore(m[2]) ?? m[2]
-      const village = VILLAGE_HI[m[3]] || m[3]
-      return `${speciesPossessive(species)} का डिटेक्शन ${village} सीमा से ${distance} पर। पूर्ण, व्याख्या-सहित जोखिम विवरण के लिए डिटेक्शन रिकॉर्ड खोलें।`
-    },
-  ],
-  // Public advisories
-  [
-    /^(High-priority|Precautionary) advisory: (.+?) activity reported near (.+?)\. (.+)$/,
-    (m) => {
-      const species = translateSpecies(m[2])
-      if (!species) return null
-      const level = m[1] === 'High-priority' ? 'उच्च-प्राथमिकता' : 'एहतियाती'
-      let where = translateVillages(m[3])
-      if (m[3] === 'a buffer-zone settlement') where = 'बफ़र क्षेत्र की बस्ती'
-      return `${level} सलाह: ${speciesPossessive(species)} की गतिविधि ${where} के नज़दीक दर्ज हुई। ${translateAdvisoryTail(m[4])}`
-    },
-  ],
-]
-
-const ADVISORY_PREFIX =
-  'Follow forest-department safety guidance and avoid travelling on forest roads after dusk. '
-
-function translateAdvisoryTail(value) {
-  const direct = translateCore(value)
-  if (direct) return direct
-  if (value.startsWith(ADVISORY_PREFIX)) {
-    const rest = value.slice(ADVISORY_PREFIX.length)
-    const guidance = 'वन विभाग के सुरक्षा मार्गदर्शन का पालन करें और शाम के बाद वन सड़कों पर यात्रा से बचें।'
-    return `${guidance} ${translateCore(rest) ?? rest}`
-  }
-  return value
-}
-
-export function translateCore(core) {
-  if (!core) return null
-  if (Object.prototype.hasOwnProperty.call(HI, core)) return HI[core]
-  for (const [pattern, replacer] of PATTERNS) {
-    const match = core.match(pattern)
-    if (match) {
-      const value = replacer(match)
-      if (value) return value
-    }
-  }
-  return null
-}
-
-export function translateText(value) {
-  if (!value) return value
-  const leading = value.match(/^\s*/)[0]
-  const trailing = value.match(/\s*$/)[0]
-  const core = value.trim()
-  if (!core) return value
-  const translated = translateCore(core)
-  if (!translated) return value
-  return `${leading}${translated}${trailing}`
 }

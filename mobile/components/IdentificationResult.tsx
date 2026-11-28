@@ -1,3 +1,4 @@
+import { useLanguage } from '@/i18n';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import type { CatalogSpecies } from '@/data';
 import type { IdentificationState } from '@/identification';
@@ -10,6 +11,7 @@ export function IdentificationResult({ state, catalog, activeId, onSelect }: {
   activeId?: string;
   onSelect: (id: string) => void;
 }) {
+  const { t } = useLanguage();
   const { colors } = useTheme();
   if (state.kind === 'idle') return null;
   const messages = {
@@ -23,24 +25,24 @@ export function IdentificationResult({ state, catalog, activeId, onSelect }: {
 
   return (
     <View style={{ gap: spacing.sm }}>
-      <SectionTitle title="Photo identification" />
+      <SectionTitle title={t('Photo identification')} />
       <View accessibilityLiveRegion="polite" style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
         {state.kind === 'analyzing' && <ActivityIndicator color={colors.primaryText} />}
-        <Text style={{ ...typeScale.body, color: colors.secondaryText, flex: 1 }}>{messages[state.kind]}</Text>
+        <Text style={{ ...typeScale.body, color: colors.secondaryText, flex: 1 }}>{t(messages[state.kind])}</Text>
       </View>
       {result?.animals.map((animal, index) => {
-        const label = animal.certainty === 'unsupported' ? 'Animal outside the report list'
-          : catalog.find(({ id }) => id === animal.speciesId)?.label ?? 'Unidentified animal';
+        const label = animal.certainty === 'unsupported' ? t('Animal outside the report list')
+          : t(catalog.find(({ id }) => id === animal.speciesId)?.label ?? 'Unidentified animal');
         const selected = activeId === animal.id;
         const score = animal.score !== undefined && Number.isFinite(animal.score) && animal.score >= 0 && animal.score <= 1
-          ? ` · Model score ${Math.round(animal.score * 100)}%` : '';
+          ? ` · ${t('Model score {score}%', { score: Math.round(animal.score * 100) })}` : '';
         return (
           <Pressable key={animal.id} accessibilityRole="button" accessibilityState={{ selected }} onPress={() => onSelect(animal.id)}
             style={{ minHeight: sizing.touch, padding: spacing.md, borderWidth: 1, borderRadius: radius.input,
               borderColor: selected ? colors.focus : colors.border, backgroundColor: selected ? colors.successTint : colors.card }}>
-            <Text style={{ ...typeScale.card, color: colors.primaryText }}>Animal {index + 1} · {label}</Text>
+            <Text style={{ ...typeScale.card, color: colors.primaryText }}>{t('Animal')} {index + 1} · {label}</Text>
             <Text style={{ ...typeScale.supporting, color: colors.secondaryText }}>
-              {animal.box ? 'Localized animal' : 'Image classification only'}{animal.certainty === 'uncertain' ? ' · Uncertain' : ''}{score}
+              {animal.box ? t('Localized animal') : t('Image classification only')}{animal.certainty === 'uncertain' ? ` · ${t('Uncertain')}` : ''}{score}
             </Text>
           </Pressable>
         );

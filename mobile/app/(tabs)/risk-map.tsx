@@ -1,3 +1,4 @@
+import { useLanguage } from '@/i18n';
 import { router, useIsFocused, useLocalSearchParams } from 'expo-router';
 import { ChevronDown, ChevronUp, Info, LocateFixed, RefreshCw, X } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -12,7 +13,6 @@ import { RiskMapSurface, type RiskZone } from '@/components/RiskMapSurface';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { Surface } from '@/components/Surface';
-import { formatTimestamp } from '@/format';
 import { useAppActive } from '@/hooks/useAppActive';
 import { usePublicData } from '@/hooks/usePublicData';
 import { getAllNearbyAlerts } from '@/services/api';
@@ -26,6 +26,7 @@ const levels = {
 const levelFor = (severity: string) => levels[severity as keyof typeof levels];
 
 export default function RiskMapScreen() {
+  const { t, advisoryTitle, dateTime } = useLanguage();
   const { access, profile, gps, alertLocation, alertRadius } = useCitizen();
   const { colors } = useTheme();
   const focused = useIsFocused();
@@ -69,20 +70,20 @@ export default function RiskMapScreen() {
     [center, gps, alertRadius, zones, recenter]);
   const selected = alerts?.filter(alert => selection.includes(alert.id)) ?? [];
   const closeSheet = () => { setSelection([]); setShowInfo(false); };
-  const heading = alerts ? `Nearby alerts (${alerts.length})` : 'Nearby alerts';
+  const heading = alerts ? t('Nearby alerts ({count})', { count: alerts.length }) : t('Nearby alerts');
 
-  return <Screen tab scroll={false} header={<ScreenHeader title="Risk map" action={
-    <IconAction icon={Info} tone="header" label="Map legend and privacy" onPress={() => setShowInfo(true)} />
+  return <Screen tab scroll={false} header={<ScreenHeader title={t('Risk map')} action={
+    <IconAction icon={Info} tone="header" label={t('Map legend and privacy')} onPress={() => setShowInfo(true)} />
   } />}>
     <View style={styles.layout}>
       <AlertSearchControls onChange={() => setSelection([])} />
-      {!scene && <Feedback title="Choose a map location" detail="Use your GPS, search for an address or drop a pin." />}
+      {!scene && <Feedback title={t('Choose a map location')} detail={t('Use your GPS, search for an address or drop a pin.')} />}
       {scene && <>
         <View style={styles.map}>
           <RiskMapSurface fill scene={scene} onSelect={select} />
           <View style={styles.mapActions} pointerEvents="box-none">
-            <Surface style={styles.controlSurface}><IconAction icon={LocateFixed} label="Recenter map" onPress={() => setRecenter(value => value + 1)} /></Surface>
-            <Surface style={styles.controlSurface}><IconAction icon={RefreshCw} label="Refresh risk map" onPress={reload} loading={refreshing} /></Surface>
+            <Surface style={styles.controlSurface}><IconAction icon={LocateFixed} label={t('Recenter map')} onPress={() => setRecenter(value => value + 1)} /></Surface>
+            <Surface style={styles.controlSurface}><IconAction icon={RefreshCw} label={t('Refresh risk map')} onPress={reload} loading={refreshing} /></Surface>
           </View>
         </View>
         <Surface style={styles.panel}>
@@ -96,10 +97,10 @@ export default function RiskMapScreen() {
           </Pressable>
           {expanded && <ScrollView nestedScrollEnabled style={styles.panelScroll}
             contentContainerStyle={styles.panelContent}>
-            {state.kind === 'loading' && <Feedback title="Loading nearby alerts…" kind="loading" />}
-            {'message' in state && <Feedback title="Could not load nearby alerts" detail={state.message} kind="error" retry={reload} />}
-            {!!refreshError && <Feedback title="Could not refresh alerts" detail={refreshError} kind="error" retry={reload} />}
-            {alerts?.length === 0 && <SupportingText>No active alerts within {alertRadius} km.</SupportingText>}
+            {state.kind === 'loading' && <Feedback title={t('Loading nearby alerts…')} kind="loading" />}
+            {'message' in state && <Feedback title={t('Could not load nearby alerts')} detail={state.message} kind="error" retry={reload} />}
+            {!!refreshError && <Feedback title={t('Could not refresh alerts')} detail={refreshError} kind="error" retry={reload} />}
+            {alerts?.length === 0 && <SupportingText>{t('No active alerts within {radius} km.', { radius: alertRadius })}</SupportingText>}
             {!!alerts?.length && <AdvisoryList items={alerts} onSelect={select} />}
           </ScrollView>}
         </Surface>
@@ -111,34 +112,34 @@ export default function RiskMapScreen() {
           style={[styles.sheet, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.panelTitle}>
             <Text accessibilityRole="header" style={[typeScale.section, { color: colors.primaryText }]}>
-              {showInfo ? 'Map legend and privacy' : 'Wildlife warnings'}
+              {showInfo ? t('Map legend and privacy') : t('Wildlife warnings')}
             </Text>
-            <IconAction icon={X} label={showInfo ? 'Close map information' : 'Close warning details'} onPress={closeSheet} />
+            <IconAction icon={X} label={showInfo ? t('Close map information') : t('Close warning details')} onPress={closeSheet} />
           </View>
           <ScrollView contentContainerStyle={styles.sheetContent}>
             {showInfo ? <>
               <View style={styles.legend}>
                 {Object.values(levels).map(level => <View key={level.label} style={styles.legendItem}>
                   <View style={[styles.swatch, { backgroundColor: level.color }]} />
-                  <SupportingText>{level.label}</SupportingText>
+                  <SupportingText>{t(level.label)}</SupportingText>
                 </View>)}
                 <View style={styles.legendItem}>
-                  <View style={[styles.outline, { borderColor: colors.infoText }]} /><SupportingText>Search radius</SupportingText>
+                  <View style={[styles.outline, { borderColor: colors.infoText }]} /><SupportingText>{t('Search radius')}</SupportingText>
                 </View>
                 {gps && <View style={styles.legendItem}>
-                  <View style={[styles.swatch, { backgroundColor: '#167ab6' }]} /><SupportingText>Your GPS</SupportingText>
+                  <View style={[styles.swatch, { backgroundColor: '#167ab6' }]} /><SupportingText>{t('Your GPS')}</SupportingText>
                 </View>}
               </View>
-              <SupportingText>Colored circles show approximate report areas to protect wildlife and reporter privacy. Circle size reflects uncertainty about the location.</SupportingText>
+              <SupportingText>{t('Colored circles show approximate report areas to protect wildlife and reporter privacy. Circle size reflects uncertainty about the location.')}</SupportingText>
             </> : selected.map(item => <Surface key={item.id}>
-              <Text style={[typeScale.card, { color: colors.primaryText }]}>{item.title ?? item.speciesName}</Text>
+              <Text style={[typeScale.card, { color: colors.primaryText }]}>{advisoryTitle(item.title, item.speciesName)}</Text>
               <RiskPill severity={item.severity} />
-              <SupportingText>{[formatTimestamp(item.publishedAt), item.isSimulated ? 'Simulated warning' : null].filter(Boolean).join(' · ')}</SupportingText>
+              <SupportingText>{[dateTime(item.publishedAt), item.isSimulated ? t('Simulated warning') : null].filter(Boolean).join(' · ')}</SupportingText>
               {item.distanceKm !== undefined && <SupportingText>
-                {item.distanceKm === 0 ? 'Under 1 km to the mapped area center' : `About ${item.distanceKm} km to the mapped area center`}
+                {item.distanceKm === 0 ? t('Under 1 km to the mapped area center') : t('About {distance} km to the mapped area center', { distance: item.distanceKm })}
               </SupportingText>}
               <AdvisoryDetails item={item} />
-              {!item.advice && <SupportingText>Keep your distance and follow directions from local forest officials.</SupportingText>}
+              {!item.advice && <SupportingText>{t('Keep your distance and follow directions from local forest officials.')}</SupportingText>}
             </Surface>)}
           </ScrollView>
         </SafeAreaView>

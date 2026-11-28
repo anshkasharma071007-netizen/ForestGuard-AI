@@ -1,3 +1,4 @@
+import { useLanguage } from '../i18n'
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
@@ -6,7 +7,6 @@ import {
 import api, { errorMessage } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { useApi } from '../hooks/useApi'
-import { formatDateTime } from '../utils/format'
 import LanguageSwitcher from './LanguageSwitcher'
 import ThemeToggle from './ThemeToggle'
 import './operations.css'
@@ -34,17 +34,19 @@ export function refreshAuthorityNotifications() {
 }
 
 function AuthorityNavigation({ close }) {
-  return <nav aria-label="Authority navigation" className="operations-nav">
+  const { t } = useLanguage()
+  return <nav aria-label={t('Authority navigation')} className="operations-nav">
     {SECTIONS.map(([group, items]) => <div key={group} className="operations-nav-group">
-      <div className="operations-nav-label">{group}</div>
+      <div className="operations-nav-label">{t(group)}</div>
       {items.map(({ to, label, icon: Icon, end }) => (
-        <NavLink key={to} to={to} end={end} onClick={close}><Icon size={17} aria-hidden="true" />{label}</NavLink>
+        <NavLink key={to} to={to} end={end} onClick={close}><Icon size={17} aria-hidden="true" />{t(label)}</NavLink>
       ))}
     </div>)}
   </nav>
 }
 
 function Notifications({ data, loading, error, reload }) {
+  const { t, dateTime, errorText } = useLanguage()
   const [open, setOpen] = useState(false)
   const [failure, setFailure] = useState('')
   const [busy, setBusy] = useState(false)
@@ -104,25 +106,25 @@ function Notifications({ data, loading, error, reload }) {
   }
 
   return <div className="relative" ref={container}>
-    <button ref={trigger} type="button" className="operations-control" aria-label={count ? `Notifications, ${count} unread` : 'Notifications'}
-      title="Notifications" aria-expanded={open} aria-controls={open ? 'authority-notifications' : undefined}
+    <button ref={trigger} type="button" className="operations-control" aria-label={count ? t('Notifications, {count} unread', { count }) : t('Notifications')}
+      title={t('Notifications')} aria-expanded={open} aria-controls={open ? 'authority-notifications' : undefined}
       onClick={() => { setOpen(!open); if (!open) reload() }}>
       <Bell size={18} aria-hidden="true" />
       {count > 0 && <span className="operations-notification-dot" />}
     </button>
-    {open && <section id="authority-notifications" aria-label="Notifications" className="operations-popover">
+    {open && <section id="authority-notifications" aria-label={t('Notifications')} className="operations-popover">
       <div className="flex items-center justify-between gap-2 px-4 py-3">
-        <h2 className="font-semibold">Notifications</h2>
-        {data && <span className="text-xs text-muted-3">{count} unread</span>}
+        <h2 className="font-semibold">{t('Notifications')}</h2>
+        {data && <span className="text-xs text-muted-3">{t('{count} unread', { count })}</span>}
       </div>
-      {(failure || error) && <p role="alert" className="px-4 pb-2 text-sm text-danger-7">{failure || error}</p>}
-      {loading && !data && <p role="status" className="px-4 pb-3 text-sm text-muted-3">Loading…</p>}
-      {data && !data.items.length && <p className="px-4 pb-3 text-sm text-muted-3">No unread notifications</p>}
+      {(failure || error) && <p role="alert" className="px-4 pb-2 text-sm text-danger-7">{errorText(failure || error)}</p>}
+      {loading && !data && <p role="status" className="px-4 pb-3 text-sm text-muted-3">{t('Loading…')}</p>}
+      {data && !data.items.length && <p className="px-4 pb-3 text-sm text-muted-3">{t('No unread notifications')}</p>}
       <ul className="max-h-[60vh] overflow-auto">
         {data?.items.map(item => <li key={`${item.kind}-${item.id}`}>
           <button className="operations-notification-row" type="button" disabled={busy} onClick={() => void openItem(item)}>
-            <span className="block break-words font-semibold">{item.title}</span>
-            <span className="block text-xs text-muted-3">{item.kind === 'report' ? 'New report' : 'New alert'} · {formatDateTime(item.created_at)}</span>
+            <span className="block break-words font-semibold">{item.kind === 'alert' ? t(item.title) : item.title}</span>
+            <span className="block text-xs text-muted-3">{item.kind === 'report' ? t('New report') : t('New alert')} · {dateTime(item.created_at)}</span>
           </button>
         </li>)}
       </ul>
@@ -131,6 +133,7 @@ function Notifications({ data, loading, error, reload }) {
 }
 
 export default function Layout({ children }) {
+  const { t } = useLanguage()
   const [mobileOpen, setMobileOpen] = useState(false)
   const { user } = useAuth()
   const notifications = useApi('/api/reports/notifications', { interval: 6000, deps: [user?.id] })
@@ -140,14 +143,14 @@ export default function Layout({ children }) {
     return () => window.removeEventListener('fg-notifications-changed', reload)
   }, [reload])
 
-  const coverage = user?.role === 'admin' ? 'Central administration'
-    : user?.jurisdictions?.map(item => item.name).join(', ') || 'No jurisdiction assigned'
+  const coverage = user?.role === 'admin' ? t('Central administration')
+    : user?.jurisdictions?.map(item => item.name).join(', ') || t('No jurisdiction assigned')
   const unread = notifications.data?.unread
   return <div className="min-h-screen bg-sand">
     <header className="operations-header">
       <div className="operations-shell operations-header-content">
         <div className="flex min-w-0 items-center gap-2">
-          <button type="button" className="operations-control operations-mobile-trigger" aria-label={mobileOpen ? 'Close navigation' : 'Open navigation'}
+          <button type="button" className="operations-control operations-mobile-trigger" aria-label={mobileOpen ? t('Close navigation') : t('Open navigation')}
             aria-expanded={mobileOpen} onClick={() => setMobileOpen(!mobileOpen)}>
             {mobileOpen ? <X size={19} /> : <Menu size={19} />}
           </button>
@@ -155,16 +158,16 @@ export default function Layout({ children }) {
             <img src="/images/forest-guard-wordmark.png" alt="Forest Guard AI" width="198" height="52" />
           </NavLink>
         </div>
-        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-          <NavLink to="/reports?unread=1" className="operations-control" title="Unread reports"
-            aria-label={unread == null ? 'Unread reports' : `Unread reports, ${unread}`}>
+        <div className="operations-header-controls flex shrink-0 items-center gap-1 sm:gap-2">
+          <NavLink to="/reports?unread=1" className="operations-control" title={t('Unread reports')}
+            aria-label={unread == null ? t('Unread reports') : t('Unread reports, {count}', { count: unread })}>
             <ClipboardList size={18} aria-hidden="true" />
             {unread != null && <span className="text-xs tabular-nums">{unread}</span>}
           </NavLink>
           <Notifications {...notifications} />
-          <span className="hidden xl:inline-flex"><LanguageSwitcher /></span>
+          <LanguageSwitcher />
           <ThemeToggle />
-          <NavLink to="/settings" title={[user?.name, coverage].filter(Boolean).join(' · ')} aria-label="Authority account" className="operations-control">
+          <NavLink to="/settings" title={[user?.name, coverage].filter(Boolean).join(' · ')} aria-label={t('Authority account')} className="operations-control">
             <span className="hidden max-w-44 truncate text-xs lg:inline" aria-hidden="true">{user?.name} · {coverage}</span>
             <UserRound size={18} aria-hidden="true" />
           </NavLink>

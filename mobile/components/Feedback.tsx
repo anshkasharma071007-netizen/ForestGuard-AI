@@ -1,3 +1,4 @@
+import { useLanguage } from '@/i18n';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { radius, spacing, typeScale, useTheme } from '@/theme';
 import { TextAction } from './TextAction';
@@ -5,6 +6,7 @@ import { TextAction } from './TextAction';
 export function Feedback({ title, detail, kind = 'info', retry }: {
   title: string; detail?: string; kind?: 'info' | 'loading' | 'error'; retry?: () => void;
 }) {
+  const { t, errorText } = useLanguage();
   const { colors } = useTheme();
   return (
     <View accessibilityLiveRegion="polite" style={styles.feedback}>
@@ -12,8 +14,8 @@ export function Feedback({ title, detail, kind = 'info', retry }: {
         {kind === 'loading' && <ActivityIndicator color={colors.accent} />}
         <Text style={[typeScale.card, styles.flex, { color: kind === 'error' ? colors.clay : colors.primaryText }]}>{title}</Text>
       </View>
-      {detail && <Text style={[typeScale.supporting, { color: colors.secondaryText }]}>{detail}</Text>}
-      {retry && <View style={styles.action}><TextAction label="Try again" onPress={retry} /></View>}
+      {detail && <Text style={[typeScale.supporting, { color: colors.secondaryText }]}>{kind === 'error' ? errorText(detail) : detail}</Text>}
+      {retry && <View style={styles.action}><TextAction label={t('Try again')} onPress={retry} /></View>}
     </View>
   );
 }
@@ -38,8 +40,9 @@ export function StatusPill({ label, tone = 'neutral' }: { label: string; tone?: 
 }
 
 export function RiskPill({ severity }: { severity: string }) {
+  const { term } = useLanguage();
   const tone = severity === 'high' ? 'danger' : severity === 'moderate' ? 'warning' : severity === 'low' ? 'success' : 'neutral';
-  return <StatusPill label={`${severity.charAt(0).toUpperCase()}${severity.slice(1)} risk`} tone={tone} />;
+  return <StatusPill label={term('risk', severity)} tone={tone} />;
 }
 
 const styles = StyleSheet.create({

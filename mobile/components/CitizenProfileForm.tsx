@@ -1,3 +1,5 @@
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { useLanguage } from '@/i18n';
 import { useRef, useState } from 'react';
 import { View } from 'react-native';
 import { useCitizen } from '@/citizen-context';
@@ -12,6 +14,7 @@ import { TextAction } from '@/components/TextAction';
 import { spacing } from '@/theme';
 
 export function CitizenProfileForm({ setup = false, section = 'location' }: { setup?: boolean; section?: 'personal' | 'location' }) {
+  const { t, errorText } = useLanguage();
   const { profile, save, saveLocation, signOut } = useCitizen();
   const [name, setName] = useState(profile?.name ?? '');
   const [phone, setPhone] = useState(profile?.phone ?? '');
@@ -43,36 +46,37 @@ export function CitizenProfileForm({ setup = false, section = 'location' }: { se
   if (!profile) return null;
   const title = setup ? 'Set up your profile' : personal ? 'Personal information' : 'Saved location';
 
-  return <Screen header={<ScreenHeader title={title} back={!setup} />}>
+  return <Screen header={<ScreenHeader title={t(title)} back={!setup} />}>
     <View style={{ gap: spacing.md }}>
-      {setup && <Feedback title="Welcome to Forest Guard AI" detail="Enter your name and choose a location for nearby wildlife alerts." />}
+      {setup && <LanguageSwitcher />}
+      {setup && <Feedback title={t('Welcome to Forest Guard AI')} detail={t('Enter your name and choose a location for nearby wildlife alerts.')} />}
       <Surface>
-        {(setup || personal) && <InputField label="Full name" value={name}
+        {(setup || personal) && <InputField label={t('Full name')} value={name}
           onChangeText={value => { setName(value); setSaved(''); }} editable={!saving} autoCapitalize="words" autoComplete="name" maxLength={120} />}
         {personal ? <>
-          <InputField label="Mobile number (optional)" value={phone} onChangeText={value => { setPhone(value); setSaved(''); }}
+          <InputField label={t('Mobile number (optional)')} value={phone} onChangeText={value => { setPhone(value); setSaved(''); }}
             keyboardType="phone-pad" autoComplete="tel" editable={!saving} maxLength={16} />
-          <InputField label="Sign-in email" value={profile.email ?? ''} editable={false}
-            hint={profile.emailVerified ? 'Verified email address' : undefined} />
+          <InputField label={t('Sign-in email')} value={profile.email ?? ''} editable={false}
+            hint={profile.emailVerified ? t('Verified email address') : undefined} />
         </> : <>
-          {!setup && <SupportingText>Your saved location is used to find nearby wildlife alerts.</SupportingText>}
-          <LocationField label="Saved location" value={location} onChange={value => { setLocation(value); setSaved(''); }}
+          {!setup && <SupportingText>{t('Your saved location is used to find nearby wildlife alerts.')}</SupportingText>}
+          <LocationField label={t('Saved location')} value={location} onChange={value => { setLocation(value); setSaved(''); }}
             onLocating={setLocating} disabled={saving} />
         </>}
       </Surface>
-      {!!error && <SupportingText error>{error}</SupportingText>}
-      {!!saved && <SupportingText>{saved}</SupportingText>}
-      {personal ? <PrimaryButton label="Save personal information" loading={saving} disabled={!name.trim()}
+      {!!error && <SupportingText error>{errorText(error)}</SupportingText>}
+      {!!saved && <SupportingText>{t(saved)}</SupportingText>}
+      {personal ? <PrimaryButton label={t('Save personal information')} loading={saving} disabled={!name.trim()}
         onPress={() => void perform(() => save({ name: name.trim(), phone: phone.trim() || null }), 'Personal information saved.')} />
-        : <PrimaryButton label={setup ? 'Save location and continue' : 'Save location'}
+        : <PrimaryButton label={setup ? t('Save location and continue') : t('Save location')}
           loading={saving} disabled={locating || !location || (setup && !name.trim())} onPress={() => {
             if (!location) return;
             const input = locationInput(location);
             void perform(() => setup ? save({ name: name.trim(), location: input }) : saveLocation(input), 'Alert location saved.');
           }} />}
-      {!setup && !personal && profile.savedAlertLocation && <TextAction label="Remove saved location" disabled={saving || locating}
+      {!setup && !personal && profile.savedAlertLocation && <TextAction label={t('Remove saved location')} disabled={saving || locating}
         onPress={() => void perform(async () => { await saveLocation(null); setLocation(null); }, 'Saved location removed.')} />}
-      {setup && <TextAction label="Sign out" onPress={() => void signOut()} />}
+      {setup && <TextAction label={t('Sign out')} onPress={() => void signOut()} />}
     </View>
   </Screen>;
 }

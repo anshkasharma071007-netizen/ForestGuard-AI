@@ -1,3 +1,4 @@
+import { useLanguage } from '@/i18n';
 import { createElement, useCallback, useEffect, useRef, useState } from 'react';
 import { Linking, Platform, StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
@@ -39,6 +40,13 @@ html,body,#map { width:100%;height:100%;margin:0;background:#dbe4da }
   if (!window.L) { send({ type: 'error' }); return; }
   var map = L.map('map', { scrollWheelZoom: false });
   var overlay = L.layerGroup().addTo(map);
+  var zoomIn = document.querySelector('.leaflet-control-zoom-in');
+  var zoomOut = document.querySelector('.leaflet-control-zoom-out');
+  function labelControl(element, label) {
+    if (!element) return;
+    element.title = label;
+    element.setAttribute('aria-label', label);
+  }
   var tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
@@ -66,6 +74,12 @@ html,body,#map { width:100%;height:100%;margin:0;background:#dbe4da }
     if (nextScene === lastScene) return;
     lastScene = nextScene;
     document.documentElement.classList.toggle('dark', scene.dark === true);
+    document.documentElement.lang = scene.language;
+    var labels = scene.labels;
+    mapElement.setAttribute('aria-label', labels.map);
+    tileStatus.textContent = labels.tiles;
+    labelControl(zoomIn, labels.zoomIn);
+    labelControl(zoomOut, labels.zoomOut);
     var center = point(scene.center);
     choosing = scene.picker === true;
     if (choosing) {
@@ -101,7 +115,7 @@ html,body,#map { width:100%;height:100%;margin:0;background:#dbe4da }
       if (path) {
         path.setAttribute('tabindex', '0');
         path.setAttribute('role', 'button');
-        path.setAttribute('aria-label', group.ids.length > 1 ? 'Open wildlife warnings' : 'Open wildlife warning');
+        path.setAttribute('aria-label', group.ids.length > 1 ? labels.warnings : labels.warning);
         path.addEventListener('keydown', function (event) {
           if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); select(); }
         });
@@ -127,6 +141,7 @@ const frameStyle = { width: '100%', height: '100%', border: 0, display: 'block' 
 export function RiskMapSurface({ scene, onSelect, onPick, fill = false }: {
   scene: MapScene; fill?: boolean; onSelect?: (ids: number[]) => void; onPick?: (point: Coordinates) => void;
 }) {
+  const { t, language } = useLanguage();
   const { colors, isDark } = useTheme();
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -163,13 +178,17 @@ export function RiskMapSurface({ scene, onSelect, onPick, fill = false }: {
 
   useEffect(() => {
     if (status !== 'ready') return;
-    const themedScene = { ...scene, dark: isDark };
+    const themedScene = { ...scene, dark: isDark, language, labels: {
+      map: t('Nearby wildlife warning map'), tiles: t('Basemap tiles unavailable'),
+      zoomIn: t('Zoom in on map'), zoomOut: t('Zoom out on map'),
+      warning: t('Open wildlife warning'), warnings: t('Open wildlife warnings'),
+    } };
     if (Platform.OS === 'web') frame.current?.contentWindow?.postMessage({ type: 'scene', scene: themedScene }, '*');
     else webview.current?.injectJavaScript(`window.ForestGuardRiskMap.render(${JSON.stringify(themedScene)}); true;`);
-  }, [isDark, scene, status]);
+  }, [isDark, language, scene, status, t]);
 
   return <View style={[styles.surface, fill && styles.fill, scene.picker && styles.picker, { borderColor: colors.border, backgroundColor: colors.card }]}>
-    {Platform.OS === 'web' ? createElement('iframe', { key: attempt, ref: frame, srcDoc: html, title: scene.picker ? 'Choose a location on the map' : 'Nearby wildlife risk map',
+    {Platform.OS === 'web' ? createElement('iframe', { key: attempt, ref: frame, srcDoc: html, title: scene.picker ? t('Choose a location on the map') : t('Nearby wildlife risk map'),
       sandbox: 'allow-scripts allow-popups allow-popups-to-escape-sandbox', style: frameStyle }) : <WebView<object> key={attempt} ref={webview} source={nativeSource}
       originWhitelist={['*']} applicationNameForUserAgent="ForestGuardAI/1.0"
       onShouldStartLoadWithRequest={request => {
@@ -182,8 +201,8 @@ export function RiskMapSurface({ scene, onSelect, onPick, fill = false }: {
         try { receive(JSON.parse(event.nativeEvent.data)); } catch { /* Ignore messages outside the map protocol. */ }
       }} />}
     {status !== 'ready' && <View style={[StyleSheet.absoluteFill, styles.feedback, { backgroundColor: colors.card }]}>
-      {status === 'loading' ? <Feedback title="Loading map…" kind="loading" />
-        : <Feedback title="Could not load the map" detail="Check your connection and try again." kind="error"
+      {status === 'loading' ? <Feedback title={t('Loading map…')} kind="loading" />
+        : <Feedback title={t('Could not load the map')} detail={t('Check your connection and try again.')} kind="error"
           retry={() => { setStatus('loading'); setAttempt(value => value + 1); }} />}
     </View>}
   </View>;

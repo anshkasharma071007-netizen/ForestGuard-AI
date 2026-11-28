@@ -1,10 +1,11 @@
+import { useLanguage } from '../i18n'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import { Loader2 } from 'lucide-react'
-import { RISK_COLOR, SPECIES_COLOR, directionLabel } from '../utils/format'
+import { RISK_COLOR, SPECIES_COLOR } from '../utils/format'
 
 const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
-const ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+const attribution = t => `&copy; <a href="https://www.openstreetmap.org/copyright">${escapeHtml(t('OpenStreetMap contributors'))}</a>`
 
 const DEFAULT_LAYERS = {
   forest: true,
@@ -72,10 +73,13 @@ export default function MapView({
   onSelectReport,
   selectedReportId,
 }) {
+  const { t, term } = useLanguage()
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const overlayRef = useRef(null)
   const fittedRef = useRef(false)
+  const zoomControl = useRef(null)
+  const attributionRef = useRef(null)
   const incidentMarkers = useRef(new Map())
   const onSelectRef = useRef(onSelectDetection)
   onSelectRef.current = onSelectDetection
@@ -114,12 +118,11 @@ export default function MapView({
       preferCanvas: true,
     })
     L.tileLayer(TILE_URL, {
-      attribution: ATTRIBUTION,
       subdomains: 'abcd',
       maxZoom: 19,
       detectRetina: true,
     }).addTo(map)
-    L.control.zoom({ position: 'bottomright' }).addTo(map)
+    zoomControl.current = L.control.zoom({ position: 'bottomright' }).addTo(map)
     overlayRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
     const timer = setTimeout(() => {
@@ -132,9 +135,24 @@ export default function MapView({
       mapRef.current = null
       overlayRef.current = null
       fittedRef.current = false
+      attributionRef.current = null
       setReady(false)
     }
   }, [Boolean(jurisdiction)])
+
+  useEffect(() => {
+    if (!ready || !zoomControl.current) return
+    const map = mapRef.current
+    if (attributionRef.current) map.attributionControl.removeAttribution(attributionRef.current)
+    attributionRef.current = attribution(t)
+    map.attributionControl.addAttribution(attributionRef.current)
+    const controls = zoomControl.current.getContainer()
+    for (const [selector, label] of [['.leaflet-control-zoom-in', 'Zoom in on map'], ['.leaflet-control-zoom-out', 'Zoom out on map']]) {
+      const button = controls.querySelector(selector)
+      button.title = t(label)
+      button.setAttribute('aria-label', t(label))
+    }
+  }, [ready, t])
 
   useEffect(() => {
     if (!ready || !jurisdiction?.boundary) return
@@ -180,7 +198,7 @@ export default function MapView({
             fillOpacity: 0.06,
             interactive: false,
           })
-            .bindTooltip('Core forest habitat', { sticky: true })
+            .bindTooltip(t('Core forest habitat'), { sticky: true })
             .addTo(overlay)
         }
       })
@@ -201,11 +219,7 @@ export default function MapView({
         onEachFeature: (feature, layer) => {
           const props = feature.properties || {}
           layer.bindTooltip(
-            `<strong>${escapeHtml(props.level || 'risk')} zone</strong> · score ${escapeHtml(
-              props.score,
-            )}<br/>${escapeHtml(props.dominant_species || 'mixed activity')} · ${
-              props.detections_21d || 0
-            } recent signals`,
+            `<strong>${escapeHtml(t('{risk} zone', { risk: term('risk', props.level || 'low') }))}</strong> · ${escapeHtml(t('{score} points', { score: props.score }))}<br/>${escapeHtml(props.dominant_species ? term('species', props.dominant_species) : t('mixed activity'))} · ${escapeHtml(t('{count} recent signals', { count: props.detections_21d || 0 }))}`,
             { sticky: true },
           )
         },
@@ -224,7 +238,7 @@ export default function MapView({
             fillColor: RISK_COLOR[level],
             fillOpacity: 0.12,
           })
-            .bindTooltip(escapeHtml(`${village.name} · ${level} exposure`), { sticky: true })
+            .bindTooltip(escapeHtml(`${village.name} · ${t('{risk} exposure', { risk: term('risk', level) })}`), { sticky: true })
             .addTo(overlay)
         }
         const center = Number.isFinite(village.lat) && Number.isFinite(village.lon)
@@ -238,8 +252,8 @@ export default function MapView({
               iconSize: [70, 16],
               iconAnchor: [35, 8],
             }),
-            title: `Village · ${village.name}`,
-          }).bindTooltip(escapeHtml(`${village.name} · ${village.code} · ${level} exposure`)).addTo(overlay)
+            title: t('Village · {name}', { name: village.name }),
+          }).bindTooltip(escapeHtml(`${village.name} · ${village.code} · ${t('{risk} exposure', { risk: term('risk', level) })}`)).addTo(overlay)
         }
         if (layers.alertCoverage && Number.isFinite(village.lat) && Number.isFinite(village.lon)) {
           L.circle([village.lat, village.lon], {
@@ -267,9 +281,9 @@ export default function MapView({
           dashArray: selected ? undefined : '5 7',
         })
           .bindTooltip(
-            `${escapeHtml(track.species_name)} · ${escapeHtml(
-              directionLabel(track.direction),
-            )} · ${track.distance_km} km`,
+            `${escapeHtml(term('species', track.species, track.species_name))} · ${escapeHtml(
+              term('direction', track.direction),
+            )} · ${escapeHtml(t('{distance} km', { distance: track.distance_km }))}`,
             { sticky: true },
           )
           .addTo(overlay)
@@ -291,9 +305,7 @@ export default function MapView({
         if (camera.lat == null) return
         L.marker([camera.lat, camera.lon], { icon: glyphIcon('camera', 'C') })
           .bindTooltip(
-            `<strong>${escapeHtml(camera.code)}</strong><br/>${escapeHtml(camera.name)}<br/>Status: ${escapeHtml(
-              camera.status,
-            )}`,
+            `<strong>${escapeHtml(camera.code)}</strong><br/>${escapeHtml(camera.name)}<br/>${escapeHtml(t('Status: {status}', { status: t(camera.status) }))}`,
             { direction: 'top', offset: [0, -10] },
           )
           .addTo(overlay)
@@ -307,7 +319,7 @@ export default function MapView({
           .bindTooltip(
             `<strong>${escapeHtml(guard.name)}</strong><br/>${escapeHtml(guard.badge_id)} · ${escapeHtml(
               guard.zone,
-            )}<br/>${escapeHtml(guard.status)}`,
+            )}<br/>${escapeHtml(t(guard.status.replaceAll('_', ' ')))}`,
             { direction: 'top', offset: [0, -12] },
           )
           .addTo(overlay)
@@ -318,9 +330,9 @@ export default function MapView({
       data.incidents.forEach((incident) => {
         const marker = L.marker([incident.lat, incident.lon], { icon: pinIcon(RISK_COLOR[incident.severity] || RISK_COLOR.low, false) })
           .bindPopup(
-            `<strong>${escapeHtml(incident.title || incident.category.replaceAll('_', ' '))}</strong><br/>${escapeHtml(
-              incident.village_name || 'GPS location',
-            )}<br/>${escapeHtml(incident.species_name || 'Unknown')} · ${escapeHtml(incident.severity)} risk${incident.report_id ? `<br/><a href="/reports?report=${Number(incident.report_id)}">Review report</a>` : ''}`,
+            `<strong>${escapeHtml(incident.title || term('category', incident.category))}</strong><br/>${escapeHtml(
+              incident.village_name || t('GPS location'),
+            )}<br/>${escapeHtml(term('species', incident.species, incident.species_name))} · ${escapeHtml(term('severity', incident.severity))}${incident.report_id ? `<br/><a href="/reports?report=${Number(incident.report_id)}">${escapeHtml(t('Review report'))}</a>` : ''}`,
           )
           .addTo(overlay)
         incidentMarkers.current.set(incident.id, marker)
@@ -380,11 +392,11 @@ export default function MapView({
           zIndexOffset: selected ? 1000 : 0,
         })
         marker.bindTooltip(
-          `<strong>${escapeHtml(detection.species_name)}</strong> · ${Math.round(
+          `<strong>${escapeHtml(term('species', detection.species, detection.species_name))}</strong> · ${Math.round(
             detection.confidence * 100,
-          )}%<br/>${escapeHtml(detection.camera_code || 'Uploaded media')} · ${escapeHtml(
-            detection.risk_level,
-          )} risk`,
+          )}%<br/>${escapeHtml(detection.camera_code || t('Uploaded media'))} · ${escapeHtml(
+            term('severity', detection.risk_level),
+          )}`,
           { direction: 'top', offset: [0, -8] },
         )
         marker.on('click', () => onSelectRef.current?.(detection))
@@ -401,7 +413,7 @@ export default function MapView({
         fittedRef.current = true
       }
     }
-  }, [data, layers, ready, clusterReady, selectedDetectionId, selectedTrackId, jurisdiction, selectedReportId])
+  }, [data, layers, ready, clusterReady, selectedDetectionId, selectedTrackId, jurisdiction, selectedReportId, t, term])
 
   useEffect(() => {
     if (!ready || !mapRef.current || !focus?.length) return
@@ -418,18 +430,18 @@ export default function MapView({
       {!ready && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-inset-5">
           <div className="flex items-center gap-2 text-[12px] font-medium text-success-8">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading geospatial layers…
+            <Loader2 className="h-4 w-4 animate-spin" /> {t('Loading geospatial layers…')}
           </div>
         </div>
       )}
       {showLegend && (
         <div className="pointer-events-none absolute bottom-4 left-4 z-[500] hidden max-w-[230px] rounded-xl border border-control-line-7 bg-parchment/95 p-3 shadow-card backdrop-blur sm:block">
-          <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-10">Risk overlay</div>
+          <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-10">{t('Risk overlay')}</div>
           <div className="mt-1.5 flex items-center gap-3">
             {[
-              ['High', RISK_COLOR.high],
-              ['Moderate', RISK_COLOR.moderate],
-              ['Low', RISK_COLOR.low],
+              [t('High'), RISK_COLOR.high],
+              [t('Moderate'), RISK_COLOR.moderate],
+              [t('Low'), RISK_COLOR.low],
             ].map(([label, color]) => (
               <span key={label} className="flex items-center gap-1 text-[9.5px] text-secondary-10">
                 <span className="h-2 w-2 rounded-sm" style={{ background: color }} />
@@ -441,12 +453,12 @@ export default function MapView({
             {speciesLegend.map((species) => (
               <span key={species} className="flex items-center gap-1 text-[9px] text-secondary-10">
                 <span className="h-2 w-2 rounded-full" style={{ background: SPECIES_COLOR[species] }} />
-                {species.replaceAll('_', ' ')}
+                {term('species', species)}
               </span>
             ))}
           </div>
           <div className="mt-1.5 text-[8.5px] leading-tight text-muted-16">
-            C camera · G guard · ! incident. Zones are indicative.
+            {t('C camera · G guard · ! incident. Zones are indicative.')}
           </div>
         </div>
       )}

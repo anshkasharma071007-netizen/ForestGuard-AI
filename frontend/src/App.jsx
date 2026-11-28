@@ -1,3 +1,4 @@
+import { useLanguage } from './i18n'
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import Layout from './components/Layout'
@@ -16,6 +17,7 @@ import Analytics from './pages/Analytics'
 import CommunityPortal from './pages/CommunityPortal'
 
 function ProtectedLayout() {
+  const { t } = useLanguage()
   const { token, bootstrapping } = useAuth()
   const location = useLocation()
 
@@ -25,7 +27,7 @@ function ProtectedLayout() {
         <div className="flex flex-col items-center gap-3 text-forest-100">
           <Loader2 className="h-6 w-6 animate-spin text-lime" />
           <div className="text-[11px] font-medium uppercase tracking-[0.2em] text-forest-200/70">
-            Establishing secure session
+            {t('Establishing secure session')}
           </div>
         </div>
       </div>

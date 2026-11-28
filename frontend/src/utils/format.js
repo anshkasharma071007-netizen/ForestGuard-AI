@@ -20,11 +20,11 @@ export const RISK_SOFT = {
   high: '#F6DFD8',
 }
 
-export function formatDate(value, opts = {}) {
+export function formatDate(value, opts = {}, lang = 'en') {
   if (!value) return '—'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
-  return date.toLocaleDateString('en-IN', {
+  return date.toLocaleDateString(lang === 'hi' ? 'hi-IN' : 'en-IN', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -32,20 +32,29 @@ export function formatDate(value, opts = {}) {
   })
 }
 
-export function formatDateTime(value) {
+export function formatDateTime(value, lang = 'en') {
   if (!value) return '—'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
-  return `${date.toLocaleDateString('en-IN', {
+  return `${date.toLocaleDateString(lang === 'hi' ? 'hi-IN' : 'en-IN', {
     day: '2-digit',
     month: 'short',
-  })} · ${date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`
+  })} · ${date.toLocaleTimeString(lang === 'hi' ? 'hi-IN' : 'en-IN', { hour: '2-digit', minute: '2-digit', ...(lang === 'hi' ? { hourCycle: 'h23' } : {}) })}`
 }
 
-export function timeAgo(value) {
+export function timeAgo(value, lang = 'en') {
   if (!value) return '—'
   const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
   const seconds = Math.max(1, (Date.now() - date.getTime()) / 1000)
+  if (lang === 'hi') {
+    if (seconds < 90) return 'अभी'
+    const relative = new Intl.RelativeTimeFormat('hi-IN')
+    if (seconds < 3600) return relative.format(-Math.round(seconds / 60), 'minute')
+    if (seconds < 86400) return relative.format(-Math.round(seconds / 3600), 'hour')
+    if (seconds < 2592000) return relative.format(-Math.round(seconds / 86400), 'day')
+    return formatDate(value, {}, lang)
+  }
   if (seconds < 90) return 'just now'
   const minutes = seconds / 60
   if (minutes < 60) return `${Math.round(minutes)} min ago`
@@ -62,9 +71,9 @@ export function titleCase(value) {
     .replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
-export function compactNumber(value) {
+export function compactNumber(value, lang = 'en') {
   if (value === null || value === undefined) return '—'
-  return new Intl.NumberFormat('en-IN', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
+  return new Intl.NumberFormat(lang === 'hi' ? 'hi-IN' : 'en-IN', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
 }
 
 export function confidencePercent(value) {

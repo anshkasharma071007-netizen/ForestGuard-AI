@@ -1,3 +1,4 @@
+import { useLanguage } from '@/i18n';
 import { StyleSheet, View } from 'react-native';
 import { SelectionRow } from '@/components/Controls';
 import { Feedback, StatusPill, SupportingText } from '@/components/Feedback';
@@ -18,28 +19,29 @@ const options = [
 ] as const;
 
 export default function SettingsScreen() {
+  const { t, errorText } = useLanguage();
   const { mode, setMode, storageError } = useAppTheme();
   const health = usePublicData(getBackendHealth);
 
   return (
-    <Screen header={<ScreenHeader title="Appearance" back />}>
+    <Screen header={<ScreenHeader title={t('Appearance')} back />}>
       <Surface style={styles.section}>
-        <View accessibilityRole="radiogroup" accessibilityLabel="Appearance">
-          {options.map(({ id, label }) => <SelectionRow key={id} label={label} selected={mode === id} onPress={() => setMode(id)} />)}
+        <View accessibilityRole="radiogroup" accessibilityLabel={t('Appearance')}>
+          {options.map(({ id, label }) => <SelectionRow key={id} label={t(label)} selected={mode === id} onPress={() => setMode(id)} />)}
         </View>
         {!!storageError && <SupportingText error>{storageError}</SupportingText>}
       </Surface>
       <Surface style={styles.section}>
-        <SectionTitle title="Service status" />
-        {health.state.kind === 'loading' && <Feedback title="Checking service…" kind="loading" />}
-        {health.state.kind === 'unavailable' && <Feedback title="Service check unavailable" detail={health.state.message} />}
-        {health.state.kind === 'error' && <Feedback title="Service check failed" detail={health.state.message} kind="error" retry={health.reload} />}
+        <SectionTitle title={t('Service status')} />
+        {health.state.kind === 'loading' && <Feedback title={t('Checking service…')} kind="loading" />}
+        {health.state.kind === 'unavailable' && <Feedback title={t('Service check unavailable')} detail={errorText(health.state.message)} />}
+        {health.state.kind === 'error' && <Feedback title={t('Service check failed')} detail={health.state.message} kind="error" retry={health.reload} />}
         {health.state.kind === 'ready' && (
           <>
-            <StatusPill label={health.state.data.status === 'ok' ? 'Service reachable' : 'Service degraded'}
+            <StatusPill label={health.state.data.status === 'ok' ? t('Service reachable') : t('Service degraded')}
               tone={health.state.data.status === 'ok' ? 'success' : 'warning'} />
-            {health.state.data.demoMode && <SupportingText>The server reports demonstration mode.</SupportingText>}
-            <View style={{ alignItems: 'flex-start' }}><TextAction label="Check again" onPress={health.reload} /></View>
+            {health.state.data.demoMode && <SupportingText>{t('The server reports demonstration mode.')}</SupportingText>}
+            <View style={{ alignItems: 'flex-start' }}><TextAction label={t('Check again')} onPress={health.reload} /></View>
           </>
         )}
       </Surface>

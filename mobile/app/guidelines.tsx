@@ -1,3 +1,4 @@
+import { useLanguage } from '@/i18n';
 import { StyleSheet, Text, View } from 'react-native';
 import { SupportingText } from '@/components/Feedback';
 import { usePublicData } from '@/hooks/usePublicData';
@@ -17,22 +18,23 @@ const points = [
 ];
 
 export default function GuidelinesScreen() {
+  const { t } = useLanguage();
   const { colors } = useTheme();
   const { state } = usePublicData(getCommunityGuidance);
   const guidance = state.kind === 'ready' && state.data.general.length ? state.data : null;
   return (
-    <Screen header={<ScreenHeader title="Privacy and safety" back />}>
+    <Screen header={<ScreenHeader title={t('Privacy and safety')} back />}>
       <Surface style={styles.list}>
-        <SectionTitle title="Location and photo privacy" />
-        <SupportingText>Public alerts use approximate report areas. Submitted photographs are available to the reporting account and authorized reviewers.</SupportingText>
+        <SectionTitle title={t('Location and photo privacy')} />
+        <SupportingText>{t('Public alerts use approximate report areas. Submitted photographs are available to the reporting account and authorized reviewers.')}</SupportingText>
       </Surface>
       <Surface style={styles.list}>
-        <SectionTitle title="Wildlife safety guidelines" />
-        <SupportingText>{guidance?.sourceNote ?? 'General precautions. Follow instructions from your local forest authorities.'}</SupportingText>
+        <SectionTitle title={t('Wildlife safety guidelines')} />
+        <SupportingText>{t(guidance?.sourceNote ?? 'General precautions. Follow instructions from your local forest authorities.')}</SupportingText>
         {(guidance?.general ?? points).map((point) => (
           <View key={point} style={styles.row}>
             <Text style={{ color: colors.primaryText }}>•</Text>
-            <Text style={[styles.point, { color: colors.primaryText }]}>{point}</Text>
+            <Text style={[styles.point, { color: colors.primaryText }]}>{t(point)}</Text>
           </View>
         ))}
       </Surface>
