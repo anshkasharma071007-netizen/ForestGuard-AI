@@ -35,7 +35,7 @@ export function syncPushDevice(access: CitizenAccess, enabled: boolean, prompt =
     };
     if (!enabled) return remove();
     await notifications.setNotificationChannelAsync('forest-guard-alerts', {
-      name: 'Forest Guard AI alerts', importance: notifications.AndroidImportance.HIGH,
+      name: 'Van Saathi alerts', importance: notifications.AndroidImportance.HIGH,
     });
     let permission = await notifications.getPermissionsAsync();
     if (!permission.granted && permission.canAskAgain && prompt && !access.signal?.aborted) {

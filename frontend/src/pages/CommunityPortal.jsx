@@ -156,7 +156,7 @@ export default function CommunityPortal() {
     <div className="min-h-screen bg-sand">
       <header className="sticky top-0 z-40 border-b border-line-5/80 bg-parchment/90 backdrop-blur-xl">
         <div className="mx-auto flex h-[66px] max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-          <Link to="/community" aria-label={t('Forest Guard AI community portal')}>
+          <Link to="/community" aria-label={t('Van Saathi community portal')}>
             <Logo />
           </Link>
           <nav className="hidden items-center gap-5 lg:flex">
@@ -169,7 +169,7 @@ export default function CommunityPortal() {
           <div className="flex items-center gap-2">
             <LanguageSwitcher className="hidden sm:inline-flex" />
             <ThemeToggle />
-            <span className="hidden rounded-full border border-control-line-4 bg-inset-10 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-warning-4 xl:block">
+            <span className="hidden rounded-full border border-control-line-4 bg-inset-10 px-2.5 py-1 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-warning-4 xl:block">
               {t('Public portal')}
             </span>
             <Link to="/login" className="btn-outline !px-3 !py-2 !text-[11px]">
@@ -186,7 +186,7 @@ export default function CommunityPortal() {
           <div className="grain absolute inset-0" />
           <div className="relative z-10 grid gap-8 p-6 sm:p-9 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
             <div>
-              <div className="flex items-center gap-2 text-[9.5px] font-semibold uppercase tracking-[0.22em] text-lime">
+              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-lime">
                 <span className="h-1.5 w-1.5 rounded-full bg-lime" /> {t('Village safety · buffer landscape')}
               </div>
               <h1 className="mt-3 font-display text-[34px] leading-[1.06] tracking-[-0.02em] text-brand-light sm:text-[44px]">
@@ -212,7 +212,7 @@ export default function CommunityPortal() {
               ].map(([label, value]) => (
                 <div key={label}>
                   <div className="font-display text-[26px] leading-none text-brand-light">{value}</div>
-                  <div className="mt-1.5 text-[8.5px] uppercase tracking-[0.12em] text-forest-200/60">{t(label)}</div>
+                  <div className="mt-1.5 text-[10.5px] uppercase tracking-[0.12em] text-forest-200/60">{t(label)}</div>
                 </div>
               ))}
             </div>
@@ -259,7 +259,7 @@ export default function CommunityPortal() {
                   <div className="flex items-start gap-3 p-4">
                     <div
                       className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white"
-                      style={{ background: advisory.color || '#B83B2B' }}
+                      style={{ background: advisory.color || '#B3362A' }}
                     >
                       <Siren className="h-4 w-4" />
                     </div>
@@ -287,7 +287,7 @@ export default function CommunityPortal() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between border-t border-line-13 bg-inset-16 px-4 py-2 text-[9px] text-muted-13">
+                  <div className="flex items-center justify-between border-t border-line-13 bg-inset-16 px-4 py-2 text-[10.5px] text-muted-13">
                     <span>{t('Precise locations withheld')}</span>
                     <span>{advisory.is_simulated ? t('Synthetic advisory') : t('Field advisory')}</span>
                   </div>
@@ -327,7 +327,7 @@ export default function CommunityPortal() {
                 <div className="mt-2 text-[11.5px] leading-relaxed text-success-2">{receipt.message}</div>
                 <div className="mt-4 flex flex-wrap items-center gap-2">
                   <div className="rounded-lg border border-success-line-1 bg-raised px-3 py-2">
-                    <div className="text-[8px] uppercase tracking-[0.14em] text-muted-3">{t('Reference code')}</div>
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-muted-3">{t('Reference code')}</div>
                     <div className="mt-0.5 font-mono text-[16px] font-bold text-success-1">{receipt.reference_code}</div>
                   </div>
                   <button type="button" className="btn-outline !py-2" onClick={copyReference}>
@@ -335,7 +335,7 @@ export default function CommunityPortal() {
                     {copied ? t('Copied') : t('Copy code')}
                   </button>
                 </div>
-                <div className="mt-2 text-[9.5px] text-success-4">{receipt.contact_note}</div>
+                <div className="mt-2 text-[11px] text-success-4">{receipt.contact_note}</div>
                 <button
                   type="button"
                   className="mt-3 text-[10.5px] font-semibold text-success-8 hover:underline"
@@ -364,7 +364,7 @@ export default function CommunityPortal() {
                         }`}
                       >
                         <div className="text-[11.5px] font-semibold text-ink">{t(label)}</div>
-                        <div className="mt-0.5 text-[9px] leading-snug text-muted-9">{t(hint)}</div>
+                        <div className="mt-0.5 text-[10.5px] leading-snug text-muted-9">{t(hint)}</div>
                       </button>
                     ))}
                   </div>
@@ -423,7 +423,7 @@ export default function CommunityPortal() {
                     onChange={(event) => update('description', event.target.value)}
                     placeholder={t('Describe the animal, its behaviour, the time, and an approximate landmark. Do not approach wildlife to confirm details.')}
                   />
-                  <div className="mt-1 flex items-center justify-between text-[9px] text-muted-16">
+                  <div className="mt-1 flex items-center justify-between text-[10.5px] text-muted-16">
                     <span>{t('Approximate landmarks are enough. Never enter the forest to verify.')}</span>
                     <span className="font-mono">{form.description.length} / 4000</span>
                   </div>
@@ -472,7 +472,7 @@ export default function CommunityPortal() {
                       )}
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-[11px] font-medium text-ink">{photo.name}</div>
-                        <div className="text-[9px] text-muted-9">{Math.round(photo.size / 1024)} KB</div>
+                        <div className="text-[10.5px] text-muted-9">{Math.round(photo.size / 1024)} KB</div>
                       </div>
                       <button type="button" className="rounded-lg p-1.5 text-muted-9 hover:bg-inset-1" onClick={clearPhoto} aria-label={t('Remove photo')}>
                         <X className="h-3.5 w-3.5" />
@@ -497,7 +497,7 @@ export default function CommunityPortal() {
                   {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />}
                   {submitting ? t('Submitting report…') : t('Submit report to range office')}
                 </button>
-                <p className="text-[9px] leading-relaxed text-muted-16">
+                <p className="text-[10.5px] leading-relaxed text-muted-16">
                   {t('For immediate danger to life call 112. Reports are queued for review; they do not trigger an automated emergency response.')}
                 </p>
               </form>
@@ -538,17 +538,17 @@ export default function CommunityPortal() {
                   </div>
                   <div className="mt-2 text-[11px] font-semibold text-ink">{term('species', statusResult.species, statusResult.species_name)}</div>
                   <p className="mt-1 text-[10.5px] leading-relaxed text-secondary-15">{statusResult.description}</p>
-                  <div className="mt-2 flex flex-wrap gap-2 text-[9px] text-muted-13">
+                  <div className="mt-2 flex flex-wrap gap-2 text-[10.5px] text-muted-13">
                     <span>{statusResult.village_name || t('Village not specified')}</span>
                     <span>·</span>
                     <span>{dateTime(statusResult.created_at)}</span>
                   </div>
-                  <div className="mt-2 rounded-lg bg-raised/70 px-2.5 py-1.5 text-[9.5px] leading-relaxed text-secondary-8">
+                  <div className="mt-2 rounded-lg bg-raised/70 px-2.5 py-1.5 text-[11px] leading-relaxed text-secondary-8">
                     {t(statusResult.status_note)}
                   </div>
                 </div>
               )}
-              <div className="mt-3 rounded-lg bg-inset-1 px-2.5 py-2 text-[9px] leading-relaxed text-muted-5">
+              <div className="mt-3 rounded-lg bg-inset-1 px-2.5 py-2 text-[10.5px] leading-relaxed text-muted-5">
                 {t('Status updates are made by forest staff after review. Keep your reference code private.')}
               </div>
             </div>
@@ -566,13 +566,13 @@ export default function CommunityPortal() {
                       <Icon className="h-3.5 w-3.5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-[9px] uppercase tracking-[0.12em] text-muted-16">{t(label)}</div>
+                      <div className="text-[10.5px] uppercase tracking-[0.12em] text-muted-16">{t(label)}</div>
                       <div className="mt-0.5 text-[11.5px] font-semibold text-ink">{value}</div>
                     </div>
                   </div>
                 ))}
               </div>
-              <p className="mt-3 text-[9px] leading-relaxed text-muted-16">
+              <p className="mt-3 text-[10.5px] leading-relaxed text-muted-16">
                 {t('Always follow instructions from local authorities and the forest department.')}
               </p>
             </div>
@@ -608,11 +608,11 @@ export default function CommunityPortal() {
           ) : (
             <div className="grid gap-4 lg:grid-cols-12">
               <div className="card p-5 lg:col-span-5">
-                <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-16">{t('General guidance')}</div>
+                <div className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted-16">{t('General guidance')}</div>
                 <ol className="mt-3 space-y-2.5">
                   {(guidelines.data?.general || []).map((item, index) => (
                     <li key={item} className="flex items-start gap-2.5 text-[10.5px] leading-relaxed text-secondary-8">
-                      <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-forest-900 font-mono text-[8px] font-bold text-lime">
+                      <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-forest-900 font-mono text-[10px] font-bold text-lime">
                         {index + 1}
                       </span>
                       {t(item)}
@@ -625,7 +625,7 @@ export default function CommunityPortal() {
                   </div>
                   <ul className="mt-1.5 space-y-1">
                     {(guidelines.data?.emergency || []).map((item) => (
-                      <li key={item} className="text-[9.5px] leading-relaxed text-danger-4">
+                      <li key={item} className="text-[11px] leading-relaxed text-danger-4">
                         {t(item)}
                       </li>
                     ))}
@@ -658,7 +658,7 @@ export default function CommunityPortal() {
                       <div className="absolute inset-0 bg-gradient-to-t from-forest-950/85 to-transparent" />
                       <div className="absolute bottom-2.5 left-3 right-3">
                         <div className="font-display text-[19px] leading-tight text-brand-light">{term('species', active.key, active.name)}</div>
-                        <div className="text-[9px] italic text-forest-100/60">{active.scientific}</div>
+                        <div className="text-[10.5px] italic text-forest-100/60">{active.scientific}</div>
                       </div>
                     </div>
                     <div className="bg-raised/70 p-3.5">
@@ -666,13 +666,13 @@ export default function CommunityPortal() {
                       <div className="mt-2.5 flex items-start gap-2 rounded-lg bg-inset-10 px-2.5 py-2 text-[10px] leading-relaxed text-warning-2">
                         <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {t(active.advice)}
                       </div>
-                      <div className="mt-2 flex items-center gap-1.5 text-[9px] text-muted-13">
+                      <div className="mt-2 flex items-center gap-1.5 text-[10.5px] text-muted-13">
                         <Users className="h-3 w-3" /> {t('Share this guidance within your household and village committee.')}
                       </div>
                     </div>
                   </div>
                 )}
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[9px] text-muted-16">
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[10.5px] text-muted-16">
                   <span className="flex items-center gap-1.5">
                     <BellRing className="h-3 w-3" /> {t('Advisories update as new alerts are verified.')}
                   </span>
@@ -683,7 +683,7 @@ export default function CommunityPortal() {
               </div>
             </div>
           )}
-          <p className="mt-3 text-[9px] leading-relaxed text-muted-16">{guidelines.data?.source_note}</p>
+          <p className="mt-3 text-[10.5px] leading-relaxed text-muted-16">{guidelines.data?.source_note}</p>
         </section>
 
         <section className="card-dark relative overflow-hidden p-6 sm:p-8">
@@ -691,7 +691,7 @@ export default function CommunityPortal() {
           <div className="absolute inset-0 bg-gradient-to-r from-forest-950 via-forest-950/90 to-forest-950/50" />
           <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-xl">
-              <div className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.2em] text-lime/80">
+              <div className="flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-[0.2em] text-lime/80">
                 <ShieldCheck className="h-3 w-3" /> {t('Working together')}
               </div>
               <h2 className="mt-2 font-display text-[24px] leading-snug text-brand-light">
@@ -717,7 +717,7 @@ export default function CommunityPortal() {
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-6 text-[10px] text-muted-12 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div>
             <LanguageSwitcher className="mb-2 inline-flex sm:hidden" />
-            <div className="font-semibold text-secondary-8">{t('Forest Guard AI · Community portal')}</div>
+            <div className="font-semibold text-secondary-8">{t('Van Saathi · Community portal')}</div>
             <div className="mt-0.5">{t('Protecting Forests. Preventing Conflict. Saving Lives.')}</div>
           </div>
           <div className="text-left sm:text-right">

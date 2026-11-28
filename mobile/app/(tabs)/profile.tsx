@@ -1,5 +1,6 @@
 import { useLanguage } from '@/i18n';
 import { router, useIsFocused } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Bell, ClipboardList, Languages, LogOut, MapPin, Moon, ShieldCheck, UserRound } from 'lucide-react-native';
 import { useCallback } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -16,7 +17,7 @@ import { useAppActive } from '@/hooks/useAppActive';
 import { usePublicData } from '@/hooks/usePublicData';
 import { getCitizenReports } from '@/services/api';
 import { useAppTheme } from '@/theme-context';
-import { radius, spacing, typeScale, useTheme } from '@/theme';
+import { elevation, radius, spacing, typeScale, useTheme } from '@/theme';
 
 export default function ProfileScreen() {
   const { t, language, errorText } = useLanguage();
@@ -37,10 +38,13 @@ export default function ProfileScreen() {
   return <Screen tab header={<ScreenHeader title={t('Profile')} />} refresh={{ onRefresh: reload, refreshing }}>
     <View style={styles.profile}>
       <View style={styles.identity}>
-        <View accessible={false} style={[styles.avatar, { backgroundColor: colors.softAccent }]}>
-          {initials ? <Text style={[typeScale.screen, { color: colors.accent }]}>{initials}</Text>
-            : <UserRound size={28} color={colors.accent} />}
-        </View>
+        <LinearGradient accessible={false} colors={[colors.lime, colors.primaryAction]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          style={[styles.avatarRing, elevation.subtle]}>
+          <View style={[styles.avatar, { backgroundColor: colors.card }]}>
+            {initials ? <Text style={[typeScale.screen, { color: colors.accent }]}>{initials}</Text>
+              : <UserRound size={28} color={colors.accent} />}
+          </View>
+        </LinearGradient>
         <View style={styles.identityText}>
           <Text accessibilityRole="header" style={[typeScale.screen, { color: colors.primaryText }]}>{profile.name || t('Citizen account')}</Text>
           {profile.email && <SupportingText>{profile.email}</SupportingText>}
@@ -74,6 +78,7 @@ const styles = StyleSheet.create({
   profile: { gap: spacing.md },
   identity: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.xs },
   identityText: { flex: 1, gap: spacing.xs },
+  avatarRing: { width: 68, height: 68, borderRadius: radius.pill, padding: 3, alignItems: 'center', justifyContent: 'center' },
   avatar: { width: 62, height: 62, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   rows: { paddingHorizontal: spacing.md, paddingVertical: 0, gap: 0 },
 });

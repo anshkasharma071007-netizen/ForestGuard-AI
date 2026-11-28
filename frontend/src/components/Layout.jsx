@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext'
 import { useApi } from '../hooks/useApi'
 import LanguageSwitcher from './LanguageSwitcher'
 import ThemeToggle from './ThemeToggle'
+import { Logo } from './ui'
 import './operations.css'
 
 const SECTIONS = [
@@ -154,8 +155,8 @@ export default function Layout({ children }) {
             aria-expanded={mobileOpen} onClick={() => setMobileOpen(!mobileOpen)}>
             {mobileOpen ? <X size={19} /> : <Menu size={19} />}
           </button>
-          <NavLink to="/" className="operations-brand" onClick={() => setMobileOpen(false)}>
-            <img src="/images/forest-guard-wordmark.png" alt="Forest Guard AI" width="198" height="52" />
+          <NavLink to="/" className="operations-brand" onClick={() => setMobileOpen(false)} aria-label="Van Saathi">
+            <Logo />
           </NavLink>
         </div>
         <div className="operations-header-controls flex shrink-0 items-center gap-1 sm:gap-2">

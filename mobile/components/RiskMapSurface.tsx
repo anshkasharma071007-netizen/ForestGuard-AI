@@ -89,8 +89,8 @@ html,body,#map { width:100%;height:100%;margin:0;background:#dbe4da }
       if (scene.pin) L.marker(point(scene.pin), { interactive: false }).addTo(overlay);
       return;
     }
-    var coverageStyle = { radius: scene.radiusM, color:'#215f9d', weight:2, dashArray:'7 5',
-      fillOpacity:0.035, interactive:false };
+    var coverageStyle = { radius: scene.radiusM, color:'#315B71', weight:2, dashArray:'7 5',
+      fillOpacity:0.04, interactive:false };
     var nextView = [center[0], center[1], scene.radiusM, scene.recenter].join(':');
     if (!viewKey) map.setView(center, 12);
     overlay.clearLayers();
@@ -121,7 +121,7 @@ html,body,#map { width:100%;height:100%;margin:0;background:#dbe4da }
         });
       }
     });
-    L.circleMarker(center, { radius:5, color:'#fff', fillColor:'#215f9d', fillOpacity:1, weight:2, interactive:false }).addTo(overlay);
+    L.circleMarker(center, { radius:5, color:'#fff', fillColor:'#315B71', fillOpacity:1, weight:2, interactive:false }).addTo(overlay);
     if (scene.gps) L.circleMarker(point(scene.gps), { radius:7, color:'#fff', fillColor:'#167ab6', fillOpacity:1,
       weight:3, interactive:false }).addTo(overlay);
   }
@@ -211,6 +211,6 @@ export function RiskMapSurface({ scene, onSelect, onPick, fill = false }: {
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   picker: { height: 260 },
-  surface: { overflow: 'hidden', borderWidth: 1, borderRadius: radius.input },
+  surface: { overflow: 'hidden', borderWidth: 1, borderRadius: radius.card },
   feedback: { justifyContent: 'center', padding: 16 },
 });

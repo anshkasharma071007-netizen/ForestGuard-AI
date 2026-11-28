@@ -93,7 +93,7 @@ export function PushSettings() {
   if (Platform.OS !== 'android' || !profile?.emailVerified) return null;
   if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) return <>
     <SectionTitle title={t('Push notifications')} />
-    <SupportingText>{t('Use the Forest Guard AI Android development build to receive push notifications.')}</SupportingText>
+    <SupportingText>{t('Use the Van Saathi Android development build to receive push notifications.')}</SupportingText>
   </>;
 
   const preferences = profile.push;

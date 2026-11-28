@@ -43,15 +43,15 @@ export const hi = {
     'प्रदर्शन प्रोटोटाइप · सिंथेटिक अवलोकन · सांकेतिक भूगोल',
   'Demonstration prototype · synthetic advisories · illustrative geography':
     'प्रदर्शन प्रोटोटाइप · सिंथेटिक सलाह · सांकेतिक भूगोल',
-  'Forest Guard AI · Protecting Forests. Preventing Conflict. Saving Lives.':
-    'Forest Guard AI · वनों की रक्षा। संघर्ष की रोकथाम। जीवन की सुरक्षा।',
+  'Van Saathi · Protecting Forests. Preventing Conflict. Saving Lives.':
+    'वन साथी · वनों की रक्षा। संघर्ष की रोकथाम। जीवन की सुरक्षा।',
   'Protecting Forests. Preventing Conflict. Saving Lives.':
     'वनों की रक्षा। संघर्ष की रोकथाम। जीवन की सुरक्षा।',
   'Protecting forests.': 'वनों की रक्षा।',
   'Preventing conflict.': 'संघर्ष की रोकथाम।',
   'Saving lives.': 'जीवन की सुरक्षा।',
   'v1.0 · demo': 'v1.0 · डेमो',
-  'Forest Guard AI / Operations': 'Forest Guard AI / ऑपरेशन्स',
+  'Van Saathi / Operations': 'वन साथी / ऑपरेशन्स',
   'Operations overview': 'ऑपरेशन्स अवलोकन',
   'Seoni · Madhya Pradesh': 'सिवनी · मध्य प्रदेश',
   'Sign out': "साइन आउट करें",
@@ -717,8 +717,8 @@ export const hi = {
   'Early reports protect people and wildlife.': 'शीघ्र रिपोर्ट लोगों और वन्यजीवों की रक्षा करती है।',
   'Report sightings promptly and from a safe distance. Do not chase, surround or feed animals, and never enter restricted forest areas to verify a sighting.':
     'सुरक्षित दूरी से और शीघ्र दृश्य की रिपोर्ट करें। पशुओं का पीछा, घेराव या भोजन न करें, और दृश्य सत्यापित करने के लिए प्रतिबंधित वन क्षेत्रों में कभी न जाएँ।',
-  'Forest Guard AI · Community portal': 'Forest Guard AI · समुदाय पोर्टल',
-  'Forest Guard AI community portal': 'Forest Guard AI समुदाय पोर्टल',
+  'Van Saathi · Community portal': 'वन साथी · समुदाय पोर्टल',
+  'Van Saathi community portal': 'वन साथी समुदाय पोर्टल',
   'No government surveillance access is implied or provided.':
     'कोई सरकारी निगरानी पहुँच निहित या प्रदान नहीं की गई है।',
   'Report received': "रिपोर्ट मिली",
@@ -887,8 +887,8 @@ export const hi = {
   'guards recorded ·': 'गार्ड दर्ज ·',
   'available ·': 'उपलब्ध ·',
   'Generated': 'जनरेट किया गया',
-  'from the Forest Guard AI demo database. All records are synthetic; this snapshot must not be cited as field evidence or as proof of deployment.':
-    'Forest Guard AI डेमो डेटाबेस से। सभी रिकॉर्ड सिंथेटिक हैं; इस स्नैपशॉट को फ़ील्ड प्रमाण या तैनाती के सबूत के रूप में उद्धृत नहीं किया जाना चाहिए।',
+  'from the Van Saathi demo database. All records are synthetic; this snapshot must not be cited as field evidence or as proof of deployment.':
+    'वन साथी डेमो डेटाबेस से। सभी रिकॉर्ड सिंथेटिक हैं; इस स्नैपशॉट को फ़ील्ड प्रमाण या तैनाती के सबूत के रूप में उद्धृत नहीं किया जाना चाहिए।',
   'Contact the range office listed by your village committee':
     'अपनी ग्राम समिति द्वारा सूचीबद्ध रेंज ऑफ़िस से संपर्क करें',
   'Follow forest-department safety guidance and avoid travelling on forest roads after dusk.':
@@ -911,4 +911,9 @@ export const hi = {
   'Open governance': 'शासन देखें',
   'Total alerts': 'कुल अलर्ट',
   'High severity': 'उच्च गंभीरता',
+  'Generated {time} from Van Saathi intelligence records.': 'वन साथी के रिकॉर्ड से {time} को तैयार किया गया।',
+  'Analysing…': 'विश्लेषण जारी है…',
+  'Closure time unavailable': 'समापन समय उपलब्ध नहीं',
+  'Detected': 'पहचाना गया',
+  'A range officer or administrator can assign your coverage from Jurisdiction settings.': 'रेंज अधिकारी या प्रशासक आपका कार्यक्षेत्र ज्यूरिस्डिक्शन सेटिंग्स से सौंप सकते हैं।',
 }

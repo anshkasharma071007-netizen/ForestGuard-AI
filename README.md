@@ -1,6 +1,9 @@
-# Forest Guard AI
+# Van Saathi
 
 **Protecting Forests. Preventing Conflict. Saving Lives.**
+
+Van Saathi (वन साथी, “companion of the forest”) is the wildlife conflict-prevention console
+for range officers, forest guards and buffer-zone communities.
 
 A working, local-first platform for AI-assisted wildlife monitoring, GIS risk mapping and
 human–wildlife conflict prevention. It was built for a solo-student hackathon submission and

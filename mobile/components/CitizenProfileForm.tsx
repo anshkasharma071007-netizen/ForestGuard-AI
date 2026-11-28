@@ -49,7 +49,7 @@ export function CitizenProfileForm({ setup = false, section = 'location' }: { se
   return <Screen header={<ScreenHeader title={t(title)} back={!setup} />}>
     <View style={{ gap: spacing.md }}>
       {setup && <LanguageSwitcher />}
-      {setup && <Feedback title={t('Welcome to Forest Guard AI')} detail={t('Enter your name and choose a location for nearby wildlife alerts.')} />}
+      {setup && <Feedback title={t('Welcome to Van Saathi')} detail={t('Enter your name and choose a location for nearby wildlife alerts.')} />}
       <Surface>
         {(setup || personal) && <InputField label={t('Full name')} value={name}
           onChangeText={value => { setName(value); setSaved(''); }} editable={!saving} autoCapitalize="words" autoComplete="name" maxLength={120} />}

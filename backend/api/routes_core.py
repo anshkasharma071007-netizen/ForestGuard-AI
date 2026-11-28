@@ -112,7 +112,7 @@ def meta(db: Session = Depends(get_db)) -> dict:
     settings = get_settings(db)
     return {
         "project": {
-            "name": "Forest Guard AI",
+            "name": "Van Saathi",
             "tagline": "Protecting Forests. Preventing Conflict. Saving Lives.",
             "description": (
                 "AI-assisted wildlife monitoring, geospatial risk mapping and human–wildlife "

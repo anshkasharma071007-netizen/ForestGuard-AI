@@ -166,7 +166,7 @@ def main() -> None:
 
     payload = {
         "type": "FeatureCollection",
-        "name": "Forest Guard AI demo study area",
+        "name": "Van Saathi demo study area",
         "metadata": {
             "region": "Pench landscape, Madhya Pradesh, India",
             "crs": "EPSG:4326",
@@ -174,7 +174,7 @@ def main() -> None:
                 "Illustrative geometries generated for a hackathon demonstration. Not an official "
                 "forest boundary, village boundary, or wildlife observation dataset."
             ),
-            "attribution": "Forest Guard AI demo data · basemap © OpenStreetMap contributors",
+            "attribution": "Van Saathi demo data · basemap © OpenStreetMap contributors",
         },
         "features": features,
     }

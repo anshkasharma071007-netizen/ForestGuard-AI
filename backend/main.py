@@ -78,7 +78,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Forest Guard AI",
+    title="Van Saathi",
     description=(
         "AI-assisted wildlife monitoring, GIS risk mapping and human–wildlife conflict "
         "prevention. Demonstration data is synthetic and clearly labelled."
@@ -139,7 +139,7 @@ class WebsiteFiles(StaticFiles):
 @app.get("/api")
 def api_root() -> dict:
     return {
-        "project": "Forest Guard AI",
+        "project": "Van Saathi",
         "tagline": "Protecting Forests. Preventing Conflict. Saving Lives.",
         "docs": "/docs",
         "health": "/api/health",

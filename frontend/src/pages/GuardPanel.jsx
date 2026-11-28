@@ -275,7 +275,7 @@ export default function GuardPanel() {
                   <img src="/images/forest.webp" alt="" className="absolute inset-0 h-full w-full object-cover opacity-20" />
                   <div className="absolute inset-0 bg-gradient-to-t from-forest-950 via-forest-950/85 to-forest-950/50" />
                   <div className="relative z-10">
-                    <div className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.2em] text-lime/80">
+                    <div className="flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-[0.2em] text-lime/80">
                       <ShieldCheck className="h-3.5 w-3.5" /> {t('Officer profile')}
                     </div>
                     {guard ? (
@@ -286,21 +286,21 @@ export default function GuardPanel() {
                         </div>
                         <div className="mt-4 grid grid-cols-2 gap-3">
                           <div>
-                            <div className="text-[8px] uppercase tracking-[0.14em] text-muted-21/50">{t('Status')}</div>
+                            <div className="text-[10px] uppercase tracking-[0.14em] text-muted-21/50">{t('Status')}</div>
                             <div className="mt-0.5 text-[11.5px] font-semibold text-brand-light">{t(titleCase(guard.status))}</div>
                           </div>
                           <div>
-                            <div className="text-[8px] uppercase tracking-[0.14em] text-muted-21/50">{t('Contact')}</div>
+                            <div className="text-[10px] uppercase tracking-[0.14em] text-muted-21/50">{t('Contact')}</div>
                             <div className="mt-0.5 text-[11.5px] font-semibold text-brand-light">{guard.phone}</div>
                           </div>
                           <div>
-                            <div className="text-[8px] uppercase tracking-[0.14em] text-muted-21/50">{t('Role')}</div>
+                            <div className="text-[10px] uppercase tracking-[0.14em] text-muted-21/50">{t('Role')}</div>
                             <div className="mt-0.5 text-[11.5px] font-semibold text-brand-light">
                               {guard.role === 'admin' ? t('Range officer') : t('Forest guard')}
                             </div>
                           </div>
                           <div>
-                            <div className="text-[8px] uppercase tracking-[0.14em] text-muted-21/50">{t('Email')}</div>
+                            <div className="text-[10px] uppercase tracking-[0.14em] text-muted-21/50">{t('Email')}</div>
                             <div className="mt-0.5 truncate text-[11.5px] font-semibold text-brand-light">{guard.email || user?.email}</div>
                           </div>
                         </div>
@@ -315,7 +315,7 @@ export default function GuardPanel() {
                         </p>
                       </>
                     )}
-                    <div className="mt-4 flex items-center gap-2 border-t border-white/10 pt-3 text-[9px] uppercase tracking-[0.14em] text-muted-21/45">
+                    <div className="mt-4 flex items-center gap-2 border-t border-white/10 pt-3 text-[10.5px] uppercase tracking-[0.14em] text-muted-21/45">
                       <Phone className="h-3 w-3" /> {t('Synthetic contact record')}
                     </div>
                   </div>
@@ -332,7 +332,7 @@ export default function GuardPanel() {
                         <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: detection.color }} />
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-[11px] font-semibold text-ink">{term('species', detection.species, detection.species_name)}</div>
-                          <div className="text-[9px] text-muted-9">
+                          <div className="text-[10.5px] text-muted-9">
                             {detection.camera_code || t('Upload')} · {relativeTime(detection.detected_at)}
                           </div>
                         </div>
@@ -344,7 +344,7 @@ export default function GuardPanel() {
                     )}
                   </div>
                   {(data.zone_alerts || []).length > 0 && !isDispatch && (
-                    <div className="mt-3 rounded-lg bg-inset-2 px-2.5 py-2 text-[9.5px] leading-relaxed text-muted-5">
+                    <div className="mt-3 rounded-lg bg-inset-2 px-2.5 py-2 text-[11px] leading-relaxed text-muted-5">
                       {t('{count} open alerts are active within 12 km of your position; the queue is prioritised by score. Unassigned high-priority alerts appear in dispatch.', { count: data.zone_alerts.length })}
                     </div>
                   )}
@@ -387,7 +387,7 @@ export default function GuardPanel() {
                   {t('Loading zone geography…')}
                 </div>
               )}
-              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line-10 px-4 py-2.5 text-[9.5px] text-muted-13">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line-10 px-4 py-2.5 text-[11px] text-muted-13">
                 <span className="flex items-center gap-1.5">
                   <Crosshair className="h-3 w-3" /> {t('Dashed rings show the configurable village alert radius.')}
                 </span>
@@ -441,7 +441,7 @@ export default function GuardPanel() {
                       <div className="mt-1 line-clamp-2 text-[10.5px] leading-relaxed text-muted-5">
                         {incident.description}
                       </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[9px] text-muted-13">
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[10.5px] text-muted-13">
                         <span>{incident.village_name || t('Buffer area')}</span>
                         <span>·</span>
                         <span>{relativeTime(incident.created_at)}</span>
@@ -475,14 +475,14 @@ export default function GuardPanel() {
                           <Badge tone="forest">
                             <CheckCircle2 className="h-2.5 w-2.5" /> {t('resolved')}
                           </Badge>
-                          <span className="ml-auto font-mono text-[9px] text-muted-13">
-                            {hours != null ? `${hours.toFixed(1)} h to close` : 'closure time unavailable'}
+                          <span className="ml-auto font-mono text-[10.5px] text-muted-13">
+                            {hours != null ? `${hours.toFixed(1)} h to close` : t('Closure time unavailable')}
                           </span>
                         </div>
                         <div className="mt-1 text-[10px] leading-relaxed text-muted-5">{alert.reason}</div>
                         <div className="mt-2 space-y-1">
                           {(alert.events || []).slice(-2).map((event) => (
-                            <div key={event.id} className="flex items-start gap-1.5 text-[9px] text-muted-9">
+                            <div key={event.id} className="flex items-start gap-1.5 text-[10.5px] text-muted-9">
                               <Clock3 className="mt-0.5 h-2.5 w-2.5 shrink-0" />
                               <span>
                                 <span className="font-semibold text-secondary-8">{t(titleCase(event.kind))}</span> ·{' '}
@@ -516,11 +516,11 @@ export default function GuardPanel() {
                   ].map(([role, detail]) => (
                     <div key={role} className="rounded-lg border border-line-13 bg-inset-14 px-3 py-2">
                       <div className="text-[10.5px] font-semibold text-ink">{role}</div>
-                      <div className="mt-0.5 text-[9.5px] leading-relaxed text-muted-5">{detail}</div>
+                      <div className="mt-0.5 text-[11px] leading-relaxed text-muted-5">{detail}</div>
                     </div>
                   ))}
                 </div>
-                <div className="mt-3 rounded-lg bg-forest-900 px-3 py-2 text-[9px] leading-relaxed text-forest-100/65">
+                <div className="mt-3 rounded-lg bg-forest-900 px-3 py-2 text-[10.5px] leading-relaxed text-forest-100/65">
                   {t('Tasks are derived from risk-engine alerts. The engine deduplicates alerts within 24 hours and never claims verified animal movement unless a camera sequence supports it.')}
                 </div>
                 <Link to="/risk" className="btn-outline mt-3 w-full !py-2">
@@ -600,7 +600,7 @@ export default function GuardPanel() {
                     ],
                   ].map(([label, value]) => (
                     <div key={label} className="rounded-lg bg-inset-2 px-2.5 py-2">
-                      <div className="text-[8px] uppercase tracking-[0.12em] text-muted-16">{t(label)}</div>
+                      <div className="text-[10px] uppercase tracking-[0.12em] text-muted-16">{t(label)}</div>
                       <div className="mt-0.5 text-[10.5px] font-semibold text-secondary-3">{value}</div>
                     </div>
                   ))}
@@ -613,9 +613,9 @@ export default function GuardPanel() {
             )}
 
             <div className="rounded-xl border border-line-10 bg-inset-14 p-3">
-              <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-16">{t('Why this task')}</div>
+              <div className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-16">{t('Why this task')}</div>
               <div className="mt-1 text-[11px] leading-relaxed text-secondary-8">{current.reason}</div>
-              <div className="mt-2 text-[9px] text-muted-13">
+              <div className="mt-2 text-[10.5px] text-muted-13">
                 {t('Villages within')} {current.radius_km} {t('km ·')}{' '}
                 {current.assigned_guard ? `assigned to ${current.assigned_guard.name}` : 'not yet assigned'}
               </div>
@@ -654,7 +654,7 @@ export default function GuardPanel() {
 
             {isAdmin && (
               <div>
-                <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-16">{t('Assign or reassign')}</div>
+                <div className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-16">{t('Assign or reassign')}</div>
                 <div className="mt-1.5 flex gap-2">
                   <select className="field !py-2" value={assignId} onChange={(event) => setAssignId(event.target.value)}>
                     <option value="">{t('Select a guard…')}</option>
@@ -678,7 +678,7 @@ export default function GuardPanel() {
             )}
 
             <div>
-              <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-16">
+              <div className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-16">
                 <Clock3 className="h-3 w-3" /> {t('Audit trail')}
               </div>
               {detail.loading && !record ? (
@@ -692,8 +692,8 @@ export default function GuardPanel() {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-[10.5px] font-semibold text-ink">{t(titleCase(event.kind))}</span>
-                          <span className="text-[9px] text-muted-13">{dateTime(event.created_at)}</span>
-                          <span className="text-[9px] text-muted-13">· {event.actor}</span>
+                          <span className="text-[10.5px] text-muted-13">{dateTime(event.created_at)}</span>
+                          <span className="text-[10.5px] text-muted-13">· {event.actor}</span>
                         </div>
                         <div className="mt-0.5 text-[10.5px] leading-relaxed text-secondary-15">{event.note}</div>
                       </div>

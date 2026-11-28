@@ -1,16 +1,19 @@
 import { useLanguage } from '@/i18n';
 import { Tabs } from 'expo-router';
 import { House, Map, UserRound, type LucideIcon } from 'lucide-react-native';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { radius, sizing, typeScale, typography, useTheme } from '@/theme';
+import { elevation, radius, sizing, typeScale, typography, useTheme } from '@/theme';
 
 function TabIcon({ icon: Icon, focused }: { icon: LucideIcon; focused: boolean }) {
   const { colors } = useTheme();
   return <View style={{
-    width: 54, height: 28, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center',
+    width: 54, height: 29, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center',
     backgroundColor: focused ? colors.softAccent : 'transparent',
-  }}><Icon size={20} color={focused ? colors.accent : colors.secondaryText} strokeWidth={focused ? 2.3 : 1.7} /></View>;
+    borderWidth: 1, borderColor: focused ? colors.border : 'transparent',
+  }}>
+    <Icon size={21} color={focused ? colors.accent : colors.secondaryText} strokeWidth={focused ? 2.4 : 1.7} />
+  </View>;
 }
 
 export default function TabLayout() {
@@ -24,7 +27,8 @@ export default function TabLayout() {
       tabBarInactiveTintColor: colors.secondaryText,
       tabBarStyle: {
         height: 60 + bottom, paddingTop: 3, paddingBottom: 4 + bottom,
-        backgroundColor: colors.card, borderTopColor: colors.border,
+        backgroundColor: colors.card, borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth,
+        ...elevation.raised,
       },
       tabBarLabelPosition: 'below-icon',
       tabBarLabelStyle: { fontSize: typeScale.supporting.fontSize, fontFamily: typography.strong },

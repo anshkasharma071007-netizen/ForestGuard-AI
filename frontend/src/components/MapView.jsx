@@ -192,9 +192,9 @@ export default function MapView({
         }
         if (layerName === 'core') {
           L.polygon(ring, {
-            color: '#2F7250',
+            color: '#1F5C3A',
             weight: 1,
-            fillColor: '#2F7250',
+            fillColor: '#1F5C3A',
             fillOpacity: 0.06,
             interactive: false,
           })
@@ -258,10 +258,10 @@ export default function MapView({
         if (layers.alertCoverage && Number.isFinite(village.lat) && Number.isFinite(village.lon)) {
           L.circle([village.lat, village.lon], {
             radius: (data?.risk?.alert_radius_km || 3.5) * 1000,
-            color: '#B85C38',
+            color: '#B3362A',
             weight: 1,
             dashArray: '4 6',
-            fillColor: '#B85C38',
+            fillColor: '#B3362A',
             fillOpacity: 0.05,
             interactive: false,
           }).addTo(overlay)
@@ -273,7 +273,7 @@ export default function MapView({
       data.tracks.forEach((track) => {
         if (!track.points?.length) return
         const selected = String(track.id) === String(selectedTrackId)
-        const color = SPECIES_COLOR[track.species] || '#2F7250'
+        const color = SPECIES_COLOR[track.species] || '#1F5C3A'
         L.polyline(track.points, {
           color,
           weight: selected ? 4 : 2,
@@ -436,7 +436,7 @@ export default function MapView({
       )}
       {showLegend && (
         <div className="pointer-events-none absolute bottom-4 left-4 z-[500] hidden max-w-[230px] rounded-xl border border-control-line-7 bg-parchment/95 p-3 shadow-card backdrop-blur sm:block">
-          <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-10">{t('Risk overlay')}</div>
+          <div className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-muted-10">{t('Risk overlay')}</div>
           <div className="mt-1.5 flex items-center gap-3">
             {[
               [t('High'), RISK_COLOR.high],
@@ -451,13 +451,13 @@ export default function MapView({
           </div>
           <div className="mt-2 flex flex-wrap gap-x-2.5 gap-y-1 border-t border-line-10 pt-2">
             {speciesLegend.map((species) => (
-              <span key={species} className="flex items-center gap-1 text-[9px] text-secondary-10">
+              <span key={species} className="flex items-center gap-1 text-[10.5px] text-secondary-10">
                 <span className="h-2 w-2 rounded-full" style={{ background: SPECIES_COLOR[species] }} />
                 {term('species', species)}
               </span>
             ))}
           </div>
-          <div className="mt-1.5 text-[8.5px] leading-tight text-muted-16">
+          <div className="mt-1.5 text-[10.5px] leading-tight text-muted-16">
             {t('C camera · G guard · ! incident. Zones are indicative.')}
           </div>
         </div>

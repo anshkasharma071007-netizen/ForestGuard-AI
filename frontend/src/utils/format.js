@@ -1,23 +1,23 @@
 export const SPECIES_COLOR = {
-  tiger: '#C2410C',
-  leopard: '#B45309',
-  elephant: '#475569',
-  deer: '#15803D',
-  wild_boar: '#7C2D12',
-  sloth_bear: '#3F3F46',
-  unidentified: '#64748B',
+  tiger: '#B8501F',
+  leopard: '#A5731C',
+  elephant: '#4A6478',
+  deer: '#3E8B54',
+  wild_boar: '#7A3B24',
+  sloth_bear: '#4A4A52',
+  unidentified: '#6B7A6E',
 }
 
 export const RISK_COLOR = {
-  low: '#2F7250',
-  moderate: '#D9A441',
-  high: '#B83B2B',
+  low: '#2A7048',
+  moderate: '#C68A1E',
+  high: '#B3362A',
 }
 
 export const RISK_SOFT = {
-  low: '#E4F0E7',
-  moderate: '#F8EDCF',
-  high: '#F6DFD8',
+  low: '#E6F2E4',
+  moderate: '#FAEECB',
+  high: '#F8E2DB',
 }
 
 export function formatDate(value, opts = {}, lang = 'en') {

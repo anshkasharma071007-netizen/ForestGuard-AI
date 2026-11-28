@@ -1,11 +1,11 @@
 {
   "type": "FeatureCollection",
-  "name": "Forest Guard AI demo study area",
+  "name": "Van Saathi demo study area",
   "metadata": {
     "region": "Pench landscape, Madhya Pradesh, India",
     "crs": "EPSG:4326",
     "disclaimer": "Illustrative geometries generated for a hackathon demonstration. Not an official forest boundary, village boundary, or wildlife observation dataset.",
-    "attribution": "Forest Guard AI demo data \u00b7 basemap \u00a9 OpenStreetMap contributors"
+    "attribution": "Van Saathi demo data \u00b7 basemap \u00a9 OpenStreetMap contributors"
   },
   "features": [
     {

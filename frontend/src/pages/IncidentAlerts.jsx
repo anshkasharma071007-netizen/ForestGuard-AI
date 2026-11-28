@@ -1,11 +1,11 @@
 import { useLanguage } from '../i18n'
 import { useRef, useState } from 'react'
-import { ChevronRight, X } from 'lucide-react'
+import { BellOff, ChevronRight, X } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import api, { errorMessage } from '../api/client'
 import { assessmentLabel, Dialog, Photo, PhotoPreview, usePhoto } from '../components/ReportReview'
 import RefreshButton from '../components/RefreshButton'
-import { ErrorBox, Loading, RiskBadge, StatusBadge } from '../components/ui'
+import { EmptyState, ErrorBox, Loading, RiskBadge, StatusBadge } from '../components/ui'
 import { useApi } from '../hooks/useApi'
 
 const riskLevels = ['low', 'moderate', 'high']
@@ -200,9 +200,12 @@ export default function IncidentAlerts() {
     </div>
     {error && <ErrorBox message={error} onRetry={reload} />}
     {!data && loading && <Loading label={t('Loading incidents…')} height="h-24" />}
-    {data && !data.items.length && <p className="operations-panel p-4 text-sm text-muted-3">
-      {risk ? t('No matching incidents') : t(status === 'resolved' ? 'No resolved incidents' : 'No active incidents')}
-    </p>}
+    {data && !data.items.length && (
+      <EmptyState
+        icon={BellOff}
+        title={risk ? t('No matching incidents') : t(status === 'resolved' ? 'No resolved incidents' : 'No active incidents')}
+      />
+    )}
     <ul className="grid gap-3">
       {data?.items.map(incident => <li key={incident.id}>
         <button type="button" className="operations-incident-row" data-risk={incident.severity} onClick={() => filter('incident', incident.id)}>

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Forest Guard AI",
+    "name": "Van Saathi",
     "slug": "forest-guard-ai",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -33,10 +33,10 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 112,
           "resizeMode": "contain",
-          "backgroundColor": "#F4F1E8",
+          "backgroundColor": "#FAF6EC",
           "dark": {
             "image": "./assets/images/splash-icon.png",
-            "backgroundColor": "#171F1B"
+            "backgroundColor": "#0F1912"
           }
         }
       ],
@@ -44,14 +44,14 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Allow Forest Guard AI to use your current location when you choose it."
+          "locationWhenInUsePermission": "Allow Van Saathi to use your current location when you choose it."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Forest Guard AI to attach a photo to a wildlife report.",
-          "cameraPermission": "Allow Forest Guard AI to take a photo for a wildlife report."
+          "photosPermission": "Allow Van Saathi to attach a photo to a wildlife report.",
+          "cameraPermission": "Allow Van Saathi to take a photo for a wildlife report."
         }
       ],
       "expo-web-browser"

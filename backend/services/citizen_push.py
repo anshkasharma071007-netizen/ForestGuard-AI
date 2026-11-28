@@ -86,7 +86,7 @@ def _message(device, delivery, now):
     event_key = delivery.event_key
     nearby = event_key.startswith("alert:")
     title = "Nearby wildlife alert" if nearby else "Report update"
-    body = "Open the risk map for the latest warning." if nearby else "Open Forest Guard AI for the update."
+    body = "Open the risk map for the latest warning." if nearby else "Open Van Saathi for the update."
     return {"to": device.token, "title": title, "body": body, "channelId": "forest-guard-alerts",
             "ttl": min(3600, max(0, int((delivery.expires_at - now).total_seconds()))),
             "collapseId": delivery.notification_id, "tag": delivery.notification_id,

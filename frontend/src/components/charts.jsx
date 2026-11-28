@@ -19,7 +19,7 @@ import {
 import { RISK_COLOR, SPECIES_COLOR } from '../utils/format'
 
 const AXIS = {
-  tick: { fill: 'var(--chart-label, #656b62)', fontSize: 10, fontWeight: 500 },
+  tick: { fill: 'var(--chart-label, #5e6b60)', fontSize: 11, fontWeight: 500 },
   tickLine: false,
   axisLine: false,
 }
@@ -42,7 +42,7 @@ function ChartTip({ active, payload, label, formatter }) {
   )
 }
 
-export function ActivityArea({ data, height = 220, color = 'var(--chart-green, #2F7250)', showAxis = true }) {
+export function ActivityArea({ data, height = 220, color = 'var(--chart-green, #1F5C3A)', showAxis = true }) {
   const { t, date } = useLanguage()
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -98,7 +98,7 @@ export function SpeciesBars({ data, height = 230, landscape = false }) {
         <Tooltip content={<ChartTip />} cursor={{ fill: 'rgba(127,163,107,0.08)' }} />
         <Bar dataKey="count" name={t('Detections')} radius={[0, 4, 4, 0]}>
           {data?.map((entry) => (
-            <Cell key={entry.key} fill={`var(--chart-species-${entry.key}, ${SPECIES_COLOR[entry.key] || '#2F7250'})`} />
+            <Cell key={entry.key} fill={`var(--chart-species-${entry.key}, ${SPECIES_COLOR[entry.key] || '#1F5C3A'})`} />
           ))}
         </Bar>
       </BarChart>
@@ -136,12 +136,12 @@ export function RiskDonut({ data, height = 220, unit = 'scores' }) {
       </ResponsiveContainer>
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
         <div className="font-display text-[26px] leading-none text-ink">{total}</div>
-        <div className="mt-1 text-[9px] uppercase tracking-[0.16em] text-muted-11">{t(unit)}</div>
+        <div className="mt-1 text-[10.5px] uppercase tracking-[0.16em] text-muted-11">{t(unit)}</div>
       </div>
       <div className="mt-1 grid grid-cols-3 gap-2">
         {rows.map((row) => (
           <div key={row.key} className="rounded-lg border border-line-12 bg-raised/60 px-2 py-1.5">
-            <div className="flex items-center gap-1.5 text-[9px] font-medium uppercase tracking-[0.08em] text-muted-5">
+            <div className="flex items-center gap-1.5 text-[10.5px] font-medium uppercase tracking-[0.08em] text-muted-5">
               <span className="h-1.5 w-1.5 rounded-full" style={{ background: row.color }} />
               {row.label}
             </div>
@@ -153,7 +153,7 @@ export function RiskDonut({ data, height = 220, unit = 'scores' }) {
   )
 }
 
-export function HourBars({ data, height = 200, color = '#7FA36B' }) {
+export function HourBars({ data, height = 200, color = '#4C8F5F' }) {
   const { t } = useLanguage()
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -176,10 +176,10 @@ export function HourBars({ data, height = 200, color = '#7FA36B' }) {
 export function BasisBars({ data, height = 210 }) {
   const { t } = useLanguage()
   const rows = [
-    { name: t('Proximity only'), value: data?.proximity || 0, color: 'var(--chart-green, #2F7250)' },
-    { name: t('Buffer proximity'), value: data?.buffer_proximity || 0, color: '#7FA36B' },
-    { name: t('Core activity'), value: data?.core_activity || 0, color: '#B8C4B5' },
-    { name: t('Movement-supported'), value: data?.confirmed_movement || 0, color: 'var(--chart-clay, #C2410C)' },
+    { name: t('Proximity only'), value: data?.proximity || 0, color: 'var(--chart-green, #1F5C3A)' },
+    { name: t('Buffer proximity'), value: data?.buffer_proximity || 0, color: '#4C8F5F' },
+    { name: t('Core activity'), value: data?.core_activity || 0, color: '#B9C4B3' },
+    { name: t('Movement-supported'), value: data?.confirmed_movement || 0, color: 'var(--chart-clay, #B8501F)' },
   ]
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -198,7 +198,7 @@ export function BasisBars({ data, height = 210 }) {
   )
 }
 
-export function TrendLine({ data, height = 190, dataKey = 'detections', color = 'var(--chart-green, #2F7250)', name = 'Detections', additionalSeries }) {
+export function TrendLine({ data, height = 190, dataKey = 'detections', color = 'var(--chart-green, #1F5C3A)', name = 'Detections', additionalSeries }) {
   const { t, date } = useLanguage()
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -222,7 +222,7 @@ export function TrendLine({ data, height = 190, dataKey = 'detections', color = 
   )
 }
 
-export function CategoryBars({ items, height = 200, color = 'var(--chart-clay, #B85C38)' }) {
+export function CategoryBars({ items, height = 200, color = 'var(--chart-clay, #8B5E3C)' }) {
   const { t, term, lang } = useLanguage()
   return (
     <ResponsiveContainer width="100%" height={height}>

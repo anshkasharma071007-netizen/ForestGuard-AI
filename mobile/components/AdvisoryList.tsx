@@ -1,10 +1,14 @@
 import { useLanguage } from '@/i18n';
 import { ChevronDown, ChevronRight, PawPrint } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import type { Advisory } from '@/services/api';
-import { radius, spacing, typeScale, useTheme } from '@/theme';
+import { elevation, radius, spacing, typeScale, useTheme } from '@/theme';
 import { RiskPill, SupportingText } from './Feedback';
+import { PressableScale } from './PressableScale';
+
+const severityInk = { high: 'clay', moderate: 'warningText', low: 'successText' } as const;
+const severityTint = { high: 'dangerTint', moderate: 'warningTint', low: 'successTint' } as const;
 
 export function AdvisoryList({ items, onSelect }: { items: Advisory[]; onSelect?: (ids: number[]) => void }) {
   const [expanded, setExpanded] = useState<number>();
@@ -19,19 +23,25 @@ function AdvisoryRow({ item, expanded, onPress }: { item: Advisory; expanded: bo
   const { colors } = useTheme();
   const distance = item.distanceKm === undefined ? undefined
     : item.distanceKm === 0 ? t('Under 1 km away') : t('About {distance} km away', { distance: item.distanceKm });
-  return <Pressable accessibilityRole="button" accessibilityState={{ expanded }} onPress={onPress}
-    style={({ pressed }) => [styles.row, { backgroundColor: pressed ? colors.softAccent : colors.card, borderColor: colors.border }]}>
+  const level = item.severity === 'high' || item.severity === 'moderate' || item.severity === 'low' ? item.severity : undefined;
+  return <PressableScale accessibilityState={{ expanded }} onPress={onPress} haptic="selection"
+    style={[styles.row, elevation.subtle, { backgroundColor: colors.card, borderColor: colors.border }]}
+    pressedStyle={{ borderColor: colors.focus }}>
     <View style={styles.heading}>
-      <View style={[styles.icon, { backgroundColor: colors.softAccent }]}><PawPrint size={21} color={colors.accent} /></View>
+      <View style={[styles.icon, { backgroundColor: level ? colors[severityTint[level]] : colors.softAccent }]}>
+        <PawPrint size={21} color={level ? colors[severityInk[level]] : colors.accent} />
+      </View>
       <View style={styles.info}>
         <Text style={[typeScale.card, { color: colors.primaryText }]}>{advisoryTitle(item.title, item.speciesName)}</Text>
         <RiskPill severity={item.severity} />
         <SupportingText>{[distance, dateTime(item.publishedAt), item.isSimulated ? t('Simulated') : null].filter(Boolean).join(' · ')}</SupportingText>
       </View>
-      {expanded ? <ChevronDown size={18} color={colors.mutedText} /> : <ChevronRight size={18} color={colors.mutedText} />}
+      <View style={[styles.chevron, { backgroundColor: colors.background }]}>
+        {expanded ? <ChevronDown size={16} color={colors.accent} /> : <ChevronRight size={16} color={colors.accent} />}
+      </View>
     </View>
     {expanded && <AdvisoryDetails item={item} />}
-  </Pressable>;
+  </PressableScale>;
 }
 
 export function AdvisoryDetails({ item }: { item: Advisory }) {
@@ -48,9 +58,10 @@ export function AdvisoryDetails({ item }: { item: Advisory }) {
 
 const styles = StyleSheet.create({
   list: { gap: spacing.sm },
-  row: { gap: spacing.md, padding: spacing.md, borderRadius: radius.input, borderWidth: 1 },
+  row: { gap: spacing.md, padding: spacing.md, borderRadius: radius.card, borderWidth: 1 },
   heading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   icon: { width: 42, height: 44, borderRadius: radius.input, alignItems: 'center', justifyContent: 'center' },
+  chevron: { width: 30, height: 30, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   info: { flex: 1, gap: spacing.xs },
   details: { gap: spacing.xs },
 });

@@ -1,11 +1,11 @@
 import { useLanguage } from '../i18n'
 import { useMemo, useState } from 'react'
-import { Layers3, MapPin, X } from 'lucide-react'
+import { Layers3, MapPin, MapPinned, X } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import MapView from '../components/MapView'
 import EvidenceImage from '../components/EvidenceImage'
 import RefreshButton from '../components/RefreshButton'
-import { ErrorBox, Loading, RiskBadge } from '../components/ui'
+import { EmptyState, ErrorBox, Loading, RiskBadge } from '../components/ui'
 import { useApi } from '../hooks/useApi'
 import { RISK_COLOR } from '../utils/format'
 
@@ -70,7 +70,13 @@ export default function GISMapPage() {
     </header>
     {(choices.error || map.error) && <ErrorBox message={choices.error || map.error} onRetry={choices.error ? choices.reload : map.reload} />}
     {choices.loading && !choices.data && <Loading label={t('Loading jurisdictions…')} height="h-32" />}
-    {choices.data && !jurisdiction && <div className="operations-panel p-5">{t('No map jurisdiction is assigned or available.')}</div>}
+    {choices.data && !jurisdiction && (
+      <EmptyState
+        icon={MapPinned}
+        title={t('No map jurisdiction is assigned or available.')}
+        description={t('A range officer or administrator can assign your coverage from Jurisdiction settings.')}
+      />
+    )}
     {jurisdiction && <>
       <div className="operations-panel mb-4 flex flex-wrap gap-3 p-3">
         {choices.data.items.length > 1 && <label className="operations-map-filter">{t('Jurisdiction')}

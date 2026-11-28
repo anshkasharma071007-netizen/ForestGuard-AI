@@ -2,6 +2,7 @@ import { Check, ChevronDown, ChevronRight, type LucideIcon } from 'lucide-react-
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions, type TextInputProps } from 'react-native';
 import { radius, sizing, spacing, typeScale, useTheme } from '@/theme';
+import { PressableScale } from './PressableScale';
 
 export function InputField({ label, hint, prefix, ...props }: TextInputProps & { label: string; hint?: string; prefix?: string }) {
   const { colors } = useTheme();
@@ -77,15 +78,16 @@ export function NavigationRow({ label, detail, icon: Icon, onPress, disabled = f
 }) {
   const { colors } = useTheme();
   return (
-    <Pressable accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
-      style={({ pressed }) => [styles.nav, { borderColor: colors.border, opacity: disabled ? 0.6 : 1, backgroundColor: pressed ? colors.successTint : undefined }]}>
-      <Icon size={20} color={colors.accent} />
+    <PressableScale accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} haptic="light"
+      style={[styles.nav, { borderColor: colors.border, opacity: disabled ? 0.6 : 1 }]}
+      pressedStyle={{ backgroundColor: colors.successTint }}>
+      <View style={[styles.navIcon, { backgroundColor: colors.softAccent }]}><Icon size={18} color={colors.accent} /></View>
       <View style={styles.flex}>
         <Text style={[typeScale.action, { color: colors.primaryText }]}>{label}</Text>
         {detail && <Text style={[typeScale.supporting, { color: colors.secondaryText }]}>{detail}</Text>}
       </View>
-      <ChevronRight size={18} color={colors.accent} />
-    </Pressable>
+      <ChevronRight size={18} color={colors.mutedText} />
+    </PressableScale>
   );
 }
 
@@ -94,16 +96,17 @@ export function SelectionRow({ label, detail, icon: Icon, surface = false, selec
 }) {
   const { colors } = useTheme();
   return (
-    <Pressable accessibilityRole="radio" aria-checked={selected} accessibilityState={{ checked: selected, disabled }} disabled={disabled} onPress={onPress}
-      style={({ pressed }) => [styles.nav, surface && styles.selectionSurface, { borderColor: selected && surface ? colors.focus : colors.border,
-        backgroundColor: pressed || selected ? colors.successTint : surface ? colors.card : undefined }]}>
+    <PressableScale accessibilityRole="radio" accessibilityState={{ checked: selected, disabled }} disabled={disabled} onPress={onPress} haptic="selection"
+      style={[styles.nav, surface && styles.selectionSurface, { borderColor: selected && surface ? colors.focus : colors.border,
+        backgroundColor: selected ? colors.successTint : surface ? colors.card : undefined }]}
+      pressedStyle={{ backgroundColor: colors.successTint }}>
       {Icon && <Icon size={18} color={colors.accent} />}
       <View style={styles.flex}>
         <Text style={[typeScale.body, { color: colors.primaryText }]}>{label}</Text>
         {detail && <Text style={[typeScale.supporting, { color: colors.secondaryText }]}>{detail}</Text>}
       </View>
-      {selected && <Check size={18} color={colors.accent} />}
-    </Pressable>
+      {selected && <View style={[styles.check, { backgroundColor: colors.accent }]}><Check size={13} color={colors.onAction} strokeWidth={3} /></View>}
+    </PressableScale>
   );
 }
 
@@ -127,5 +130,7 @@ const styles = StyleSheet.create({
   segmentHorizontal: { flex: 1, minWidth: 0 },
   segmentText: { flexShrink: 1, textAlign: 'center' },
   nav: { minHeight: sizing.touch, borderBottomWidth: 1, flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm, paddingHorizontal: spacing.sm, gap: spacing.sm },
+  navIcon: { width: 34, height: 34, borderRadius: radius.input, alignItems: 'center', justifyContent: 'center' },
+  check: { width: 20, height: 20, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   selectionSurface: { borderWidth: 1, borderRadius: radius.input, paddingHorizontal: spacing.md },
 });

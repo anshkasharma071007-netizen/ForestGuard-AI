@@ -1,1 +1,1 @@
-"""Forest Guard AI backend package."""
+"""Van Saathi backend package."""

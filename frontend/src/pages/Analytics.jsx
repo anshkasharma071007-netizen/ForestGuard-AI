@@ -166,7 +166,7 @@ export default function Analytics() {
                 <div className="mt-2">
                   <RiskDonut data={data.risk_distribution} height={188} />
                 </div>
-                <div className="mt-2 text-[9.5px] leading-relaxed text-muted-9">
+                <div className="mt-2 text-[11px] leading-relaxed text-muted-9">
                   {t('Risk is a prioritisation aid derived from proximity, recency, activity, verified incidents and — only where a sequence supports it — movement evidence.')}
                 </div>
               </div>
@@ -232,7 +232,7 @@ export default function Analytics() {
                     </tbody>
                   </table>
                 </div>
-                <div className="mt-2 text-[9px] text-muted-16">
+                <div className="mt-2 text-[10.5px] text-muted-16">
                   {t('“Earlier records” counts the same animal class before the selected window; it is a baseline count, not a population estimate or growth rate.')}
                 </div>
               </div>
@@ -250,7 +250,7 @@ export default function Analytics() {
                 <div className="mt-3">
                   <BasisBars data={data.risk_basis} height={222} />
                 </div>
-                <div className="mt-2 text-[9.5px] leading-relaxed text-muted-9">
+                <div className="mt-2 text-[11px] leading-relaxed text-muted-9">
                   {t('Movement-supported records require a linked camera sequence. Proximity signals never claim that an animal is approaching a village.')}
                 </div>
               </div>
@@ -280,7 +280,7 @@ export default function Analytics() {
                 <div className="mt-3">
                   <HourBars data={data.hours} height={206} />
                 </div>
-                <div className="mt-2 text-[9.5px] leading-relaxed text-muted-9">
+                <div className="mt-2 text-[11px] leading-relaxed text-muted-9">
                   {t('Detection distribution patterns across the 24-hour cycle.')}
                 </div>
               </div>
@@ -309,7 +309,7 @@ export default function Analytics() {
                       [t('Avg. closure'), response?.avg_resolve_hours != null ? `${response.avg_resolve_hours} h` : '—', CheckCircle2],
                     ].map(([label, value, Icon]) => (
                       <div key={label} className="rounded-xl border border-line-10 bg-inset-14 px-3 py-2">
-                        <div className="flex items-center gap-1.5 text-[8.5px] uppercase tracking-[0.1em] text-muted-16">
+                        <div className="flex items-center gap-1.5 text-[10.5px] uppercase tracking-[0.1em] text-muted-16">
                           <Icon className="h-3 w-3" /> {t(label)}
                         </div>
                         <div className="mt-1 font-mono text-[15px] font-semibold text-ink">{value}</div>
@@ -324,11 +324,11 @@ export default function Analytics() {
                     ].map(([label, value]) => (
                       <div key={label} className="rounded-lg border border-line-13 bg-raised/60 px-2 py-1.5 text-center">
                         <div className="font-mono text-[13px] font-semibold text-ink">{value}</div>
-                        <div className="text-[8px] uppercase tracking-[0.1em] text-muted-16">{t(label)}</div>
+                        <div className="text-[10px] uppercase tracking-[0.1em] text-muted-16">{t(label)}</div>
                       </div>
                     ))}
                   </div>
-                  <div className="rounded-lg bg-inset-1 px-2.5 py-2 text-[9px] leading-relaxed text-muted-5">
+                  <div className="rounded-lg bg-inset-1 px-2.5 py-2 text-[10.5px] leading-relaxed text-muted-5">
                     {t('Times are measured from alert dispatch to recorded acknowledgement or resolution.')}
                   </div>
                 </div>
@@ -385,18 +385,18 @@ export default function Analytics() {
                 <div className="mt-3 space-y-1.5">
                   {data.cameras.top.map((camera) => (
                     <div key={camera.code} className="flex items-center gap-2 text-[10.5px]">
-                      <span className="w-24 shrink-0 font-mono text-[9.5px] text-secondary-8">{camera.code}</span>
+                      <span className="w-24 shrink-0 font-mono text-[11px] text-secondary-8">{camera.code}</span>
                       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-line-4">
                         <div
                           className="h-full rounded-full bg-forest-500"
                           style={{ width: `${Math.min(100, (100 * camera.detections) / Math.max(1, data.cameras.top[0]?.detections || 1))}%` }}
                         />
                       </div>
-                      <span className="w-8 text-right font-mono text-[9.5px] text-muted-5">{camera.detections}</span>
+                      <span className="w-8 text-right font-mono text-[11px] text-muted-5">{camera.detections}</span>
                     </div>
                   ))}
                 </div>
-                <div className="mt-3 border-t border-line-13 pt-2 text-[9px] text-muted-16">
+                <div className="mt-3 border-t border-line-13 pt-2 text-[10.5px] text-muted-16">
                   {data.guards.total} {t('guards recorded ·')} {data.guards.available} {t('available ·')} {data.guards.on_patrol} {t('on patrol')}
                 </div>
               </div>
@@ -425,7 +425,7 @@ export default function Analytics() {
               </div>
               <div className="grid gap-4 p-5 lg:grid-cols-3">
                 <div className="rounded-xl border border-line-10 bg-inset-14 p-4 lg:col-span-2">
-                  <div className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-16">
+                  <div className="flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted-16">
                     <BarChart3 className="h-3.5 w-3.5" /> {t('Summary')}
                   </div>
                   <p className="mt-2 text-[11.5px] leading-relaxed text-secondary-8">
@@ -437,18 +437,18 @@ export default function Analytics() {
                       })
                     }
                   </p>
-                  <p className="mt-2 text-[9.5px] leading-relaxed text-muted-9">
-                    {t('Generated {time} from Forest Guard AI intelligence records.', { time: dateTime(data.generated_at) })}
+                  <p className="mt-2 text-[11px] leading-relaxed text-muted-9">
+                    {t('Generated {time} from Van Saathi intelligence records.', { time: dateTime(data.generated_at) })}
                   </p>
                 </div>
                 <div className="rounded-xl border border-line-10 bg-raised/60 p-4">
-                  <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-16">{t('Export contents')}</div>
+                  <div className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted-16">{t('Export contents')}</div>
                   <ul className="mt-2 space-y-1.5 text-[10px] leading-relaxed text-secondary-15">
                     <li>{t('Detection CSV: timestamp, animal, confidence, camera, coordinates, score, basis and source.')}</li>
                     <li>{t('JSON summary: aggregates, charts series, incidents and response metrics.')}</li>
                     <li>{t('No credentials or private datasets are included.')}</li>
                   </ul>
-                  <div className="mt-3 flex items-center gap-1.5 text-[9px] text-muted-13">
+                  <div className="mt-3 flex items-center gap-1.5 text-[10.5px] text-muted-13">
                     <ShieldAlert className="h-3 w-3" /> {t('Operational records · landscape intelligence')}
                   </div>
                 </div>

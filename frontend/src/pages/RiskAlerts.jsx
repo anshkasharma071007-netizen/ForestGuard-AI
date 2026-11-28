@@ -132,10 +132,10 @@ export default function RiskAlerts() {
       />
 
       <div className="card flex flex-wrap items-center gap-x-1.5 gap-y-2 px-4 py-3">
-        <span className="mr-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-16">{t('Workflow')}</span>
+        <span className="mr-1 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted-16">{t('Workflow')}</span>
         {WORKFLOW.map((step, index) => (
           <div key={step} className="flex items-center gap-1.5">
-            <span className="flex items-center gap-1 rounded-full border border-line-5 bg-raised/70 px-2 py-0.5 text-[9.5px] font-medium text-secondary-8">
+            <span className="flex items-center gap-1 rounded-full border border-line-5 bg-raised/70 px-2 py-0.5 text-[11px] font-medium text-secondary-8">
               <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-forest-900 font-mono text-[7.5px] text-lime">
                 {index + 1}
               </span>
@@ -203,7 +203,7 @@ export default function RiskAlerts() {
               {t('Loading risk surface…')}
             </div>
           )}
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line-10 px-4 py-2.5 text-[9.5px] text-muted-13">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line-10 px-4 py-2.5 text-[11px] text-muted-13">
             <span>{t('Zones combine recent signal strength with village exposure.')}</span>
             <span>{t('Dashed circles = configurable alert radius')}</span>
           </div>
@@ -227,9 +227,9 @@ export default function RiskAlerts() {
               <div className="mt-1.5 flex items-end justify-between">
                 <div>
                   <div className="font-mono text-[18px] font-semibold text-ink">{village.max_score}</div>
-                  <div className="text-[8.5px] uppercase tracking-[0.1em] text-muted-16">{t('max score')}</div>
+                  <div className="text-[10.5px] uppercase tracking-[0.1em] text-muted-16">{t('max score')}</div>
                 </div>
-                <div className="text-right text-[9px] text-muted-9">
+                <div className="text-right text-[10.5px] text-muted-9">
                   {village.detections_14d} {t('signals')}
                   <br />
                   {village.top_species ? term('species', village.top_species) : t('No dominant animal')}
@@ -300,19 +300,19 @@ export default function RiskAlerts() {
           <div className="mt-3 space-y-1.5">
             {guards.data?.items?.map((guard) => (
               <div key={guard.id} className="flex items-center gap-3 rounded-lg border border-line-13 bg-raised/60 px-3 py-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-success-surface-5 text-[9.5px] font-bold text-success-8">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-success-surface-5 text-[11px] font-bold text-success-8">
                   {guard.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-[11.5px] font-semibold text-ink">{guard.name}</div>
-                  <div className="text-[9.5px] text-muted-9">
+                  <div className="text-[11px] text-muted-9">
                     {guard.badge_id} · {guard.zone} · {guard.phone}
                   </div>
                 </div>
                 <Badge tone={guard.status === 'available' ? 'forest' : guard.status === 'on_patrol' ? 'warning' : 'neutral'}>
                   {t(titleCase(guard.status))}
                 </Badge>
-                <span className="font-mono text-[9px] text-muted-13">{guard.open_tasks} {t('open')}</span>
+                <span className="font-mono text-[10.5px] text-muted-13">{guard.open_tasks} {t('open')}</span>
               </div>
             ))}
           </div>
@@ -348,7 +348,7 @@ export default function RiskAlerts() {
         footer={
           detailAlert && (
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-[9.5px] text-muted-13">
+              <div className="text-[11px] text-muted-13">
                 {detailAlert.is_simulated ? t('Simulated alert.') : detailAlert.incident_id ? t('Verified community incident.') : t('Field detection alert.')}
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -396,7 +396,7 @@ export default function RiskAlerts() {
                     [t('Distance'), Number.isFinite(detailRecord.detection.distance_km) ? t('{distance} km', { distance: detailRecord.detection.distance_km }) : t('Unavailable')],
                   ].map(([label, value]) => (
                     <div key={label} className="rounded-lg bg-inset-2 px-2.5 py-2">
-                      <div className="text-[8px] uppercase tracking-[0.12em] text-muted-16">{t(label)}</div>
+                      <div className="text-[10px] uppercase tracking-[0.12em] text-muted-16">{t(label)}</div>
                       <div className="mt-0.5 text-[10.5px] font-semibold text-secondary-3">{value}</div>
                     </div>
                   ))}
@@ -408,7 +408,7 @@ export default function RiskAlerts() {
             )}
 
             <div className="rounded-xl border border-line-10 bg-inset-14 p-3">
-              <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-16">{t('Reason')}</div>
+              <div className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-16">{t('Reason')}</div>
               <div className="mt-1 text-[11px] leading-relaxed text-secondary-8">{alertReason(detailAlert.reason)}</div>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {detailAlert.village_names?.map((name) => (
@@ -416,12 +416,12 @@ export default function RiskAlerts() {
                     {name}
                   </Badge>
                 ))}
-                <span className="text-[9.5px] text-muted-13">{t('radius')} {detailAlert.radius_km} {t('km')}</span>
+                <span className="text-[11px] text-muted-13">{t('radius')} {detailAlert.radius_km} {t('km')}</span>
               </div>
             </div>
 
             <div>
-              <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-16">{t('Assign guard')}</div>
+              <div className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-16">{t('Assign guard')}</div>
               <div className="mt-1.5 flex gap-2">
                 <select className="field !py-2" value={assignId} onChange={(event) => setAssignId(event.target.value)}>
                   <option value="">{t('Select a guard…')}</option>
@@ -470,7 +470,7 @@ export default function RiskAlerts() {
             )}
 
             <div>
-              <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-16">
+              <div className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-16">
                 <Clock3 className="h-3 w-3" /> {t('Audit trail')}
               </div>
               {detail.loading && !detailRecord ? (
@@ -485,19 +485,19 @@ export default function RiskAlerts() {
                         style={{
                           background:
                             event.kind === 'resolved'
-                              ? '#2F7250'
+                              ? '#2A7048'
                               : event.kind === 'acknowledged'
-                                ? '#D9A441'
+                                ? '#C68A1E'
                                 : event.kind === 'responding'
-                                  ? '#B85C38'
-                                  : '#7FA36B',
+                                  ? '#8B5E3C'
+                                  : '#4C8F5F',
                         }}
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-[10.5px] font-semibold text-ink">{t(titleCase(event.kind))}</span>
-                          <span className="text-[9px] text-muted-13">{dateTime(event.created_at)}</span>
-                          <span className="text-[9px] text-muted-13">· {event.actor}</span>
+                          <span className="text-[11.5px] font-semibold text-ink">{t(titleCase(event.kind))}</span>
+                          <span className="text-[10.5px] text-muted-13">{dateTime(event.created_at)}</span>
+                          <span className="text-[10.5px] text-muted-13">· {event.actor}</span>
                         </div>
                         <div className="mt-0.5 text-[10.5px] leading-relaxed text-secondary-15">{event.note}</div>
                       </div>
@@ -510,7 +510,7 @@ export default function RiskAlerts() {
               )}
             </div>
 
-            <div className="rounded-lg bg-inset-1 px-3 py-2 text-[9px] leading-relaxed text-muted-5">
+            <div className="rounded-lg bg-inset-1 px-3 py-2 text-[10.5px] leading-relaxed text-muted-5">
               {t('Public advisories derived from this alert never include exact detection coordinates, camera positions or guard locations.')}
             </div>
           </div>

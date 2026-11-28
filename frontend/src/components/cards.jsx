@@ -57,11 +57,11 @@ export function DetectionTable({ items, onSelect, compact = false, emptyLabel = 
                     <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-8">
                       <span className="font-mono">#{detection.id}</span>
                       {detection.is_simulated ? (
-                        <span className="rounded bg-inset-7 px-1 py-px text-[8.5px] font-semibold uppercase tracking-wider">
+                        <span className="rounded bg-inset-7 px-1 py-px text-[10.5px] font-semibold uppercase tracking-wider">
                           {t('station')}
                         </span>
                       ) : (
-                        <span className="rounded bg-success-surface-2 px-1 py-px text-[8.5px] font-semibold uppercase tracking-wider text-success-1">
+                        <span className="rounded bg-success-surface-2 px-1 py-px text-[10.5px] font-semibold uppercase tracking-wider text-success-1">
                           {t('upload')}
                         </span>
                       )}
@@ -77,7 +77,7 @@ export function DetectionTable({ items, onSelect, compact = false, emptyLabel = 
                       className="h-full rounded-full"
                       style={{
                         width: `${Math.round(detection.confidence * 100)}%`,
-                        background: SPECIES_COLOR[detection.species] || '#2F7250',
+                        background: SPECIES_COLOR[detection.species] || '#1F5C3A',
                       }}
                     />
                   </div>
@@ -141,7 +141,7 @@ export function AlertRow({ alert, onClick, actions, dense = false }) {
             </span>
             <span>{relativeTime(alert.created_at)}</span>
             <span className="font-mono">{t('score')} {alert.score}</span>
-            <span className="rounded bg-inset-9 px-1.5 py-px text-[8.5px] font-semibold uppercase tracking-wider text-warning-4">
+            <span className="rounded bg-inset-9 px-1.5 py-px text-[10.5px] font-semibold uppercase tracking-wider text-warning-4">
               {alert.risk_basis === 'confirmed_movement' ? t('movement-supported') : t('proximity')}
             </span>
           </div>
@@ -169,7 +169,7 @@ export function VillageRiskRow({ village, exposure }) {
       </div>
       <div className="text-right">
         <RiskBadge level={village.risk_level} />
-        {exposure !== undefined && <div className="mt-1 text-[9.5px] text-muted-14">{exposure} {t('nearby signals')}</div>}
+        {exposure !== undefined && <div className="mt-1 text-[11px] text-muted-14">{exposure} {t('nearby signals')}</div>}
       </div>
     </div>
   )
@@ -220,7 +220,7 @@ export function CameraStatusCard({ camera, lastDetection }) {
       <div className="relative h-24 overflow-hidden bg-forest-900">
         <img src="/images/forest.webp" alt="" className="h-full w-full object-cover opacity-40 transition group-hover:scale-105 group-hover:opacity-50" />
         <div className="absolute inset-0 bg-gradient-to-t from-forest-950/80 to-transparent" />
-        <div className="absolute left-2.5 top-2.5 flex items-center gap-1 rounded-md bg-forest-950/70 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.12em] text-forest-100 backdrop-blur">
+        <div className="absolute left-2.5 top-2.5 flex items-center gap-1 rounded-md bg-forest-950/70 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-forest-100 backdrop-blur">
           <span
             className={`h-1.5 w-1.5 rounded-full ${
               camera.status === 'online' ? 'bg-lime' : camera.status === 'maintenance' ? 'bg-amber' : 'bg-[#d06a52]'
@@ -235,8 +235,8 @@ export function CameraStatusCard({ camera, lastDetection }) {
       </div>
       <div className="p-3">
         <div className="truncate text-[11.5px] font-semibold text-ink">{camera.name}</div>
-        <div className="mt-0.5 text-[9.5px] text-muted-9">{camera.zone}</div>
-        <div className="mt-2 flex items-center justify-between text-[9.5px]">
+        <div className="mt-0.5 text-[11px] text-muted-9">{camera.zone}</div>
+        <div className="mt-2 flex items-center justify-between text-[11px]">
           <span className="text-muted-13">{lastDetection ? t('Last {time}', { time: relativeTime(lastDetection) }) : t('No detections')}</span>
           <span className="font-semibold text-success-7">{t('Registry')}</span>
         </div>

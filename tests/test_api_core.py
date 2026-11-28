@@ -10,7 +10,7 @@ def test_health_and_meta(client):
     assert payload["demo_mode"] is True
 
     meta = client.get("/api/meta").json()
-    assert meta["project"]["name"] == "Forest Guard AI"
+    assert meta["project"]["name"] == "Van Saathi"
     assert len(meta["supported_species"]) == 6
     assert meta["demo"]["mode"] is True
     assert meta["study_area"]["type"] == "FeatureCollection"

@@ -193,11 +193,11 @@ export default function Wildlife() {
                         />
                       </div>
                       {row.count ? <div className="p-2.5">
-                        <div className="flex items-center justify-between text-[9px] text-muted-11">
+                        <div className="flex items-center justify-between text-[10.5px] text-muted-11">
                           <span>{row.share}{t('% of records')}</span>
                           {thresholds && <RiskBadge level={row.avg_risk >= thresholds.high ? 'high' : row.avg_risk >= thresholds.moderate ? 'moderate' : 'low'} score={row.avg_risk} />}
                         </div>
-                        <div className="mt-1 text-[9px] text-muted-16">{row.high_risk} {t('high-risk signals')}</div>
+                        <div className="mt-1 text-[10.5px] text-muted-16">{row.high_risk} {t('high-risk signals')}</div>
                       </div> : <div className="p-2.5 text-[10px] text-muted-8">{t('No detections in this period.')}</div>}
                     </button>
                   )
@@ -223,7 +223,7 @@ export default function Wildlife() {
                 <div className="mt-3">
                   <HourBars data={analytics.data.hours} height={206} />
                 </div>
-                <div className="mt-2 text-[9.5px] leading-relaxed text-muted-9">
+                <div className="mt-2 text-[11px] leading-relaxed text-muted-9">
                   {t('Temporal distribution of wildlife detections across morning, day, and nocturnal periods.')}
                 </div>
               </div>
@@ -252,11 +252,11 @@ export default function Wildlife() {
                         key={term('risk', level)}
                         type="button"
                         onClick={() => handleRisk(level)}
-                        className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold capitalize ${risk === level ? `border-transparent ${level === 'moderate' ? 'text-forest-950' : 'text-white'}` : 'border-control-line-8 bg-raised text-muted-5'
+                        className={`rounded-full border px-3 py-1.5 text-[11.5px] font-semibold capitalize ${risk === level ? `border-transparent ${level === 'moderate' ? 'text-forest-950' : 'text-white'}` : 'border-control-line-8 bg-raised text-muted-5'
                           }`}
                         style={
                           risk === level
-                            ? { background: level === 'high' ? '#B83B2B' : level === 'moderate' ? '#D9A441' : '#2F7250' }
+                            ? { background: level === 'high' ? '#B3362A' : level === 'moderate' ? '#C68A1E' : '#2A7048' }
                             : undefined
                         }
                       >
@@ -270,7 +270,7 @@ export default function Wildlife() {
                 <div className="mt-2 flex items-center gap-2">
                   <span className="text-[10px] text-muted-9">{t('Animal filter')}</span>
                   <SpeciesTag species={species} name={speciesRows.find((row) => row.key === species)?.name || titleCase(species)} />
-                  <button type="button" className="text-[9.5px] text-success-7 hover:underline" onClick={() => handleSpecies(species)}>
+                  <button type="button" className="text-[11px] text-success-7 hover:underline" onClick={() => handleSpecies(species)}>
                     {t('remove')}
                   </button>
                 </div>
@@ -381,11 +381,11 @@ export default function Wildlife() {
                         [t('Camera points'), selectedTrack.point_count],
                       ].map(([label, value]) => (
                         <div key={label} className="rounded-xl border border-line-10 bg-inset-14 px-3 py-2">
-                          <div className="text-[8.5px] uppercase tracking-[0.12em] text-muted-16">{t(label)}</div>
+                          <div className="text-[10.5px] uppercase tracking-[0.12em] text-muted-16">{t(label)}</div>
                           <div className="mt-0.5 text-[10.5px] font-semibold text-secondary-3">{value}</div>
                         </div>
                       ))}
-                      <div className="sm:col-span-4 flex items-start gap-2 rounded-lg bg-inset-1 px-3 py-2 text-[9.5px] leading-relaxed text-muted-5">
+                      <div className="sm:col-span-4 flex items-start gap-2 rounded-lg bg-inset-1 px-3 py-2 text-[11px] leading-relaxed text-muted-5">
                         <Compass className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                         {t('Detection chain:')} {dateTime(selectedTrack.started_at)} →{' '}
                         {dateTime(selectedTrack.ended_at)} {t('· mean confidence')} {confidencePercent(selectedTrack.confidence)}.
@@ -401,7 +401,7 @@ export default function Wildlife() {
               <div className="absolute inset-0 bg-gradient-to-r from-forest-950 via-forest-950/90 to-forest-950/40" />
               <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="max-w-2xl">
-                  <div className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.2em] text-lime/80">
+                  <div className="flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-[0.2em] text-lime/80">
                     <ShieldAlert className="h-3 w-3" /> {t('Method note')}
                   </div>
                   <h3 className="mt-2 font-display text-[21px] text-brand-light">{t('What a “track” means here')}</h3>
@@ -417,7 +417,7 @@ export default function Wildlife() {
                   ].map(([value, label]) => (
                     <div key={label} className="text-center">
                       <div className="font-display text-[24px] text-lime">{value}</div>
-                      <div className="mt-0.5 text-[8px] uppercase tracking-[0.12em] text-muted-21/55">{t(label)}</div>
+                      <div className="mt-0.5 text-[10px] uppercase tracking-[0.12em] text-muted-21/55">{t(label)}</div>
                     </div>
                   ))}
                 </div>

@@ -3,7 +3,7 @@
 }
 
 .operations-header {
-  @apply sticky top-0 z-30 border-b border-line-5 bg-sand;
+  @apply sticky top-0 z-30 border-b border-line-5 bg-parchment/90 backdrop-blur-xl;
 }
 
 .operations-header-content {
@@ -27,20 +27,15 @@
   @apply flex min-w-0 items-center rounded-md;
 }
 
-.operations-brand > img {
-  @apply block h-auto w-[176px] max-w-full sm:w-[198px];
-}
-
-[data-theme='dark'] .operations-brand {
-  @apply bg-[#F4F1E8] px-1;
-}
-
 .operations-body {
   @apply grid gap-4 py-5 sm:py-6 lg:grid-cols-[216px_minmax(0,1fr)] lg:gap-6;
 }
 
 .operations-sidebar {
-  @apply hidden self-start rounded-xl border border-line-5 bg-parchment p-3 lg:sticky lg:top-24 lg:block;
+  @apply hidden self-start rounded-2xl p-3 text-forest-100 lg:sticky lg:top-24 lg:block;
+  background: linear-gradient(180deg, #0b2b1d 0%, #103424 62%, #0b2b1d 100%);
+  border: 1px solid rgba(207, 232, 163, 0.14);
+  box-shadow: 0 22px 48px -30px rgba(11, 43, 29, 0.75);
   max-height: calc(100dvh - 7rem);
   overflow-y: auto;
 }
@@ -58,11 +53,15 @@
 }
 
 .operations-nav-label {
-  @apply px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-3;
+  @apply px-3 pb-1 text-[10.5px] font-bold uppercase tracking-[0.16em];
+  color: rgba(233, 245, 218, 0.55);
 }
 
 .operations-coverage {
-  @apply mb-4 flex items-start gap-2 rounded-lg bg-success-surface-2 px-3 py-2 text-xs font-semibold text-success-9;
+  @apply mb-4 flex items-start gap-2 rounded-lg px-3 py-2 text-xs font-semibold;
+  background: rgba(207, 232, 163, 0.12);
+  border: 1px solid rgba(207, 232, 163, 0.16);
+  color: #dff0c6;
 }
 
 .operations-coverage svg,
@@ -71,15 +70,28 @@
 }
 
 .operations-nav a {
-  @apply flex min-h-10 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-secondary-9 hover:bg-inset-8 hover:text-ink;
+  @apply flex min-h-11 items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors;
+  color: rgba(233, 245, 218, 0.78);
+}
+
+.operations-nav a:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #ffffff;
 }
 
 .operations-nav a[aria-current='page'] {
-  @apply bg-success-surface-2 font-semibold text-success-9;
+  @apply font-semibold;
+  background: rgba(207, 232, 163, 0.16);
+  color: #ecf7dd;
+  box-shadow: inset 3px 0 0 #cfe8a3;
+}
+
+.operations-nav a[aria-current='page'] svg {
+  color: #cfe8a3;
 }
 
 .operations-control {
-  @apply relative inline-flex min-h-9 min-w-9 items-center justify-center gap-1 rounded-lg px-1.5 text-ink hover:bg-inset-8;
+  @apply relative inline-flex min-h-10 min-w-10 items-center justify-center gap-1 rounded-lg px-2 text-ink transition-colors hover:bg-inset-8;
 }
 
 .operations-mobile-trigger {
@@ -87,14 +99,14 @@
 }
 
 .operations-popover {
-  @apply absolute right-[-4.5rem] top-full z-50 mt-2 overflow-hidden rounded-xl border border-line-5 bg-parchment sm:right-0;
+  @apply absolute right-[-4.5rem] top-full z-50 mt-2 overflow-hidden rounded-xl border border-line-6 bg-parchment sm:right-0;
   width: min(20rem, calc(100vw - 1.5rem));
-  box-shadow: 0 5px 20px rgb(12 36 24 / 14%);
+  box-shadow: 0 18px 44px -20px rgba(11, 43, 29, 0.4);
 }
 
 .operations-notification-dot {
   @apply absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-amber;
-  box-shadow: 0 0 0 2px var(--theme-canvas, #f4f1e8);
+  box-shadow: 0 0 0 2px var(--theme-canvas, #faf6ec);
 }
 
 .operations-notification-row {
@@ -102,7 +114,7 @@
 }
 
 .operations-panel {
-  @apply rounded-xl border border-line-5 bg-parchment;
+  @apply rounded-xl border border-line-6 bg-parchment;
 }
 
 .operations-heading {
@@ -151,12 +163,16 @@
 }
 
 .operations-refresh {
-  @apply btn-outline rounded-lg px-3 py-1.5;
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-control-line-1 bg-raised/70 px-3 py-1.5 text-[13px] font-semibold text-ink transition-all hover:border-focus hover:bg-hover-white focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-focus-offset;
 }
 
 .operations-body :is(a, button, summary):focus-visible,
 .operations-header :is(a, button):focus-visible {
   @apply outline outline-2 outline-offset-2 outline-focus;
+}
+
+.operations-sidebar :is(a, button, summary):focus-visible {
+  outline-color: #cfe8a3;
 }
 
 .operations-incident-row {

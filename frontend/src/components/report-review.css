@@ -1,24 +1,24 @@
 .report-review,
 .report-review-lightbox {
-  --review-surface: #fbfaf5;
-  --review-card: #fff;
-  --review-photo: #f1eee5;
-  --review-border: #e4dfd1;
-  --review-control: #d8d2c2;
-  --review-ink: #17211b;
-  --review-secondary: #4f5c55;
-  --review-muted: #626c61;
-  --review-accent: #436722;
+  --review-surface: #fffcf5;
+  --review-card: #ffffff;
+  --review-photo: #f3eee2;
+  --review-border: #e7dfce;
+  --review-control: #e3dac6;
+  --review-ink: #17241b;
+  --review-secondary: #455a4b;
+  --review-muted: #5b6b5e;
+  --review-accent: #1f5c3a;
   --review-approve: var(--fg-lime);
-  --review-approve-hover: #d2f196;
-  --review-success: #2f7250;
-  --review-confidence: #865c0c;
-  --review-meter: #c58d28;
-  --review-pending: #953c10;
-  --review-pending-bg: #fbeadc;
-  --review-reject: #a53829;
-  --review-reject-border: #ba5649;
-  --review-hover: #f5f4ed;
+  --review-approve-hover: #dcf0b9;
+  --review-success: #2a7048;
+  --review-confidence: #7a5a10;
+  --review-meter: #c68a1e;
+  --review-pending: #8a4f10;
+  --review-pending-bg: #faeecb;
+  --review-reject: #a02d23;
+  --review-reject-border: #ba5a4c;
+  --review-hover: #f6f0e4;
   overflow: auto;
   overscroll-behavior: contain;
   margin: auto;
@@ -33,23 +33,23 @@
 }
 
 [data-theme='dark'] :is(.report-review, .report-review-lightbox) {
-  --review-surface: #161d18;
-  --review-card: #1b261f;
-  --review-photo: #121914;
-  --review-border: #35453b;
+  --review-surface: #142018;
+  --review-card: #1a2a20;
+  --review-photo: #101a14;
+  --review-border: #2f4234;
   --review-control: #42574a;
-  --review-ink: #e8eae8;
-  --review-secondary: #c9cec9;
-  --review-muted: #a3b1aa;
+  --review-ink: #e7efe1;
+  --review-secondary: #c6d3c6;
+  --review-muted: #a7b6a8;
   --review-accent: var(--fg-lime);
-  --review-success: #8fbc9e;
-  --review-confidence: #e5a736;
+  --review-success: #9ac49b;
+  --review-confidence: #e7c585;
   --review-meter: #dba43d;
-  --review-pending: #ff7627;
-  --review-pending-bg: #3c2b1c;
-  --review-reject: #ff8a7b;
-  --review-reject-border: #b6544a;
-  --review-hover: #233228;
+  --review-pending: #f0b07a;
+  --review-pending-bg: #3a2c1f;
+  --review-reject: #f0a594;
+  --review-reject-border: #b05a4c;
+  --review-hover: #203026;
 }
 
 .report-review::backdrop,

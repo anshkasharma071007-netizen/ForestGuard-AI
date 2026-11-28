@@ -1,39 +1,66 @@
 import { useLanguage } from '../i18n'
 import { useEffect } from 'react'
-import { AlertTriangle, Info, Loader2, ShieldAlert, X } from 'lucide-react'
+import { AlertTriangle, Info, Leaf, Loader2, Octagon, ShieldAlert, Triangle, X } from 'lucide-react'
 import { RISK_COLOR, statusTone } from '../utils/format'
+
+export function BrandMark({ className = 'h-6 w-6' }) {
+  return (
+    <svg viewBox="0 0 36 36" className={className} fill="none" aria-hidden="true">
+      <path
+        d="M14 13.5C13.4 9.8 11.6 7.4 8.6 5.6M12 9.4C9.8 8.2 7.6 8.2 5.6 9.2M22 13.5C22.6 9.8 24.4 7.4 27.4 5.6M24 9.4C26.2 8.2 28.4 8.2 30.4 9.2"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M13.4 12.6c-1.9-1.2-4.2-1.2-5.6.2 1 1.7 3.1 2.4 4.9 2.1zM22.6 12.6c1.9-1.2 4.2-1.2 5.6.2-1 1.7-3.1 2.4-4.9 2.1z"
+        fill="currentColor"
+      />
+      <path
+        d="M12.6 15.1c0-2.5 2.4-4.5 5.4-4.5s5.4 2 5.4 4.5c0 5.4-2.7 9.7-5.4 9.7s-5.4-4.3-5.4-9.7z"
+        fill="currentColor"
+      />
+      <circle cx="15.4" cy="16.2" r=".95" fill="#0B2B1D" />
+      <circle cx="20.6" cy="16.2" r=".95" fill="#0B2B1D" />
+      <path
+        d="M18 20.6c-1.5 0-2.5 1-2.5 2.1 0 1.2 1.1 2 2.5 2s2.5-.8 2.5-2c0-1.1-1-2.1-2.5-2.1z"
+        fill="#0B2B1D"
+        opacity=".55"
+      />
+    </svg>
+  )
+}
 
 export function Logo({ compact = false, light = false }) {
   const { t } = useLanguage()
   return (
-    <div className="flex items-center gap-3">
-      <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-lime text-forest-950 shadow-[0_8px_24px_-10px_rgba(196,232,122,0.9)]">
-        <svg viewBox="0 0 32 32" className="h-6 w-6" fill="none" aria-hidden="true">
-          <path
-            d="M16 4c4.5 3.6 8 8 8 13a8 8 0 0 1-16 0c0-5 3.5-9.4 8-13z"
-            fill="currentColor"
-            opacity="0.95"
-          />
-          <path d="M16 9.5v14M16 14.5l-4-3.5M16 18l4-3.5" stroke="#0C2418" strokeWidth="1.8" strokeLinecap="round" />
-        </svg>
-      </div>
+    <div className="flex items-center gap-2.5">
+      <span
+        className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ${
+          light
+            ? 'bg-lime text-forest-950 ring-white/25 shadow-[0_10px_26px_-12px_rgba(207,232,163,0.75)]'
+            : 'bg-forest-900 text-lime ring-forest-700/60 shadow-[0_10px_26px_-12px_rgba(11,43,29,0.85)]'
+        }`}
+      >
+        <BrandMark className="h-6 w-6" />
+      </span>
       {!compact && (
-        <div className="leading-tight">
-          <div
-            className={`font-display text-[19px] font-semibold tracking-tight ${
+        <span className="leading-tight">
+          <span
+            className={`block font-display text-[20px] font-semibold tracking-tight ${
               light ? 'text-brand-light' : 'text-ink'
             }`}
           >
-            Forest Guard <span className="text-moss">AI</span>
-          </div>
-          <div
-            className={`mt-0.5 text-[9px] font-medium uppercase tracking-[0.2em] ${
+            Van <span className={light ? 'text-lime' : 'text-moss'}>Saathi</span>
+          </span>
+          <span
+            className={`mt-0.5 block text-[10.5px] font-medium uppercase tracking-[0.2em] ${
               light ? 'text-forest-200/80' : 'text-muted-7'
             }`}
           >
             {t('Conservation intelligence')}
-          </div>
-        </div>
+          </span>
+        </span>
       )}
     </div>
   )
@@ -57,15 +84,22 @@ export function Badge({ children, tone = 'neutral', dot = false, className = '' 
   )
 }
 
+export const SEVERITY_ICON = { low: Leaf, moderate: Triangle, high: Octagon }
+
+export function SeverityIcon({ level, className = 'h-3 w-3' }) {
+  const Icon = SEVERITY_ICON[level] || Leaf
+  return <Icon className={className} strokeWidth={2.4} aria-hidden="true" />
+}
+
 export function RiskBadge({ level, score, className = '' }) {
   const { term } = useLanguage()
   const tone = statusTone(level)
   return (
-    <span className={`chip ${TONES[tone]} ${className}`}>
-      <span className="h-1.5 w-1.5 rounded-full" style={{ background: RISK_COLOR[level] || RISK_COLOR.low }} />
-      <span>{term('risk', level)}</span>
+    <span className={`chip ${TONES[tone]} ${className}`} style={{ color: RISK_COLOR[level] || RISK_COLOR.low }}>
+      <SeverityIcon level={level} />
+      <span className="text-ink">{term('risk', level)}</span>
       {score !== undefined && score !== null && (
-        <span className="font-mono text-[10px] opacity-75">{score}</span>
+        <span className="font-mono text-[11px] text-muted-2">{score}</span>
       )}
     </span>
   )
@@ -129,7 +163,7 @@ export function StatCard({ label, value, hint, icon: Icon, tone = 'forest', mono
   return (
     <div className={`card relative overflow-hidden p-5 ${className}`}>
       <div className="flex items-start justify-between">
-        <div className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted-3">{label}</div>
+        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-2">{label}</div>
         {Icon && (
           <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${iconTone}`}>
             <Icon className="h-[17px] w-[17px]" strokeWidth={1.8} />
@@ -208,13 +242,14 @@ export function ErrorBox({ message, onRetry }) {
 
 export function EmptyState({ icon: Icon = ShieldAlert, title, description, action }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-control-line-1 bg-parchment/60 px-6 py-12 text-center">
-      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-success-surface-5 text-success-5">
+    <div className="relative flex flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed border-control-line-3 bg-parchment/70 px-6 py-12 text-center">
+      <div className="paw-field pointer-events-none absolute inset-0 opacity-70" aria-hidden="true" />
+      <div className="relative flex h-12 w-12 items-center justify-center rounded-full bg-success-surface-5 text-success-4 ring-1 ring-inset ring-success-line-3">
         <Icon className="h-5 w-5" />
       </div>
-      <div className="mt-3 font-display text-[17px] text-ink">{title}</div>
-      {description && <div className="mt-1 max-w-md text-[12px] leading-relaxed text-muted-3">{description}</div>}
-      {action && <div className="mt-4">{action}</div>}
+      <div className="relative mt-3 font-display text-[18px] text-ink">{title}</div>
+      {description && <div className="relative mt-1.5 max-w-md text-[13px] leading-relaxed text-muted-2">{description}</div>}
+      {action && <div className="relative mt-4">{action}</div>}
     </div>
   )
 }
@@ -259,7 +294,7 @@ export function Modal({ open, onClose, title, subtitle, children, footer, width 
   )
 }
 
-export function MetricBar({ label, value, max = 100, color = '#2F7250', suffix = '' }) {
+export function MetricBar({ label, value, max = 100, color = '#1F5C3A', suffix = '' }) {
   const width = Math.max(0, Math.min(100, (value / max) * 100))
   return (
     <div>
@@ -287,9 +322,9 @@ export function SoftRisk({ level }) {
   const { term } = useLanguage()
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10.5px] font-semibold ${SOFT_RISK_TONES[level] || SOFT_RISK_TONES.low}`}
+      className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11.5px] font-semibold ${SOFT_RISK_TONES[level] || SOFT_RISK_TONES.low}`}
     >
-      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      <SeverityIcon level={level} className="h-3 w-3" />
       {term('risk', level)}
     </span>
   )

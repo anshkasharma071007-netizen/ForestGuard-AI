@@ -64,8 +64,8 @@ def send_brevo(email: str, code: str) -> str:
         response = httpx.post("https://api.brevo.com/v3/smtp/email", timeout=8,
                              headers={"api-key": config.BREVO_API_KEY},
                              json={"sender": {"email": config.BREVO_SENDER_EMAIL, "name": config.BREVO_SENDER_NAME},
-                                   "to": [{"email": email}], "subject": "Your Forest Guard AI sign-in code",
-                                   "textContent": f"Your Forest Guard AI verification code is {code}. "
+                                   "to": [{"email": email}], "subject": "Your Van Saathi sign-in code",
+                                   "textContent": f"Your Van Saathi verification code is {code}. "
                                                   "It expires in five minutes. If you did not request it, ignore this email."})
         response.raise_for_status()
         message_id = response.json()["messageId"]

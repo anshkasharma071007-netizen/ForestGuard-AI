@@ -2,13 +2,14 @@ import { useLanguage } from '@/i18n';
 import { router, useIsFocused, useLocalSearchParams } from 'expo-router';
 import { ChevronDown, ChevronUp, Info, LocateFixed, RefreshCw, X } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCitizen } from '@/citizen-context';
 import { AdvisoryDetails, AdvisoryList } from '@/components/AdvisoryList';
 import { AlertSearchControls } from '@/components/AlertSearchControls';
 import { Feedback, RiskPill, SupportingText } from '@/components/Feedback';
 import { IconAction } from '@/components/IconAction';
+import { PressableScale } from '@/components/PressableScale';
 import { RiskMapSurface, type RiskZone } from '@/components/RiskMapSurface';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
@@ -19,9 +20,9 @@ import { getAllNearbyAlerts } from '@/services/api';
 import { radius, sizing, spacing, typeScale, useTheme } from '@/theme';
 
 const levels = {
-  low: { label: 'Low risk', color: '#23734a', rank: 0 },
-  moderate: { label: 'Moderate risk', color: '#a86200', rank: 1 },
-  high: { label: 'High risk', color: '#b32825', rank: 2 },
+  low: { label: 'Low risk', color: '#2A7048', rank: 0 },
+  moderate: { label: 'Moderate risk', color: '#B57A12', rank: 1 },
+  high: { label: 'High risk', color: '#B3362A', rank: 2 },
 };
 const levelFor = (severity: string) => levels[severity as keyof typeof levels];
 
@@ -87,14 +88,14 @@ export default function RiskMapScreen() {
           </View>
         </View>
         <Surface style={styles.panel}>
-          <Pressable accessibilityRole="button" accessibilityState={{ expanded }} onPress={() => setExpanded(value => !value)}
-            style={styles.panelHeader}>
+          <PressableScale haptic="selection" accessibilityState={{ expanded }} onPress={() => setExpanded(value => !value)}
+            style={styles.panelHeader} pressedStyle={{ opacity: 0.92 }}>
             <View style={[styles.handle, { backgroundColor: colors.controlBorder }]} />
             <View style={styles.panelTitle}>
               <Text accessibilityRole="header" style={[typeScale.card, { color: colors.primaryText }]}>{heading}</Text>
               {expanded ? <ChevronDown size={20} color={colors.accent} /> : <ChevronUp size={20} color={colors.accent} />}
             </View>
-          </Pressable>
+          </PressableScale>
           {expanded && <ScrollView nestedScrollEnabled style={styles.panelScroll}
             contentContainerStyle={styles.panelContent}>
             {state.kind === 'loading' && <Feedback title={t('Loading nearby alerts…')} kind="loading" />}

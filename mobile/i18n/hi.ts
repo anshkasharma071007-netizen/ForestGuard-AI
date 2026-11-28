@@ -221,7 +221,7 @@ export const hi: Readonly<Record<string, string>> = {
   "Incident resolved": "घटना का समाधान हुआ",
   "New report updates": "रिपोर्ट की नई सूचनाएँ",
   "Push notifications": "फ़ोन पर सूचनाएँ",
-  "Use the Forest Guard AI Android development build to receive push notifications.": "फ़ोन पर सूचनाएँ पाने के लिए Forest Guard AI के Android विकास संस्करण का उपयोग करें।",
+  "Use the Van Saathi Android development build to receive push notifications.": "फ़ोन पर सूचनाएँ पाने के लिए Van Saathi के Android विकास संस्करण का उपयोग करें।",
   "Allow notifications on this device to receive push messages.": "फ़ोन पर संदेश पाने के लिए इस डिवाइस पर सूचनाओं की अनुमति दें।",
   "Push notifications are enabled on this device.": "इस डिवाइस पर सूचनाएँ चालू हैं।",
   "Could not update push notifications.": "फ़ोन की सूचना सेटिंग अपडेट नहीं हो सकीं।",
@@ -248,7 +248,7 @@ export const hi: Readonly<Record<string, string>> = {
   "Alert radius": "अलर्ट का दायरा",
   "Could not save your profile.": "आपकी प्रोफ़ाइल सहेजी नहीं जा सकी।",
   "Set up your profile": "अपनी प्रोफ़ाइल बनाएँ",
-  "Welcome to Forest Guard AI": "Forest Guard AI में आपका स्वागत है",
+  "Welcome to Van Saathi": "Van Saathi में आपका स्वागत है",
   "Enter your name and choose a location for nearby wildlife alerts.": "अपना नाम डालें और आस-पास के वन्यजीव अलर्ट के लिए स्थान चुनें।",
   "Full name": "पूरा नाम",
   "Mobile number (optional)": "मोबाइल नंबर (वैकल्पिक)",
@@ -349,7 +349,7 @@ export const hi: Readonly<Record<string, string>> = {
   "{animal} conflict": "मानव-वन्यजीव संघर्ष · {animal}",
   "{animal} sighting": "वन्यजीव दिखा · {animal}",
   "Verified wildlife activity in the mapped area. Follow local forest officials’ guidance.": "दिखाए गए इलाके में वन्यजीव की गतिविधि की पुष्टि हुई है। स्थानीय वन अधिकारियों के निर्देश मानें।",
-  "Forest Guard AI alerts": "Forest Guard AI अलर्ट",
+  "Van Saathi alerts": "Van Saathi अलर्ट",
   "Incorrect verification code.": "सत्यापन कोड गलत है।",
   "Email verification is unavailable. Try again later.": "ईमेल सत्यापन अभी उपलब्ध नहीं है। बाद में फिर कोशिश करें।",
   "We could not send the email. Try sending a new code shortly.": "ईमेल नहीं भेजा जा सका। थोड़ी देर बाद नया कोड मँगाएँ।",
@@ -448,5 +448,7 @@ export const hi: Readonly<Record<string, string>> = {
   "Could not allocate a reference. Retry shortly.": "संदर्भ कोड नहीं बनाया जा सका। थोड़ी देर बाद फिर कोशिश करें।",
   "Evidence could not be saved. Retry shortly.": "साक्ष्य सहेजा नहीं जा सका। थोड़ी देर बाद फिर कोशिश करें।",
   "Evidence storage is temporarily unavailable.": "साक्ष्य सहेजने की सुविधा अभी उपलब्ध नहीं है।",
-  "Value is not a valid email.": "ईमेल पता सही नहीं है।"
+  "Value is not a valid email.": "ईमेल पता सही नहीं है।",
+  "Conservation intelligence": "संरक्षण इंटेलिजेंस",
+  "Opens report history filtered by status": "चुनी गई स्थिति के अनुसार रिपोर्ट इतिहास खोलता है"
 };
