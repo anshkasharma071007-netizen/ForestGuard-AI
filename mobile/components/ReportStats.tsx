@@ -1,3 +1,4 @@
+import { useLanguage } from '@/i18n';
 import { router } from 'expo-router';
 import { CircleCheck, Clock3, RefreshCw } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -12,14 +13,15 @@ const stats = [
 ] as const;
 
 export function ReportStats({ reports }: { reports: CitizenReport[] }) {
+  const { t, language } = useLanguage();
   const { colors } = useTheme();
   const { width, fontScale } = useWindowDimensions();
-  const wrap = width / Math.max(fontScale, 1) < 270;
+  const wrap = width / Math.max(fontScale, 1) < (language === 'hi' ? 320 : 270);
   return <View style={[styles.row, wrap && styles.stack]}>
     {stats.map(({ id, icon: Icon, ink }) => {
-      const label = reportStatuses[id].label;
+      const label = t(reportStatuses[id].label);
       const count = reports.filter(report => reportStatuses[report.status].group === id).length;
-      return <Pressable key={id} accessibilityRole="button" accessibilityLabel={`${label} reports, ${count}`}
+      return <Pressable key={id} accessibilityRole="button" accessibilityLabel={t('{count} reports, {status}', { count, status: label })}
         onPress={() => router.push({ pathname: '/all-reports', params: { status: id } })}
         style={({ pressed }) => [styles.stat, { backgroundColor: pressed ? colors.softAccent : colors.card, borderColor: colors.border }]}>
         <Icon size={17} color={colors[ink]} />

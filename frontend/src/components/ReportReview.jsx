@@ -1,3 +1,4 @@
+import { useLanguage } from '../i18n'
 import { useEffect, useRef, useState } from 'react'
 import {
   ArrowLeft, Check, ChevronDown, ClipboardList, History, ImageIcon, Info,
@@ -5,7 +6,7 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import api, { errorMessage } from '../api/client'
-import { formatDate, titleCase } from '../utils/format'
+import { titleCase } from '../utils/format'
 import { ErrorBox, RiskBadge, StatusBadge } from './ui'
 import './report-review.css'
 
@@ -28,9 +29,6 @@ const analysisMessages = {
 }
 
 const reviewLabels = { verified: 'Report approved', rejected: 'Report rejected', forwarded: 'Report forwarded' }
-
-const timeFormat = new Intl.DateTimeFormat('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })
-const formatTime = (value) => timeFormat.format(new Date(value)).toUpperCase()
 
 export function Dialog({ className, labelledBy, onClose, children }) {
   const ref = useRef(null)
@@ -65,13 +63,14 @@ function Field({ label, children, wide }) {
 }
 
 function ReporterContact({ contact }) {
+  const { t } = useLanguage()
   const [visible, setVisible] = useState(false)
   const phone = contact?.match(/^(\+\d{1,3})? ?(\d{2})\d{6}(\d{2})$/)
   const masked = phone && [phone[1], `${phone[2]}••••••${phone[3]}`].filter(Boolean).join(' ')
-  return <Field label={contact && !phone ? 'Contact' : 'Phone number'}>
+  return <Field label={contact && !phone ? t('Contact') : t('Phone number')}>
     {phone ? <button type="button" className="report-review-contact"
-      aria-label={visible ? 'Hide phone number' : 'Show phone number'}
-      title={visible ? 'Hide phone number' : 'Show phone number'}
+      aria-label={visible ? t('Hide phone number') : t('Show phone number')}
+      title={visible ? t('Hide phone number') : t('Show phone number')}
       onClick={() => setVisible(value => !value)}>
       {visible ? contact : masked}
     </button> : contact}
@@ -126,6 +125,7 @@ export function Photo({ photo, detections, alt }) {
 }
 
 export function PhotoPreview({ kind, photo, detections, onOpen, empty, processing }) {
+  const { t } = useLanguage()
   const original = kind === 'original'
   const Icon = original ? ImageIcon : ScanEye
   const alt = original ? 'Submitted incident evidence' : 'Model-generated detection preview'
@@ -134,7 +134,7 @@ export function PhotoPreview({ kind, photo, detections, onOpen, empty, processin
   if (processing) return <div className={className} role="status" aria-busy="true">
     <div className="report-review-photo-message">
       <LoaderCircle className="motion-safe:animate-spin" aria-hidden="true" />
-      <p>Analysing image…</p>
+      <p>{t('Analysing image…')}</p>
     </div>
   </div>
   if (!empty && photo.url) return <button type="button" className={className} aria-label={label} title={label}
@@ -142,9 +142,9 @@ export function PhotoPreview({ kind, photo, detections, onOpen, empty, processin
   return <div className={className}>
     <div className="report-review-photo-message">
       <Icon aria-hidden="true" />
-      <p>{empty || photo.error || 'Loading photograph…'}</p>
+      <p>{empty || (photo.error ? t(photo.error) : t('Loading photograph…'))}</p>
       {!empty && photo.error &&
-        <button type="button" className="report-review-link" onClick={photo.retry}>Retry loading photo</button>}
+        <button type="button" className="report-review-link" onClick={photo.retry}>{t('Retry loading photo')}</button>}
     </div>
   </div>
 }
@@ -155,28 +155,29 @@ function coordinates(lat, lon) {
 }
 
 function CitizenSubmission({ report, photo, onOpen }) {
+  const { t, term } = useLanguage()
   const hasGps = report.lat != null && report.lon != null
   return <section className="report-review-panel" aria-labelledby="report-submission">
-    <Heading id="report-submission" icon={ClipboardList}>Citizen submission</Heading>
+    <Heading id="report-submission" icon={ClipboardList}>{t('Citizen submission')}</Heading>
     <dl className="report-review-fields report-review-section">
-      <Field label="Category">{titleCase(report.category)}</Field>
-      <Field label="Reported animal">{report.species === 'unidentified' ? 'Unknown animal' : report.species_name}</Field>
-      <Field label="Location">{report.village_name || (hasGps ? 'Reported GPS location' : null)}</Field>
-      <Field label="Location source">{hasGps ? 'GPS coordinates' : report.village_name ? 'Selected village' : null}</Field>
-      <Field label="Coordinates" wide>{hasGps ? coordinates(report.lat, report.lon) : null}</Field>
-      <Field label="Description" wide>{report.description || null}</Field>
+      <Field label={t('Category')}>{term('category', report.category)}</Field>
+      <Field label={t('Reported animal')}>{term('species', report.species, report.species === 'unidentified' ? 'Unknown animal' : report.species_name)}</Field>
+      <Field label={t('Location')}>{report.village_name || (hasGps ? t('Reported GPS location') : null)}</Field>
+      <Field label={t('Location source')}>{hasGps ? t('GPS coordinates') : report.village_name ? t('Selected village') : null}</Field>
+      <Field label={t('Coordinates')} wide>{hasGps ? coordinates(report.lat, report.lon) : null}</Field>
+      <Field label={t('Description')} wide>{report.description || null}</Field>
     </dl>
     <div className="report-review-section">
-      <h3 className="report-review-subheading"><UserRound aria-hidden="true" />Reporter information</h3>
+      <h3 className="report-review-subheading"><UserRound aria-hidden="true" />{t('Reporter information')}</h3>
       <dl className="report-review-fields">
-        <Field label="Full name">{report.reporter_name}</Field>
+        <Field label={t('Full name')}>{report.reporter_name}</Field>
         <ReporterContact contact={report.contact} />
       </dl>
     </div>
     <div className="report-review-section">
-      <h3 className="report-review-subheading">Photographic evidence</h3>
-      <PhotoPreview kind="original" photo={photo} onOpen={onOpen} empty={!report.image_url && 'No photograph submitted'} />
-      {report.image_url && <p className="report-review-caption"><LockKeyhole aria-hidden="true" />Private evidence · Authority access only</p>}
+      <h3 className="report-review-subheading">{t('Photographic evidence')}</h3>
+      <PhotoPreview kind="original" photo={photo} onOpen={onOpen} empty={!report.image_url && t('No photograph submitted')} />
+      {report.image_url && <p className="report-review-caption"><LockKeyhole aria-hidden="true" />{t('Private evidence · Authority access only')}</p>}
     </div>
   </section>
 }
@@ -186,41 +187,42 @@ function confidence(score) {
 }
 
 function Analysis({ report, photo, detections, speciesName, onOpen, busy, retry }) {
+  const { t } = useLanguage()
   const [prediction, ...otherDetections] = detections
   const completed = report.analysis_status === 'completed'
   const processing = ['queued', 'processing'].includes(report.analysis_status)
   const canRetry = retry && report.image_url && !processing && ['completed', 'failed', 'unavailable'].includes(report.analysis_status)
   const failure = ['failed', 'unavailable'].includes(report.analysis_status)
   return <section className="report-review-panel" aria-labelledby="report-analysis">
-    <Heading id="report-analysis" icon={ScanEye}>AI analysis</Heading>
+    <Heading id="report-analysis" icon={ScanEye}>{t('AI analysis')}</Heading>
     {prediction && <div className="report-review-section">
-      <p className="report-review-secondary">AI prediction</p>
+      <p className="report-review-secondary">{t('AI prediction')}</p>
         <div className="report-review-prediction">
           <strong>{speciesName(prediction.species)}</strong>
           <strong>{confidence(prediction.confidence)}%</strong>
         </div>
         <progress className="report-review-confidence" value={confidence(prediction.confidence)} max={100}
-          aria-label="Model-reported confidence" aria-valuetext={`${confidence(prediction.confidence)}% confidence`} />
-        <p className="report-review-secondary">Model-reported confidence</p>
+          aria-label={t('Model-reported confidence')} aria-valuetext={t('{count}% confidence', { count: confidence(prediction.confidence) })} />
+        <p className="report-review-secondary">{t('Model-reported confidence')}</p>
         {otherDetections.length > 0 && <ul className="report-review-other">
           {otherDetections.map((animal, index) => <li key={index}>
-            {speciesName(animal.species)} · {confidence(animal.confidence)}% confidence
+            {speciesName(animal.species)} · {t('{count}% confidence', { count: confidence(animal.confidence) })}
           </li>)}
         </ul>}
         <p className="report-review-analysis-note"><Info aria-hidden="true" />
-          <span>AI predictions are unverified. Check the original photograph.</span>
+          <span>{t('AI predictions are unverified. Check the original photograph.')}</span>
         </p>
     </div>}
     <div className="report-review-section">
-      {prediction && <h3 className="report-review-detection-title">Detection evidence</h3>}
+      {prediction && <h3 className="report-review-detection-title">{t('Detection evidence')}</h3>}
       <PhotoPreview kind="detection" photo={photo} detections={detections} onOpen={onOpen}
-        processing={processing} empty={!report.image_url ? 'No photograph submitted'
-          : failure ? analysisMessages[report.analysis_status]
-          : completed && !prediction ? 'No animal detected' : undefined} />
-      {prediction?.is_full_frame && <p className="report-review-caption">Full-frame classification</p>}
+        processing={processing} empty={!report.image_url ? t('No photograph submitted')
+          : failure ? t(analysisMessages[report.analysis_status])
+          : completed && !prediction ? t('No animal detected') : undefined} />
+      {prediction?.is_full_frame && <p className="report-review-caption">{t('Full-frame classification')}</p>}
       {canRetry && <div className="report-review-models">
         <button type="button" className="report-review-link" onClick={retry} disabled={busy}>
-          Retry analysis <RefreshCw aria-hidden="true" />
+          {t('Retry analysis')} <RefreshCw aria-hidden="true" />
         </button>
       </div>}
     </div>
@@ -228,11 +230,12 @@ function Analysis({ report, photo, detections, speciesName, onOpen, busy, retry 
 }
 
 function Activity({ report }) {
+  const { t, date, clockTime } = useLanguage()
   const events = [
-    { title: 'Report received', at: report.created_at, actor: 'Citizen submission' },
+    { title: 'Report received', at: report.created_at, actor: 'Citizen submission', generatedActor: true },
     ...(report.analysis_status === 'completed' || report.analysis_finished_at ? [{
       title: analysisMessages[report.analysis_status],
-      at: report.analysis_finished_at, actor: 'AI engine', highlight: report.analysis_status === 'completed',
+      at: report.analysis_finished_at, actor: 'AI engine', generatedActor: true, highlight: report.analysis_status === 'completed',
     }] : []),
     ...report.review_history.map(event => ({
       title: reviewLabels[event.status] || titleCase(event.status), at: event.at,
@@ -244,15 +247,15 @@ function Activity({ report }) {
   ].reverse().sort((a, b) => Date.parse(b.at || report.created_at) - Date.parse(a.at || report.created_at))
 
   return <section className="report-review-panel report-review-history" aria-labelledby="report-history">
-    <Heading id="report-history" icon={History}>Activity history</Heading>
+    <Heading id="report-history" icon={History}>{t('Activity history')}</Heading>
     <ol>
       {events.map((event, index) => <li key={index} className={event.highlight ? 'is-highlighted' : undefined}>
-        <p>{event.title}</p>
+        <p>{t(event.title)}</p>
         <p className="report-review-secondary">
           {event.at && <time dateTime={event.at}>
-            {formatDate(event.at) !== formatDate(report.created_at) && `${formatDate(event.at)}, `}{formatTime(event.at)}
+            {date(event.at) !== date(report.created_at) && `${date(event.at)}, `}{clockTime(event.at)}
           </time>}
-          {event.at && event.actor && ' · '}{event.actor}
+          {event.at && event.actor && ' · '}{event.generatedActor ? t(event.actor) : event.actor}
         </p>
         {event.note && <p className="report-review-event-note">{event.note}</p>}
       </li>)}
@@ -261,12 +264,13 @@ function Activity({ report }) {
 }
 
 function RiskFactors({ risk }) {
+  const { t, riskDetail } = useLanguage()
   return risk?.components?.length > 0 && <details className="report-review-factors">
-    <summary>Assessment factors</summary>
+    <summary>{t('Assessment factors')}</summary>
     <ul>
       {risk.components.map(item => <li key={item.key}>
-        <span>{item.label}{item.detail ? ` · ${item.detail}` : ''}</span>
-        <span>{item.points} pts</span>
+        <span>{t(item.label)}{item.detail ? ` · ${riskDetail(item.detail)}` : ''}</span>
+        <span>{item.points} {t('pts')}</span>
       </li>)}
     </ul>
   </details>
@@ -279,6 +283,7 @@ export function assessmentLabel(risk) {
 }
 
 export function ReportReview({ report, title, species, onClose, reload, canReview }) {
+  const { t, date, clockTime, term } = useLanguage()
   const [note, setNote] = useState('')
   const [sharedNote, setSharedNote] = useState('')
   const [rejectionReason, setRejectionReason] = useState('')
@@ -302,7 +307,7 @@ export function ReportReview({ report, title, species, onClose, reload, canRevie
     && report.analysis_finished_at === retryJob.previousFinishedAt
   const analysisReport = waitingForRetry ? { ...report, analysis_status: retryJob.status, analysis_finished_at: null } : report
   const detections = analysisReport.analysis_status === 'completed' ? analysisReport.analysis_results || [] : []
-  const speciesName = (key) => species.find(item => item.key === key)?.name || titleCase(key)
+  const speciesName = (key) => term('species', key, species.find(item => item.key === key)?.name)
   const latestReview = ['pending', 'forwarded'].includes(report.status) && savedReview ? savedReview : report
   const status = latestReview.lifecycle_status
   const riskPreview = assessment?.animal === confirmed && assessment.attempt === previewAttempt ? assessment : null
@@ -351,7 +356,7 @@ export function ReportReview({ report, title, species, onClose, reload, canRevie
         setDecision(null)
         const persisted = data.report.risk?.level
         const changed = approval && !useManual && persisted !== riskPreview.data.risk?.level
-        setFeedback(approval ? changed ? `Report approved. Updated assessment: ${titleCase(persisted)} risk.`
+        setFeedback(approval ? changed ? { risk: persisted }
           : 'Report approved.' : 'Report rejected.')
       }
       reload()
@@ -371,19 +376,19 @@ export function ReportReview({ report, title, species, onClose, reload, canRevie
   return <Dialog className="report-review" labelledBy="report-title" onClose={close}>
     <header className="report-review-header">
       <div className="report-review-nav">
-        <button type="button" onClick={close} disabled={busy}><ArrowLeft aria-hidden="true" />All reports</button>
-        <button type="button" onClick={close} disabled={busy} aria-label="Close"><X aria-hidden="true" /></button>
+        <button type="button" onClick={close} disabled={busy}><ArrowLeft aria-hidden="true" />{t('All reports')}</button>
+        <button type="button" onClick={close} disabled={busy} aria-label={t('Close')}><X aria-hidden="true" /></button>
       </div>
       <p className="report-review-reference">{report.reference_code}</p>
       <div className="report-review-title">
         <h1 id="report-title">{title}</h1>
         <div className="report-review-badges">
-          {report.is_simulated && <span className="report-review-simulated">Simulated</span>}
-          {status === 'pending' ? <span className="report-review-pending">Pending</span> : <StatusBadge status={status} />}
+          {report.is_simulated && <span className="report-review-simulated">{t('Simulated')}</span>}
+          {status === 'pending' ? <span className="report-review-pending">{t('Pending')}</span> : <StatusBadge status={status} />}
         </div>
       </div>
-      <p className="report-review-submitted">Submitted <time dateTime={report.created_at}>
-        {formatDate(report.created_at)}, {formatTime(report.created_at)}
+      <p className="report-review-submitted">{t('Submitted')} <time dateTime={report.created_at}>
+        {date(report.created_at)}, {clockTime(report.created_at)}
       </time></p>
     </header>
     <div className="report-review-columns">
@@ -392,11 +397,11 @@ export function ReportReview({ report, title, species, onClose, reload, canRevie
         <Analysis report={analysisReport} photo={photo} detections={detections} speciesName={speciesName}
           onOpen={setPreview} busy={busy} retry={canReview ? () => act('retry') : undefined} />
         <section className="report-review-panel" aria-labelledby="report-authority">
-          <Heading id="report-authority" icon={ShieldCheck}>Authority review</Heading>
-          {pending && !canReview && <p className="report-review-section">Awaiting review by a range officer.</p>}
+          <Heading id="report-authority" icon={ShieldCheck}>{t('Authority review')}</Heading>
+          {pending && !canReview && <p className="report-review-section">{t('Awaiting review by a range officer.')}</p>}
           {pending && canReview ? <>
             <fieldset className="report-review-section report-review-form" disabled={busy}>
-              <label htmlFor="report-confirmed-species">Confirmed animal</label>
+              <label htmlFor="report-confirmed-species">{t('Confirmed animal')}</label>
               <div className="report-review-select">
                 <select id="report-confirmed-species" value={confirmed} onChange={event => {
                   setConfirmed(event.target.value)
@@ -405,88 +410,88 @@ export function ReportReview({ report, title, species, onClose, reload, canRevie
                   setRiskLevel('')
                   setRiskReason('')
                 }}>
-                  {species.map(({ key, name }) => <option key={key} value={key}>{name}</option>)}
+                  {species.map(({ key, name }) => <option key={key} value={key}>{term('species', key, name)}</option>)}
                 </select>
                 <ChevronDown aria-hidden="true" />
               </div>
               <div className="report-review-risk">
-                <h3 className="font-semibold">Risk assessment</h3>
-                {!riskPreview && <p className="report-review-secondary" role="status">Calculating risk…</p>}
+                <h3 className="font-semibold">{t('Risk assessment')}</h3>
+                {!riskPreview && <p className="report-review-secondary" role="status">{t('Calculating risk…')}</p>}
                 {riskPreview?.error && <ErrorBox message={riskPreview.error} onRetry={() => setPreviewAttempt(value => value + 1)} />}
                 {riskPreview?.data?.risk && <>
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span>Automatic</span><RiskBadge level={riskPreview.data.risk.level} score={riskPreview.data.risk.score} />
+                    <span>{t('Automatic')}</span><RiskBadge level={riskPreview.data.risk.level} score={riskPreview.data.risk.score} />
                   </div>
                   {riskPreview.data.risk.missing_factors?.includes('village_proximity') &&
-                    <p className="report-review-secondary">Village proximity unavailable</p>}
+                    <p className="report-review-secondary">{t('Village proximity unavailable')}</p>}
                   <RiskFactors risk={riskPreview.data.risk} />
                 </>}
-                {manual && <p className="report-review-secondary">Manual assessment required</p>}
+                {manual && <p className="report-review-secondary">{t('Manual assessment required')}</p>}
                 {canOverride && <label className="flex items-center gap-2">
-                  <input type="checkbox" checked={override} onChange={event => setOverride(event.target.checked)} />Override automatic risk
+                  <input type="checkbox" checked={override} onChange={event => setOverride(event.target.checked)} />{t('Override automatic risk')}
                 </label>}
                 {useManual && <>
-                  <label htmlFor="report-risk-level">Risk level</label>
+                  <label htmlFor="report-risk-level">{t('Risk level')}</label>
                   <select id="report-risk-level" className="!appearance-auto" value={riskLevel} onChange={event => setRiskLevel(event.target.value)}>
-                    <option value="">Select risk</option>
-                    {['low', 'moderate', 'high'].map(level => <option key={level} value={level}>{titleCase(level)}</option>)}
+                    <option value="">{t('Select risk')}</option>
+                    {['low', 'moderate', 'high'].map(level => <option key={level} value={level}>{term('risk', level)}</option>)}
                   </select>
-                  <label htmlFor="report-risk-reason">{manual ? 'Assessment reason' : 'Override reason'}</label>
+                  <label htmlFor="report-risk-reason">{manual ? t('Assessment reason') : t('Override reason')}</label>
                   <textarea id="report-risk-reason" rows={2} maxLength={1000} value={riskReason} onChange={event => setRiskReason(event.target.value)} />
                 </>}
               </div>
-              <label htmlFor="report-note">Review notes</label>
+              <label htmlFor="report-note">{t('Review notes')}</label>
               <textarea id="report-note" rows={2} value={note} maxLength={1000}
-                placeholder="Optional, authority only" onChange={event => setNote(event.target.value)} />
+                placeholder={t('Optional, authority only')} onChange={event => setNote(event.target.value)} />
               {decision ? <>
                 <p>{decision === 'verified'
-                  ? report.is_citizen_submission ? 'Approve this report and publish a public alert?' : 'Approve this report and create an incident?'
-                  : 'Reject this report and share the reason with the reporter?'}</p>
+                  ? report.is_citizen_submission ? t('Approve this report and publish a public alert?') : t('Approve this report and create an incident?')
+                  : t('Reject this report and share the reason with the reporter?')}</p>
                 {decision === 'rejected' ? <>
-                  <label htmlFor="report-rejection">Rejection reason (shared with citizen)</label>
+                  <label htmlFor="report-rejection">{t('Rejection reason (shared with citizen)')}</label>
                   <textarea id="report-rejection" rows={2} maxLength={1000} value={rejectionReason}
                     onChange={event => setRejectionReason(event.target.value)} />
                 </> : report.is_citizen_submission && <>
-                  <label htmlFor="report-shared-note">Note for citizen (optional)</label>
+                  <label htmlFor="report-shared-note">{t('Note for citizen (optional)')}</label>
                   <textarea id="report-shared-note" rows={2} maxLength={1000} value={sharedNote}
                     onChange={event => setSharedNote(event.target.value)} />
                 </>}
                 <div className="report-review-actions">
                   <button type="button" className={`report-review-action ${decision === 'verified' ? 'is-approve' : 'is-reject'}`}
                     onClick={() => act(decision)} disabled={decision === 'rejected' ? !rejectionReason.trim() : !approvalReady}>
-                    {busy ? 'Saving…' : decision === 'verified' ? 'Confirm approval' : 'Confirm rejection'}
+                    {busy ? t('Saving…') : decision === 'verified' ? t('Confirm approval') : t('Confirm rejection')}
                   </button>
-                  <button type="button" className="report-review-action" onClick={() => setDecision(null)}>Cancel</button>
+                  <button type="button" className="report-review-action" onClick={() => setDecision(null)}>{t('Cancel')}</button>
                 </div>
               </> : <>
                 <div className="report-review-actions">
                   <button type="button" className="report-review-action is-approve" disabled={!approvalReady} onClick={() => setDecision('verified')}>
-                    <Check aria-hidden="true" />Approve report
+                    <Check aria-hidden="true" />{t('Approve report')}
                   </button>
                   <button type="button" className="report-review-action is-reject" onClick={() => setDecision('rejected')}>
-                    <X aria-hidden="true" />Reject report
+                    <X aria-hidden="true" />{t('Reject report')}
                   </button>
                 </div>
               </>}
             </fieldset>
           </> : <dl className="report-review-section report-review-fields">
             {latestReview.incident_id && <>
-              <Field label="Confirmed animal">{speciesName(latestReview.confirmed_species)}</Field>
-              <Field label="Linked incident"><Link className="report-review-link underline"
-                to={`/alerts?incident=${latestReview.incident_id}`}>Incident #{latestReview.incident_id}</Link></Field>
+              <Field label={t('Confirmed animal')}>{speciesName(latestReview.confirmed_species)}</Field>
+              <Field label={t('Linked incident')}><Link className="report-review-link underline"
+                to={`/alerts?incident=${latestReview.incident_id}`}>{t('Incident #')}{latestReview.incident_id}</Link></Field>
               {latestReview.risk && <>
-                <Field label="Risk"><RiskBadge level={latestReview.risk.level} score={latestReview.risk.score} /></Field>
-                <Field label="Method">{assessmentLabel(latestReview.risk)}</Field>
-                <Field label={latestReview.risk.assessment_method === 'override' ? 'Override reason' : 'Assessment reason'} wide>
+                <Field label={t('Risk')}><RiskBadge level={latestReview.risk.level} score={latestReview.risk.score} /></Field>
+                <Field label={t('Method')}>{t(assessmentLabel(latestReview.risk))}</Field>
+                <Field label={latestReview.risk.assessment_method === 'override' ? t('Override reason') : t('Assessment reason')} wide>
                   {latestReview.risk.assessment_reason}
                 </Field>
               </>}
             </>}
-            {status === 'rejected' && <Field label="Rejection reason" wide>
+            {status === 'rejected' && <Field label={t('Rejection reason')} wide>
               {latestReview.review_history.at(-1)?.citizen_note ?? latestReview.review_history.at(-1)?.note}
             </Field>}
           </dl>}
-          {feedback && <p role="status" className="report-review-feedback">{feedback}</p>}
+          {feedback && <p role="status" className="report-review-feedback">{typeof feedback === 'string' ? t(feedback) : t('Report approved. Updated assessment: {risk} risk.', { risk: term('risk', feedback.risk) })}</p>}
           {error && <div className="report-review-feedback"><ErrorBox message={error} /></div>}
         </section>
       </div>
@@ -494,12 +499,12 @@ export function ReportReview({ report, title, species, onClose, reload, canRevie
     <Activity report={{ ...analysisReport, review_history: latestReview.review_history }} />
     {preview && <Dialog className="report-review-lightbox" labelledBy="report-photo-title" onClose={() => setPreview(null)}>
       <header className="report-review-nav">
-        <h2 id="report-photo-title">{preview === 'original' ? 'Original uploaded photograph' : 'Model-generated detection preview'}</h2>
-        <button type="button" onClick={() => setPreview(null)} aria-label="Close photo"><X aria-hidden="true" /></button>
+        <h2 id="report-photo-title">{preview === 'original' ? t('Original uploaded photograph') : t('Model-generated detection preview')}</h2>
+        <button type="button" onClick={() => setPreview(null)} aria-label={t('Close photo')}><X aria-hidden="true" /></button>
       </header>
       <div className="report-review-photo">
         <Photo photo={photo} detections={preview === 'detection' ? detections : null} alt={preview === 'original'
-          ? 'Enlarged original evidence' : 'Enlarged detection evidence'} />
+          ? t('Enlarged original evidence') : t('Enlarged detection evidence')} />
       </div>
     </Dialog>}
   </Dialog>

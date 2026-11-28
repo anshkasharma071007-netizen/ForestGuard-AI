@@ -1,3 +1,4 @@
+import { LanguageProvider, useLanguage } from '@/i18n';
 import { useFonts } from 'expo-font';
 import { View } from 'react-native';
 import { BrandMark } from '@/components/BrandMark';
@@ -14,10 +15,11 @@ import { Screen } from '@/components/Screen';
 
 export default function RootLayout() {
   useFrameworkReady();
-  return <ThemeProvider><CitizenProvider><AppShell /></CitizenProvider></ThemeProvider>;
+  return <LanguageProvider><ThemeProvider><CitizenProvider><AppShell /></CitizenProvider></ThemeProvider></LanguageProvider>;
 }
 
 function AppShell() {
+  const { t, ready: languageReady } = useLanguage();
   const { colors, isDark } = useTheme();
   const { ready } = useAppTheme();
   const { profile, loading, restoreError, retry } = useCitizen();
@@ -26,7 +28,7 @@ function AppShell() {
     'Inter-Semibold': require('../assets/fonts/Inter-Semibold.ttf'),
     'Manrope-Semibold': require('../assets/fonts/Manrope-Semibold.ttf'),
   });
-  if (!ready || loading || (!fontsLoaded && !fontError)) {
+  if (!ready || !languageReady || loading || (!fontsLoaded && !fontError)) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
         <BrandMark />
@@ -34,7 +36,7 @@ function AppShell() {
       </View>
     );
   }
-  if (restoreError) return <Screen><Feedback title="Could not restore your session" detail={restoreError} kind="error" retry={retry} /></Screen>;
+  if (restoreError) return <Screen><Feedback title={t('Could not restore your session')} detail={restoreError} kind="error" retry={retry} /></Screen>;
   return (
     <>
       <CitizenNotificationsProvider key={profile?.id ?? 'guest'}>

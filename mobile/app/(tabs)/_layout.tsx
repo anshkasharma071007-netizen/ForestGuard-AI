@@ -1,3 +1,4 @@
+import { useLanguage } from '@/i18n';
 import { Tabs } from 'expo-router';
 import { House, Map, UserRound, type LucideIcon } from 'lucide-react-native';
 import { View } from 'react-native';
@@ -13,6 +14,7 @@ function TabIcon({ icon: Icon, focused }: { icon: LucideIcon; focused: boolean }
 }
 
 export default function TabLayout() {
+  const { t } = useLanguage();
   const { colors } = useTheme();
   const { bottom } = useSafeAreaInsets();
   return (
@@ -31,9 +33,9 @@ export default function TabLayout() {
       sceneStyle: { backgroundColor: colors.background },
       freezeOnBlur: false,
     }}>
-      <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ focused }) => <TabIcon icon={House} focused={focused} /> }} />
-      <Tabs.Screen name="risk-map" options={{ title: 'Map', tabBarIcon: ({ focused }) => <TabIcon icon={Map} focused={focused} /> }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: ({ focused }) => <TabIcon icon={UserRound} focused={focused} /> }} />
+      <Tabs.Screen name="index" options={{ title: t('Home'), tabBarIcon: ({ focused }) => <TabIcon icon={House} focused={focused} /> }} />
+      <Tabs.Screen name="risk-map" options={{ title: t('Map'), tabBarIcon: ({ focused }) => <TabIcon icon={Map} focused={focused} /> }} />
+      <Tabs.Screen name="profile" options={{ title: t('Profile'), tabBarIcon: ({ focused }) => <TabIcon icon={UserRound} focused={focused} /> }} />
     </Tabs>
   );
 }

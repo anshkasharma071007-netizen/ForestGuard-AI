@@ -10,6 +10,19 @@
   @apply flex min-h-16 items-center justify-between gap-2;
 }
 
+@media (max-width: 420px) {
+  .operations-header-content {
+    flex-wrap: wrap;
+    gap: 0;
+    padding-block: 0.25rem;
+  }
+
+  .operations-header-controls {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
 .operations-brand {
   @apply flex min-w-0 items-center rounded-md;
 }

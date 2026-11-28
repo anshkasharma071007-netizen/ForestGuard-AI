@@ -1,15 +1,15 @@
+import { useLanguage } from '@/i18n';
 import { router } from 'expo-router';
 import { ChevronRight, CircleCheck, CircleX, ClipboardCheck, FileCheck2, RefreshCw } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { eventLabels, useCitizenNotifications } from '@/citizen-notifications';
+import { useCitizenNotifications } from '@/citizen-notifications';
 import { Feedback, RiskPill, SupportingText } from '@/components/Feedback';
 import { IconAction } from '@/components/IconAction';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionTitle } from '@/components/SectionTitle';
 import { TextAction } from '@/components/TextAction';
-import { formatTimestamp } from '@/format';
 import type { CitizenNotification } from '@/services/api';
 import { radius, spacing, typeScale, useTheme } from '@/theme';
 
@@ -30,6 +30,7 @@ function groupNotifications(items: CitizenNotification[]) {
 }
 
 export default function Notifications() {
+  const { t, term, errorText, dateTime } = useLanguage();
   const { inbox, state, saving, markRead, reload, refreshing, refreshError } = useCitizenNotifications();
   const { colors } = useTheme();
   const [error, setError] = useState('');
@@ -54,26 +55,26 @@ export default function Notifications() {
   }
 
   return <Screen refresh={{ onRefresh: reload, refreshing }} header={
-    <ScreenHeader title="Notifications" back action={<IconAction icon={RefreshCw} tone="header"
-      label="Refresh notifications" loading={refreshing} onPress={reload} />} />
+    <ScreenHeader title={t('Notifications')} back action={<IconAction icon={RefreshCw} tone="header"
+      label={t('Refresh notifications')} loading={refreshing} onPress={reload} />} />
   }>
     <View style={styles.list}>
       {!!inbox?.items.length && <View style={styles.header}>
-        <SupportingText>{inbox.unread} unread</SupportingText>
-        <TextAction label="Mark all as read" onPress={() => void open()} disabled={!inbox.unread || saving} loading={saving && !opening} />
+        <SupportingText>{t('{count} unread', { count: inbox.unread })}</SupportingText>
+        <TextAction label={t('Mark all as read')} onPress={() => void open()} disabled={!inbox.unread || saving} loading={saving && !opening} />
       </View>}
-      {state.kind === 'loading' && <Feedback title="Loading notifications…" kind="loading" />}
-      {'message' in state && <Feedback title="Could not load notifications" detail={state.message} kind="error" retry={reload} />}
-      {!!(error || refreshError) && <SupportingText error>{error || refreshError}</SupportingText>}
-      {inbox?.items.length === 0 && <Feedback title="No notifications yet" detail="Updates about your reports will appear here." />}
+      {state.kind === 'loading' && <Feedback title={t('Loading notifications…')} kind="loading" />}
+      {'message' in state && <Feedback title={t('Could not load notifications')} detail={state.message} kind="error" retry={reload} />}
+      {!!(error || refreshError) && <SupportingText error>{errorText(error || refreshError)}</SupportingText>}
+      {inbox?.items.length === 0 && <Feedback title={t('No notifications yet')} detail={t('Updates about your reports will appear here.')} />}
       {groups.map(group => grouped[group].length > 0 && <View style={styles.group} key={group}>
-        <SectionTitle title={group} />
+        <SectionTitle title={t(group)} />
         {grouped[group].map(item => {
           const Icon = eventIcons[item.event as keyof typeof eventIcons] ?? FileCheck2;
-          const label = eventLabels[item.event] ?? 'Report updated';
+          const label = term('event', item.event, 'Report updated');
           const rejected = item.event === 'rejected';
           return <Pressable key={item.id} accessibilityRole="button"
-            accessibilityLabel={`${label}, ${item.reportTitle ?? item.code}${item.readAt ? '' : ', unread'}`}
+            accessibilityLabel={`${label}, ${item.reportTitle ?? item.code}${item.readAt ? '' : ', ' + t('unread')}`}
             accessibilityState={{ busy: opening === item.id, disabled: saving }} disabled={saving}
             onPress={() => void open(item)} style={({ pressed }) => [styles.item, {
               borderColor: item.readAt ? colors.border : colors.controlBorder,
@@ -85,7 +86,7 @@ export default function Notifications() {
             <View style={styles.info}>
               <Text style={[typeScale.card, { color: colors.primaryText }]}>{label}</Text>
               <SupportingText>{item.reportTitle ?? item.code}</SupportingText>
-              <SupportingText>{formatTimestamp(item.createdAt)}</SupportingText>
+              <SupportingText>{dateTime(item.createdAt)}</SupportingText>
               {item.risk && <RiskPill severity={item.risk} />}
             </View>
             {!item.readAt && <View style={[styles.dot, { backgroundColor: colors.accent }]} />}

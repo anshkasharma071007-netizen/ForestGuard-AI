@@ -1,3 +1,4 @@
+import { useLanguage } from '@/i18n';
 import { Minus, Plus, RotateCcw, X } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, PanResponder, Platform, Pressable, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
@@ -12,6 +13,7 @@ const identity: Transform = { scale: 1, x: 0, y: 0 };
 const maxZoom = 4;
 
 export function PhotoViewer({ photo, onClose }: { photo: OriginalPhoto; onClose: () => void }) {
+  const { t } = useLanguage();
   const [frame, setFrame] = useState<ImageSize>({ width: 0, height: 0 });
   const [transform, setTransform] = useState(identity);
   const current = useRef(identity);
@@ -63,8 +65,8 @@ export function PhotoViewer({ photo, onClose }: { photo: OriginalPhoto; onClose:
     <Modal animationType="fade" presentationStyle="fullScreen" visible onRequestClose={onClose}>
       <SafeAreaView style={styles.shell} accessibilityViewIsModal>
         <View style={styles.bar}>
-          <Text accessibilityRole="header" style={styles.title}>Incident photo</Text>
-          <IconControl icon={X} label="Close photo" onPress={onClose} />
+          <Text accessibilityRole="header" style={styles.title}>{t('Incident photo')}</Text>
+          <IconControl icon={X} label={t('Close photo')} onPress={onClose} />
         </View>
         <View style={styles.canvas} {...responder.panHandlers} onLayout={({ nativeEvent: { layout } }) => {
           if (layout.width !== frame.width || layout.height !== frame.height) {
@@ -78,9 +80,9 @@ export function PhotoViewer({ photo, onClose }: { photo: OriginalPhoto; onClose:
           }]} />
         </View>
         <View style={styles.toolbar}>
-          <IconControl icon={Minus} label="Zoom out" onPress={() => zoomBy(-0.5)} disabled={transform.scale <= 1} />
-          <IconControl icon={RotateCcw} label="Reset zoom" onPress={() => update(identity)} disabled={transform.scale <= 1} />
-          <IconControl icon={Plus} label="Zoom in" onPress={() => zoomBy(0.5)} disabled={transform.scale >= maxZoom} />
+          <IconControl icon={Minus} label={t('Zoom out')} onPress={() => zoomBy(-0.5)} disabled={transform.scale <= 1} />
+          <IconControl icon={RotateCcw} label={t('Reset zoom')} onPress={() => update(identity)} disabled={transform.scale <= 1} />
+          <IconControl icon={Plus} label={t('Zoom in')} onPress={() => zoomBy(0.5)} disabled={transform.scale >= maxZoom} />
         </View>
       </SafeAreaView>
     </Modal>

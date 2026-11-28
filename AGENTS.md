@@ -53,6 +53,13 @@ Authority demo login is available with `APP_ENV=development AUTHORITY_DEMO_ACCOU
 
 **Shared constraints.** Accept OTP `1234` only during development and never in public production. Public map markers use approximate incident locations and exclude private reporter information and sensitive wildlife coordinates. Both clients share the API and database. In-app alerts and report status sync automatically. Background push notifications are deferred. Keep development scoped to the requested features and preserve existing interfaces and functionality outside those changes.
 
+## Localization
+
+- English (`en`) is the default. Hindi (`hi`) is stored per app installation in AsyncStorage and per browser in localStorage, independently of sign-in and theme. Mobile offers the selector during sign-in and profile setup and under Profile → Language. The authority site offers it at sign-in, in the global header and in Settings.
+- Use `useLanguage()` in new and merged components. Put fixed copy in `t('English source text')` and add its Hindi entry in `mobile/i18n/hi.ts` or `frontend/src/i18n/operations-hi.js`. The authority client also retains its existing translations in `frontend/src/i18n/translations.js`. Use named placeholders for dates, counts and other dynamic values. Keep the English source as the fallback and translate at render time so existing UI updates as soon as the language switches.
+- Use `term()` for canonical categories, species, risk and event labels, the hook's date helpers for timestamps, and `errorText()` for API failures. Add new canonical display mappings in the relevant `i18n/translate` module. Preserve form values, URLs, credentials, references, coordinates, user text and registry names. Pass localized text only to visible or accessible labels, including Leaflet controls and tooltips.
+- When merging work on maps or workflow screens, reconcile `MapView.jsx`, `GISMap.jsx`, `RiskMapSurface.tsx`, and the shared navigation, profile and report components. Check filters and API payloads in both languages. Run `node --test frontend/scripts/test_localization.mjs mobile/tests/*.test.mjs` alongside the client checks above.
+
 ## Remaining development order
 
 1. Complete physical-device integration testing, including native SecureStore restart, invalid sessions, failed sign-out, account switching with a previously opened photo, GPS, camera, gallery, and reference copying.

@@ -3,8 +3,8 @@ import type { ReportStatus } from '@/services/api';
 export const reportStatuses = {
   pending: { label: 'Pending', tone: 'warning', group: 'pending' },
   forwarded: { label: 'Pending', tone: 'warning', group: 'pending' },
-  verified: { label: 'In progress', tone: 'info', group: 'under_work' },
-  under_work: { label: 'In progress', tone: 'info', group: 'under_work' },
+  verified: { label: 'Under Work', tone: 'info', group: 'under_work' },
+  under_work: { label: 'Under Work', tone: 'info', group: 'under_work' },
   resolved: { label: 'Resolved', tone: 'success', group: 'resolved' },
   rejected: { label: 'Rejected', tone: 'danger', group: 'rejected' },
   closed: { label: 'Resolved', tone: 'success', group: 'resolved' },

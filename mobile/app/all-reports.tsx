@@ -1,3 +1,4 @@
+import { useLanguage } from '@/i18n';
 import { useIsFocused, useLocalSearchParams } from 'expo-router';
 import { RefreshCw } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
@@ -17,6 +18,7 @@ import { spacing } from '@/theme';
 import { reportFilters, reportStatuses } from '@/report-status';
 
 export default function AllReports() {
+  const { t, errorText } = useLanguage();
   const { access } = useCitizen();
   const focused = useIsFocused();
   const active = useAppActive();
@@ -35,23 +37,23 @@ export default function AllReports() {
   ) : [];
 
   return <Screen refresh={{ onRefresh: reload, refreshing }} header={
-    <ScreenHeader title="Report history" back action={<IconAction icon={RefreshCw} tone="header"
-      label="Refresh all reports" loading={refreshing} onPress={reload} />} />
+    <ScreenHeader title={t('Report history')} back action={<IconAction icon={RefreshCw} tone="header"
+      label={t('Refresh all reports')} loading={refreshing} onPress={reload} />} />
   }>
     <View style={{ gap: spacing.sm }}>
-      <InputField label="Search reports" placeholder="Title or reference code" value={search} onChangeText={setSearch}
+      <InputField label={t('Search reports')} placeholder={t('Title or reference code')} value={search} onChangeText={setSearch}
         autoCorrect={false} returnKeyType="search" />
-      <Dropdown label={filter.label} accessibilityLabel={`Status filter: ${filter.label}`} expanded={expanded} onPress={() => setExpanded(!expanded)} />
-      {expanded && <View accessibilityRole="radiogroup" accessibilityLabel="Report status">
-        {reportFilters.map((option) => <SelectionRow key={option.id} label={option.label} selected={filter.id === option.id}
+      <Dropdown label={t(filter.label)} accessibilityLabel={t('Status filter: {status}', { status: t(filter.label) })} expanded={expanded} onPress={() => setExpanded(!expanded)} />
+      {expanded && <View accessibilityRole="radiogroup" accessibilityLabel={t('Report status')}>
+        {reportFilters.map((option) => <SelectionRow key={option.id} label={t(option.label)} selected={filter.id === option.id}
           onPress={() => { setFilter(option); setExpanded(false); }} />)}
       </View>}
-      {state.kind === 'loading' && <Feedback title="Loading reports…" kind="loading" />}
-      {'message' in state && <Feedback title="Could not load reports" detail={state.message} kind="error" retry={reload} />}
-      {!!refreshError && <SupportingText error>{refreshError}</SupportingText>}
+      {state.kind === 'loading' && <Feedback title={t('Loading reports…')} kind="loading" />}
+      {'message' in state && <Feedback title={t('Could not load reports')} detail={state.message} kind="error" retry={reload} />}
+      {!!refreshError && <SupportingText error>{errorText(refreshError)}</SupportingText>}
       {state.kind === 'ready' && (filtered.length
         ? filtered.map((report) => <ReportRow key={report.reference_code} report={report} showReference />)
-        : <Feedback title={state.data.length ? 'No matching reports' : 'No reports yet'} />)}
+        : <Feedback title={state.data.length ? t('No matching reports') : t('No reports yet')} />)}
     </View>
   </Screen>;
 }

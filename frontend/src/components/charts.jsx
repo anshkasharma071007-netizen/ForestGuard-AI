@@ -1,3 +1,4 @@
+import { useLanguage } from '../i18n'
 import {
   Area,
   AreaChart,
@@ -42,6 +43,7 @@ function ChartTip({ active, payload, label, formatter }) {
 }
 
 export function ActivityArea({ data, height = 220, color = 'var(--chart-green, #2F7250)', showAxis = true }) {
+  const { t, date } = useLanguage()
   return (
     <ResponsiveContainer width="100%" height={height}>
       <AreaChart data={data} margin={{ top: 8, right: 6, left: -22, bottom: 0 }}>
@@ -57,7 +59,7 @@ export function ActivityArea({ data, height = 220, color = 'var(--chart-green, #
           {...AXIS}
           hide={!showAxis}
           tickFormatter={(value) =>
-            new Date(`${value}T00:00:00`).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
+            date(`${value}T00:00:00`, { day: '2-digit', month: 'short', year: undefined })
           }
           interval="preserveStartEnd"
           minTickGap={28}
@@ -67,7 +69,7 @@ export function ActivityArea({ data, height = 220, color = 'var(--chart-green, #
         <Area
           type="monotone"
           dataKey="detections"
-          name="Detections"
+          name={t('Detections')}
           stroke={color}
           strokeWidth={2}
           fill="var(--chart-area-fill, url(#activityFill))"
@@ -79,9 +81,11 @@ export function ActivityArea({ data, height = 220, color = 'var(--chart-green, #
 }
 
 export function SpeciesBars({ data, height = 230, landscape = false }) {
+  const { t, term } = useLanguage()
+  const translated = data?.map(item => ({ ...item, name: term('species', item.key, item.name) }))
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 18, left: 4, bottom: 0 }} barSize={14}>
+      <BarChart data={translated} layout="vertical" margin={{ top: 4, right: 18, left: 4, bottom: 0 }} barSize={14}>
         <CartesianGrid stroke="var(--chart-grid, #ece7da)" horizontal={false} strokeDasharray="3 3" />
         <XAxis type="number" {...AXIS} allowDecimals={false} />
         <YAxis
@@ -92,7 +96,7 @@ export function SpeciesBars({ data, height = 230, landscape = false }) {
           tick={{ fill: landscape ? '#d7e6d3' : 'var(--chart-label, #657062)', fontSize: 10 }}
         />
         <Tooltip content={<ChartTip />} cursor={{ fill: 'rgba(127,163,107,0.08)' }} />
-        <Bar dataKey="count" name="Detections" radius={[0, 4, 4, 0]}>
+        <Bar dataKey="count" name={t('Detections')} radius={[0, 4, 4, 0]}>
           {data?.map((entry) => (
             <Cell key={entry.key} fill={`var(--chart-species-${entry.key}, ${SPECIES_COLOR[entry.key] || '#2F7250'})`} />
           ))}
@@ -103,11 +107,12 @@ export function SpeciesBars({ data, height = 230, landscape = false }) {
 }
 
 export function RiskDonut({ data, height = 220, unit = 'scores' }) {
+  const { t } = useLanguage()
   const total = (data?.low || 0) + (data?.moderate || 0) + (data?.high || 0)
   const rows = [
-    { key: 'high', label: 'High risk', value: data?.high || 0, color: `var(--chart-clay, ${RISK_COLOR.high})` },
-    { key: 'moderate', label: 'Moderate', value: data?.moderate || 0, color: RISK_COLOR.moderate },
-    { key: 'low', label: 'Low risk', value: data?.low || 0, color: `var(--chart-green, ${RISK_COLOR.low})` },
+    { key: 'high', label: t('High risk'), value: data?.high || 0, color: `var(--chart-clay, ${RISK_COLOR.high})` },
+    { key: 'moderate', label: t('Moderate'), value: data?.moderate || 0, color: RISK_COLOR.moderate },
+    { key: 'low', label: t('Low risk'), value: data?.low || 0, color: `var(--chart-green, ${RISK_COLOR.low})` },
   ]
   return (
     <div className="relative">
@@ -131,7 +136,7 @@ export function RiskDonut({ data, height = 220, unit = 'scores' }) {
       </ResponsiveContainer>
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
         <div className="font-display text-[26px] leading-none text-ink">{total}</div>
-        <div className="mt-1 text-[9px] uppercase tracking-[0.16em] text-muted-11">{unit}</div>
+        <div className="mt-1 text-[9px] uppercase tracking-[0.16em] text-muted-11">{t(unit)}</div>
       </div>
       <div className="mt-1 grid grid-cols-3 gap-2">
         {rows.map((row) => (
@@ -149,6 +154,7 @@ export function RiskDonut({ data, height = 220, unit = 'scores' }) {
 }
 
 export function HourBars({ data, height = 200, color = '#7FA36B' }) {
+  const { t } = useLanguage()
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data} margin={{ top: 6, right: 4, left: -26, bottom: 0 }} barSize={8}>
@@ -156,23 +162,24 @@ export function HourBars({ data, height = 200, color = '#7FA36B' }) {
         <XAxis
           dataKey="hour"
           {...AXIS}
-          tickFormatter={(value) => (value % 4 === 0 ? `${String(value).padStart(2, '0')}h` : '')}
+          tickFormatter={(value) => (value % 4 === 0 ? t('{hour}h', { hour: String(value).padStart(2, '0') }) : '')}
           interval={0}
         />
         <YAxis {...AXIS} width={38} allowDecimals={false} />
         <Tooltip content={<ChartTip />} cursor={{ fill: 'rgba(127,163,107,0.08)' }} />
-        <Bar dataKey="detections" name="Detections" fill={color} radius={[3, 3, 0, 0]} />
+        <Bar dataKey="detections" name={t('Detections')} fill={color} radius={[3, 3, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   )
 }
 
 export function BasisBars({ data, height = 210 }) {
+  const { t } = useLanguage()
   const rows = [
-    { name: 'Proximity only', value: data?.proximity || 0, color: 'var(--chart-green, #2F7250)' },
-    { name: 'Buffer proximity', value: data?.buffer_proximity || 0, color: '#7FA36B' },
-    { name: 'Core activity', value: data?.core_activity || 0, color: '#B8C4B5' },
-    { name: 'Movement-supported', value: data?.confirmed_movement || 0, color: 'var(--chart-clay, #C2410C)' },
+    { name: t('Proximity only'), value: data?.proximity || 0, color: 'var(--chart-green, #2F7250)' },
+    { name: t('Buffer proximity'), value: data?.buffer_proximity || 0, color: '#7FA36B' },
+    { name: t('Core activity'), value: data?.core_activity || 0, color: '#B8C4B5' },
+    { name: t('Movement-supported'), value: data?.confirmed_movement || 0, color: 'var(--chart-clay, #C2410C)' },
   ]
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -181,7 +188,7 @@ export function BasisBars({ data, height = 210 }) {
         <XAxis type="number" {...AXIS} allowDecimals={false} />
         <YAxis type="category" dataKey="name" {...AXIS} width={126} />
         <Tooltip content={<ChartTip />} cursor={{ fill: 'rgba(127,163,107,0.08)' }} />
-        <Bar dataKey="value" name="Detections" radius={[0, 4, 4, 0]}>
+        <Bar dataKey="value" name={t('Detections')} radius={[0, 4, 4, 0]}>
           {rows.map((row) => (
             <Cell key={row.name} fill={row.color} />
           ))}
@@ -192,6 +199,7 @@ export function BasisBars({ data, height = 210 }) {
 }
 
 export function TrendLine({ data, height = 190, dataKey = 'detections', color = 'var(--chart-green, #2F7250)', name = 'Detections', additionalSeries }) {
+  const { t, date } = useLanguage()
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={data} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
@@ -200,14 +208,14 @@ export function TrendLine({ data, height = 190, dataKey = 'detections', color = 
           dataKey="date"
           {...AXIS}
           tickFormatter={(value) =>
-            new Date(`${value}T00:00:00`).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
+            date(`${value}T00:00:00`, { day: '2-digit', month: 'short', year: undefined })
           }
           minTickGap={36}
         />
         <YAxis {...AXIS} width={38} allowDecimals={false} />
         <Tooltip content={<ChartTip />} />
-        <Line type="monotone" dataKey={dataKey} name={name} stroke={color} strokeWidth={2} dot={false} />
-        {additionalSeries && <Line type="monotone" dataKey={additionalSeries.dataKey} name={additionalSeries.name}
+        <Line type="monotone" dataKey={dataKey} name={t(name)} stroke={color} strokeWidth={2} dot={false} />
+        {additionalSeries && <Line type="monotone" dataKey={additionalSeries.dataKey} name={t(additionalSeries.name)}
           stroke={additionalSeries.color} strokeWidth={2} dot={false} />}
       </LineChart>
     </ResponsiveContainer>
@@ -215,10 +223,11 @@ export function TrendLine({ data, height = 190, dataKey = 'detections', color = 
 }
 
 export function CategoryBars({ items, height = 200, color = 'var(--chart-clay, #B85C38)' }) {
+  const { t, term, lang } = useLanguage()
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart
-        data={items.map((item) => ({ name: String(item.category || item.name).replaceAll('_', ' '), count: item.count }))}
+        data={items.map((item) => ({ name: lang === 'hi' ? term('category', item.category || item.name) : String(item.category || item.name).replaceAll('_', ' '), count: item.count }))}
         margin={{ top: 4, right: 8, left: -26, bottom: 4 }}
         barSize={14}
       >
@@ -226,19 +235,20 @@ export function CategoryBars({ items, height = 200, color = 'var(--chart-clay, #
         <XAxis dataKey="name" {...AXIS} tick={{ fill: 'var(--chart-label, #656b62)', fontSize: 9 }} interval={0} />
         <YAxis {...AXIS} width={38} allowDecimals={false} />
         <Tooltip content={<ChartTip />} cursor={{ fill: 'rgba(184,92,56,0.06)' }} />
-        <Bar dataKey="count" name="Incidents" fill={color} radius={[4, 4, 0, 0]} />
+        <Bar dataKey="count" name={t('Incidents')} fill={color} radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   )
 }
 
 export function MiniLegend({ items }) {
+  const { t } = useLanguage()
   return (
     <div className="flex flex-wrap items-center gap-3">
       {items.map((item) => (
         <span key={item.label} className="flex items-center gap-1.5 text-[10px] text-muted-5">
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: item.color }} />
-          {item.label}
+          {t(item.label)}
         </span>
       ))}
     </div>

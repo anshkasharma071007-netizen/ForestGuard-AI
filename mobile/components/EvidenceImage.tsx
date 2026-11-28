@@ -1,3 +1,4 @@
+import { useLanguage } from '@/i18n';
 import { useState } from 'react';
 import { Image, Platform, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { containImage, projectBox, type AnimalPrediction, type ImageSize } from '@/identification';
@@ -11,6 +12,7 @@ export function EvidenceImage({ photo, style, overlay, label = 'Original inciden
   overlay?: { image: ImageSize; animals: readonly AnimalPrediction[]; activeId?: string };
   label?: string;
 }) {
+  const { t } = useLanguage();
   const [frame, setFrame] = useState<ImageSize>({ width: 0, height: 0 });
   const aspectMatches = overlay && Math.abs((overlay.image.width / overlay.image.height) / (photo.width / photo.height) - 1) < 0.005;
   const canDraw = aspectMatches && containImage(overlay.image, frame);
@@ -18,7 +20,7 @@ export function EvidenceImage({ photo, style, overlay, label = 'Original inciden
   return (
     <View style={[styles.frame, style]} onLayout={({ nativeEvent }) => setFrame(nativeEvent.layout)}>
       <Image source={{ uri: photo.uri }} resizeMode="contain" style={StyleSheet.absoluteFill}
-        accessibilityRole={Platform.OS === 'web' ? undefined : 'image'} accessibilityLabel={label} />
+        accessibilityRole={Platform.OS === 'web' ? undefined : 'image'} accessibilityLabel={t(label)} />
       {canDraw && overlay.animals.map((animal, index) => {
         const rect = animal.box && projectBox(animal.box, overlay.image, frame);
         return rect && (

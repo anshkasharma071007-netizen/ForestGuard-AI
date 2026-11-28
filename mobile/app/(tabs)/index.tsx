@@ -1,3 +1,4 @@
+import { useLanguage } from '@/i18n';
 import { router, useFocusEffect, useIsFocused } from 'expo-router';
 import { ArrowRight, Bell, Camera, Filter, Leaf, RefreshCw, TriangleAlert } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
@@ -28,6 +29,7 @@ const sortOptions = [{ id: 'time', label: 'Time' }, { id: 'risk', label: 'Risk' 
 const pageSize = 20;
 
 export default function HomeScreen() {
+  const { t, errorText } = useLanguage();
   const { profile, access, alertLocation, alertRadius } = useCitizen();
   const { inbox } = useCitizenNotifications();
   const { colors } = useTheme();
@@ -75,7 +77,7 @@ export default function HomeScreen() {
 
   const openMap = () => router.navigate('/(tabs)/risk-map');
   const header = <ScreenHeader action={<View>
-    <IconAction icon={Bell} tone="header" label={unread ? `Notifications, ${unread} unread` : 'Notifications'}
+    <IconAction icon={Bell} tone="header" label={unread ? t('Notifications, {count} unread', { count: unread }) : t('Notifications')}
       onPress={() => router.push('/notifications')} />
     {unread > 0 && <View pointerEvents="none" accessible={false} style={[styles.badge, { backgroundColor: colors.warningTint }]}>
       <Text style={[typeScale.supporting, styles.badgeText, { color: colors.warningText }]}>{unread > 99 ? '99+' : unread}</Text>
@@ -86,7 +88,7 @@ export default function HomeScreen() {
     <View style={styles.home}>
       <AlertSearchControls onChange={() => setOffset(0)} />
       {alertLocation && alerts.state.kind === 'loading' && <Surface style={styles.warningLoading}>
-        <Feedback title="Checking nearby warnings…" kind="loading" />
+        <Feedback title={t('Checking nearby warnings…')} kind="loading" />
       </Surface>}
       {count !== undefined && <Pressable accessibilityRole="button" onPress={openMap}
         style={({ pressed }) => [styles.banner, { backgroundColor: count > 0 ? colors.warningTint : colors.card,
@@ -94,9 +96,9 @@ export default function HomeScreen() {
         <TriangleAlert size={25} color={count > 0 ? colors.warningText : colors.mutedText} />
         <View style={styles.bannerText}>
           <Text style={[typeScale.section, { color: count > 0 ? colors.warningText : colors.primaryText }]}>
-            {count > 0 ? `${count} active ${count === 1 ? 'warning' : 'warnings'}` : 'No active warnings'}
+            {count > 0 ? t(count === 1 ? '{count} active warning' : '{count} active warnings', { count }) : t('No active warnings')}
           </Text>
-          <SupportingText>Within {alertRadius} km of the selected location</SupportingText>
+          <SupportingText>{t('Within {radius} km of the selected location', { radius: alertRadius })}</SupportingText>
         </View>
         <ArrowRight size={18} color={count > 0 ? colors.warningText : colors.accent} />
       </Pressable>}
@@ -104,50 +106,50 @@ export default function HomeScreen() {
         style={({ pressed }) => [styles.banner, { backgroundColor: colors.primaryAction, opacity: pressed ? 0.85 : 1 }]}>
         <View style={[styles.actionIcon, { backgroundColor: colors.softAccent }]}><Camera size={22} color={colors.accent} /></View>
         <View style={styles.bannerText}>
-          <Text style={[typeScale.section, { color: colors.onAction }]}>Report a sighting</Text>
-          <Text style={[typeScale.supporting, { color: colors.onAction }]}>Photo, location and details</Text>
+          <Text style={[typeScale.section, { color: colors.onAction }]}>{t('Report a sighting')}</Text>
+          <Text style={[typeScale.supporting, { color: colors.onAction }]}>{t('Photo, location and details')}</Text>
         </View>
         <ArrowRight size={20} color={colors.onAction} />
       </Pressable>
       <View style={styles.section}>
-        <SectionTitle title="My reports" trailing={<TextAction label="View all" onPress={() => router.push('/all-reports')} />} />
-        {reports.state.kind === 'loading' && <Feedback title="Loading reports…" kind="loading" />}
-        {'message' in reports.state && <Feedback title="Could not load reports" detail={reports.state.message} kind="error" retry={reports.reload} />}
-        {!!reports.refreshError && <SupportingText error>{reports.refreshError}</SupportingText>}
+        <SectionTitle title={t('My reports')} trailing={<TextAction label={t('View all')} onPress={() => router.push('/all-reports')} />} />
+        {reports.state.kind === 'loading' && <Feedback title={t('Loading reports…')} kind="loading" />}
+        {'message' in reports.state && <Feedback title={t('Could not load reports')} detail={reports.state.message} kind="error" retry={reports.reload} />}
+        {!!reports.refreshError && <SupportingText error>{errorText(reports.refreshError)}</SupportingText>}
         {reports.state.kind === 'ready' && <ReportStats reports={reports.state.data} />}
       </View>
       <View style={styles.section}>
-        <SectionTitle title="Nearby alerts" trailing={<View style={styles.controls}>
+        <SectionTitle title={t('Nearby alerts')} trailing={<View style={styles.controls}>
           {alertLocation && <>
-            <IconAction icon={Filter} label={showSort ? 'Hide alert sorting' : 'Sort nearby alerts'} onPress={() => setShowSort(value => !value)} />
-            <IconAction icon={RefreshCw} label="Refresh nearby alerts" loading={alerts.refreshing} onPress={alerts.reload} />
+            <IconAction icon={Filter} label={showSort ? t('Hide alert sorting') : t('Sort nearby alerts')} onPress={() => setShowSort(value => !value)} />
+            <IconAction icon={RefreshCw} label={t('Refresh nearby alerts')} loading={alerts.refreshing} onPress={alerts.reload} />
           </>}
-          <TextAction label="View map" onPress={openMap} />
+          <TextAction label={t('View map')} onPress={openMap} />
         </View>} />
         {alertLocation ? <>
-          {showSort && <SegmentedControl compact label="Sort nearby alerts" options={sortOptions} value={sort}
+          {showSort && <SegmentedControl compact label={t('Sort nearby alerts')} options={sortOptions.map(option => ({ ...option, label: t(option.label) }))} value={sort}
             onChange={value => { setSort(value); setOffset(0); }} />}
-          {alerts.state.kind === 'loading' && <Feedback title="Loading alerts…" kind="loading" />}
-          {'message' in alerts.state && <Feedback title="Could not load nearby alerts" detail={alerts.state.message} kind="error" retry={alerts.reload} />}
-          {!!alerts.refreshError && <SupportingText error>{alerts.refreshError}</SupportingText>}
+          {alerts.state.kind === 'loading' && <Feedback title={t('Loading alerts…')} kind="loading" />}
+          {'message' in alerts.state && <Feedback title={t('Could not load nearby alerts')} detail={alerts.state.message} kind="error" retry={alerts.reload} />}
+          {!!alerts.refreshError && <SupportingText error>{errorText(alerts.refreshError)}</SupportingText>}
           {items && (items.length > 0 ? <AdvisoryList items={items.slice(pageOffset, pageOffset + pageSize)} />
-            : <SupportingText>Keep your distance if you encounter wildlife.</SupportingText>)}
+            : <SupportingText>{t('Keep your distance if you encounter wildlife.')}</SupportingText>)}
           {items && items.length > pageSize && <View style={styles.pagination}>
-            {pageOffset > 0 && <TextAction label="Previous alerts" onPress={() => setOffset(pageOffset - pageSize)} />}
-            {pageOffset + pageSize < items.length && <TextAction label="More alerts" onPress={() => setOffset(pageOffset + pageSize)} />}
+            {pageOffset > 0 && <TextAction label={t('Previous alerts')} onPress={() => setOffset(pageOffset - pageSize)} />}
+            {pageOffset + pageSize < items.length && <TextAction label={t('More alerts')} onPress={() => setOffset(pageOffset + pageSize)} />}
           </View>}
-        </> : <SupportingText>Choose a location to see nearby alerts.</SupportingText>}
+        </> : <SupportingText>{t('Choose a location to see nearby alerts.')}</SupportingText>}
       </View>
       {activeReports.length > 0 && <View style={styles.section}>
         <View style={styles.activeAction}>
-          <TextAction label={showActive ? 'Hide active reports' : 'Show active reports'} onPress={() => setShowActive(value => !value)} />
+          <TextAction label={showActive ? t('Hide active reports') : t('Show active reports')} onPress={() => setShowActive(value => !value)} />
         </View>
         {showActive && activeReports.map(report => <ReportRow key={report.reference_code} report={report} />)}
       </View>}
       <Surface style={{ backgroundColor: colors.softAccent }}>
-        <View style={styles.tipTitle}><Leaf size={19} color={colors.accent} /><SectionTitle title="Wildlife safety tip" /></View>
-        <SupportingText>Give wildlife room to move. Keep your distance and leave its escape route clear.</SupportingText>
-        <TextAction label="Safety guidelines" onPress={() => router.push('/guidelines')} />
+        <View style={styles.tipTitle}><Leaf size={19} color={colors.accent} /><SectionTitle title={t('Wildlife safety tip')} /></View>
+        <SupportingText>{t('Give wildlife room to move. Keep your distance and leave its escape route clear.')}</SupportingText>
+        <TextAction label={t('Safety guidelines')} onPress={() => router.push('/guidelines')} />
       </Surface>
     </View>
   </Screen>;

@@ -1,3 +1,4 @@
+import { useLanguage } from '@/i18n';
 import { router, useIsFocused } from 'expo-router';
 import { Bell, ClipboardList, Languages, LogOut, MapPin, Moon, ShieldCheck, UserRound } from 'lucide-react-native';
 import { useCallback } from 'react';
@@ -18,6 +19,7 @@ import { useAppTheme } from '@/theme-context';
 import { radius, spacing, typeScale, useTheme } from '@/theme';
 
 export default function ProfileScreen() {
+  const { t, language, errorText } = useLanguage();
   const { profile, access, signOut } = useCitizen();
   const { mode } = useAppTheme();
   const { colors } = useTheme();
@@ -32,7 +34,7 @@ export default function ProfileScreen() {
   const openSettings = (section: 'personal' | 'location' | 'notifications' | 'language') =>
     router.push({ pathname: '/profile-settings', params: { section } });
 
-  return <Screen tab header={<ScreenHeader title="Profile" />} refresh={{ onRefresh: reload, refreshing }}>
+  return <Screen tab header={<ScreenHeader title={t('Profile')} />} refresh={{ onRefresh: reload, refreshing }}>
     <View style={styles.profile}>
       <View style={styles.identity}>
         <View accessible={false} style={[styles.avatar, { backgroundColor: colors.softAccent }]}>
@@ -40,29 +42,29 @@ export default function ProfileScreen() {
             : <UserRound size={28} color={colors.accent} />}
         </View>
         <View style={styles.identityText}>
-          <Text accessibilityRole="header" style={[typeScale.screen, { color: colors.primaryText }]}>{profile.name || 'Citizen account'}</Text>
+          <Text accessibilityRole="header" style={[typeScale.screen, { color: colors.primaryText }]}>{profile.name || t('Citizen account')}</Text>
           {profile.email && <SupportingText>{profile.email}</SupportingText>}
-          {profile.emailVerified && <StatusPill label="Verified email" tone="success" />}
+          {profile.emailVerified && <StatusPill label={t('Verified email')} tone="success" />}
         </View>
       </View>
       <Surface>
-        <SectionTitle title="Reporting activity" />
-        {state.kind === 'loading' && <Feedback title="Loading activity…" kind="loading" />}
-        {'message' in state && <Feedback title="Could not load activity" detail={state.message} kind="error" retry={reload} />}
-        {!!refreshError && <SupportingText error>{refreshError}</SupportingText>}
+        <SectionTitle title={t('Reporting activity')} />
+        {state.kind === 'loading' && <Feedback title={t('Loading activity…')} kind="loading" />}
+        {'message' in state && <Feedback title={t('Could not load activity')} detail={state.message} kind="error" retry={reload} />}
+        {!!refreshError && <SupportingText error>{errorText(refreshError)}</SupportingText>}
         {state.kind === 'ready' && <ReportStats reports={state.data} />}
       </Surface>
       <Surface style={styles.rows}>
-        <NavigationRow label="Personal information" detail="Name, email and mobile number" icon={UserRound} onPress={() => openSettings('personal')} />
-        <NavigationRow label="Saved location" detail={profile.savedAlertLocation ? locationName(profile.savedAlertLocation) : 'Choose a location for nearby alerts'}
+        <NavigationRow label={t('Personal information')} detail={t('Name, email and mobile number')} icon={UserRound} onPress={() => openSettings('personal')} />
+        <NavigationRow label={t('Saved location')} detail={profile.savedAlertLocation ? locationName(profile.savedAlertLocation, t) : t('Choose a location for nearby alerts')}
           icon={MapPin} onPress={() => openSettings('location')} />
-        <NavigationRow label="Report history" icon={ClipboardList} onPress={() => router.push('/all-reports')} />
-        <NavigationRow label="Notification preferences" detail="Report updates and nearby alerts" icon={Bell} onPress={() => openSettings('notifications')} />
-        <NavigationRow label="Appearance" detail={mode === 'system' ? 'Follow device' : mode === 'light' ? 'Light' : 'Dark'}
+        <NavigationRow label={t('Report history')} icon={ClipboardList} onPress={() => router.push('/all-reports')} />
+        <NavigationRow label={t('Notification preferences')} detail={t('Report updates and nearby alerts')} icon={Bell} onPress={() => openSettings('notifications')} />
+        <NavigationRow label={t('Appearance')} detail={mode === 'system' ? t('Follow device') : mode === 'light' ? t('Light') : t('Dark')}
           icon={Moon} onPress={() => router.push('/settings')} />
-        <NavigationRow label="Language" detail="English" icon={Languages} onPress={() => openSettings('language')} />
-        <NavigationRow label="Privacy and safety" icon={ShieldCheck} onPress={() => router.push('/guidelines')} />
-        <NavigationRow label="Sign out" icon={LogOut} onPress={() => void signOut()} />
+        <NavigationRow label={t('Language')} detail={language === 'hi' ? 'हिन्दी' : 'English'} icon={Languages} onPress={() => openSettings('language')} />
+        <NavigationRow label={t('Privacy and safety')} icon={ShieldCheck} onPress={() => router.push('/guidelines')} />
+        <NavigationRow label={t('Sign out')} icon={LogOut} onPress={() => void signOut()} />
       </Surface>
     </View>
   </Screen>;

@@ -1,3 +1,4 @@
+import { useLanguage } from '@/i18n';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { router, useRootNavigationState } from 'expo-router';
 import type { NotificationResponse } from 'expo-notifications';
@@ -81,6 +82,7 @@ export function CitizenPushCoordinator() {
 }
 
 export function PushSettings() {
+  const { t, errorText } = useLanguage();
   const { access, profile, savePush } = useCitizen();
   const { colors } = useTheme();
   const [busy, setBusy] = useState(false);
@@ -90,8 +92,8 @@ export function PushSettings() {
 
   if (Platform.OS !== 'android' || !profile?.emailVerified) return null;
   if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) return <>
-    <SectionTitle title="Push notifications" />
-    <SupportingText>Use the Forest Guard AI Android development build to receive push notifications.</SupportingText>
+    <SectionTitle title={t('Push notifications')} />
+    <SupportingText>{t('Use the Forest Guard AI Android development build to receive push notifications.')}</SupportingText>
   </>;
 
   const preferences = profile.push;
@@ -125,23 +127,23 @@ export function PushSettings() {
   }
 
   return <View style={{ gap: spacing.sm }}>
-    <SectionTitle title="Push notifications" />
+    <SectionTitle title={t('Push notifications')} />
     <View style={styles.preference}>
-      <Text style={[typeScale.card, styles.label, { color: colors.primaryText }]}>Report updates</Text>
-      <Switch trackColor={{ false: colors.controlBorder, true: colors.softAccent }} thumbColor={colors.primaryAction} accessibilityLabel="Report updates" value={preferences.reports} disabled={busy}
+      <Text style={[typeScale.card, styles.label, { color: colors.primaryText }]}>{t('Report updates')}</Text>
+      <Switch trackColor={{ false: colors.controlBorder, true: colors.softAccent }} thumbColor={colors.primaryAction} accessibilityLabel={t('Report updates')} value={preferences.reports} disabled={busy}
         onValueChange={reports => void update({ ...preferences, reports }, true)} />
     </View>
     <View style={styles.preference}>
-      <Text style={[typeScale.card, styles.label, { color: colors.primaryText }]}>Nearby verified wildlife alerts</Text>
-      <Switch trackColor={{ false: colors.controlBorder, true: colors.softAccent }} thumbColor={colors.primaryAction} accessibilityLabel="Nearby verified wildlife alerts" value={preferences.nearby}
+      <Text style={[typeScale.card, styles.label, { color: colors.primaryText }]}>{t('Nearby verified wildlife alerts')}</Text>
+      <Switch trackColor={{ false: colors.controlBorder, true: colors.softAccent }} thumbColor={colors.primaryAction} accessibilityLabel={t('Nearby verified wildlife alerts')} value={preferences.nearby}
         disabled={busy || !profile.savedAlertLocation}
         onValueChange={nearby => void update({ ...preferences, nearby }, true)} />
     </View>
-    <SupportingText>Nearby push alerts use your saved location and {profile.alertRadiusKm} km radius.</SupportingText>
-    {!!notice && <SupportingText error={error}>{notice}</SupportingText>}
-    {blocked ? <TextAction label="Open Settings" onPress={() => {
+    <SupportingText>{t('Nearby push alerts use your saved location and {radius} km radius.', { radius: profile.alertRadiusKm })}</SupportingText>
+    {!!notice && <SupportingText error={error}>{error ? errorText(notice) : t(notice)}</SupportingText>}
+    {blocked ? <TextAction label={t('Open Settings')} onPress={() => {
       void Linking.openSettings().catch(() => setNotice('Open device Settings to allow notifications.'));
-    }} /> : enabled && <TextAction label="Enable on this device" disabled={busy} onPress={() => void update(preferences, false)} />}
+    }} /> : enabled && <TextAction label={t('Enable on this device')} disabled={busy} onPress={() => void update(preferences, false)} />}
   </View>;
 }
 
